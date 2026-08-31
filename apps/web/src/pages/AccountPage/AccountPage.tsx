@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router';
-import { useLogout, useMemberMe, useSession } from '../../api/hooks';
+import { useLogout, useMemberMe, usePublicConfig, useSession } from '../../api/hooks';
+import { TodoistSection } from './TodoistSection';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../../components/Button/Button';
 import { formatNumber } from '../../utils/format';
@@ -10,6 +11,7 @@ export function AccountPage() {
   const navigate = useNavigate();
   const { data: session } = useSession();
   const { data: me, isLoading } = useMemberMe();
+  const { data: publicConfig } = usePublicConfig();
   const logout = useLogout();
 
   return (
@@ -49,6 +51,10 @@ export function AccountPage() {
           </div>
         </section>
       )}
+      {/* Rendered only when the household has the integration switched on —
+          the flag comes from the public config projection, so a household that
+          never enabled it sees nothing at all. */}
+      <TodoistSection enabled={publicConfig?.integrations?.todoist?.enabled === true} />
       <Button
         variant="ghost"
         onClick={() => logout.mutate()}

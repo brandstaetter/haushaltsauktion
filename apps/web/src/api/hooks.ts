@@ -630,3 +630,77 @@ export function useMarkAllNotificationsRead() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: notificationsQueryKey }),
   });
 }
+
+// ───────────────────────── Todoist integration ─────────────────────────
+
+const todoistQueryKey = ['integrations', 'todoist'] as const;
+
+/**
+ * The member's own connection. The server never returns the token — only a
+ * four-character hint — so nothing here can render a credential even by
+ * accident.
+ */
+export interface TodoistIntegrationDto {
+  connected: boolean;
+  status: 'ACTIVE' | 'INVALID_CREDENTIALS' | 'DISABLED' | null;
+  tokenHint: string | null;
+  projectId: string | null;
+  projectName: string | null;
+  triggers: { VOLUNTARY: boolean; RANDOM: boolean };
+  lastSuccessAt: string | null;
+  lastErrorAt: string | null;
+  lastErrorCode: string | null;
+}
+
+export function useTodoistIntegration(enabled: boolean) {
+  return useQuery({
+    queryKey: todoistQueryKey,
+    queryFn: () => api<TodoistIntegrationDto>('/integrations/todoist'),
+    // Not fetched at all when the household has the integration switched off,
+    // so a disabled household never sees a spurious error in the console.
+    enabled,
+  });
+}
+
+export function useConnectTodoist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { token: string }) =>
+      api<TodoistIntegrationDto>('/integrations/todoist', { method: 'PUT', body }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: todoistQueryKey }),
+  });
+}
+
+export function useUpdateTodoist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { projectId?: string | null; triggers?: { VOLUNTARY: boolean; RANDOM: boolean } }) =>
+      api<TodoistIntegrationDto>('/integrations/todoist', { method: 'PATCH', body }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: todoistQueryKey }),
+  });
+}
+
+export function useDisconnectTodoist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<TodoistIntegrationDto>('/integrations/todoist', { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: todoistQueryKey }),
+  });
+}
+
+export function useTestTodoist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api<{ ok: boolean; projectCount: number }>('/integrations/todoist/test', { method: 'POST' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: todoistQueryKey }),
+  });
+}
+
+export function useTodoistProjects(enabled: boolean) {
+  return useQuery({
+    queryKey: [...todoistQueryKey, 'projects'],
+    queryFn: () => api<{ projects: { id: string; name: string }[] }>('/integrations/todoist/projects'),
+    enabled,
+  });
+}

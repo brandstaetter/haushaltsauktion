@@ -14,6 +14,7 @@ import { randomInt } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
 
 import type { Rng } from '../domain/assignment/strategies.js';
+import type { SecretBox, TodoistPort } from './integrations/ports.js';
 
 /** The transaction-scoped client. Everything transactional takes this, not `db`. */
 export type PrismaTx = Prisma.TransactionClient;
@@ -75,6 +76,18 @@ export interface Deps {
   logger: Logger;
   notifier: Notifier;
   hooks?: UseCaseHooks;
+
+  /**
+   * Todoist integration ports (Architektur Todoist §2).
+   *
+   * **Optional on purpose.** A household that never enables the integration
+   * needs no encryption key, and the integration use-cases are the only callers
+   * — so every existing test and the simulation keep constructing `Deps` exactly
+   * as before. `dispatchOutbox` returns a no-op when either is absent, which
+   * makes "integration not configured" a normal state rather than a crash.
+   */
+  todoist?: TodoistPort;
+  secrets?: SecretBox;
 }
 
 export const systemClock: Clock = {

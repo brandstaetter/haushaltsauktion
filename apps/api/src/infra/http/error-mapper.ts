@@ -47,6 +47,10 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   CONFIG_INVALID: 422,
   LAST_ADMIN: 422,
   RATE_LIMITED: 429,
+  INTEGRATION_DISABLED: 409,
+  INTEGRATION_UNAUTHORIZED: 422,
+  // 502: the failure is upstream, not in the member's request.
+  INTEGRATION_UNAVAILABLE: 502,
   INTERNAL_ERROR: 500,
 };
 

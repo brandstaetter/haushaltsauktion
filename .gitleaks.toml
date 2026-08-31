@@ -4,10 +4,15 @@ title = "gitleaks config: Haushaltsauktion"
 useDefault = true
 
 [allowlist]
-description = "Generated build artifacts and lockfile integrity hashes — not secrets"
+description = "Generated build artifacts, lockfile integrity hashes, and test fixtures — not secrets"
 paths = [
   '''package-lock\.json''',
   '''apps/web/dist/.*''',
   '''.*\.tsbuildinfo''',
   '''\.planning/cache/.*''',
+]
+regexes = [
+  # apps/api/test/domain/secret-box.test.ts: hardcoded fixture value for
+  # SecretBox round-trip tests, not a real credential.
+  '''0123456789abcdef0123456789abcdef0123a3f9''',
 ]

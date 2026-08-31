@@ -120,6 +120,12 @@ enum NotificationType {
   TASK_VALUE_INCREASED
   TASK_COMPLETED
   ADMIN_NO_CANDIDATES
+
+  /// §24 / Integrationen: die Todoist-Verbindung eines Mitglieds funktioniert
+  /// nicht mehr, oder eine Aufgabe konnte nicht angelegt/entfernt werden.
+  /// Stilles Dauerversagen wäre schlimmer als gar keine Integration: das
+  /// Mitglied glaubt sonst, seine Aufgaben stünden in Todoist.
+  INTEGRATION_FAILED
 }
 
 enum AuditAction {
@@ -152,6 +158,12 @@ enum AuditAction {
   TASK_COMPLETED
   TASK_COMPLETION_REJECTED
   PASSWORD_RESET
+
+  /// §23 / Integrationen. Payload trägt { provider, projectId?, triggers? } —
+  /// NIE das Token und nie den tokenHint.
+  INTEGRATION_CONNECTED
+  INTEGRATION_DISCONNECTED
+  INTEGRATION_SETTINGS_UPDATED
 }
 
 // ───────────────────────── identity plane ─────────────────────────
@@ -213,6 +225,10 @@ model Household {
   notifications  Notification[]
   auditEvents    AuditEvent[]
 
+  memberIntegrations  MemberIntegration[]
+  integrationOutbox   IntegrationOutbox[]
+  integrationTaskLinks IntegrationTaskLink[]
+
   @@map("households")
 }
 
@@ -248,6 +264,10 @@ model HouseholdMember {
   auditEvents        AuditEvent[]
   completedInstances TaskInstance[]              @relation("CompletedBy")
   authoredConfigs    HouseholdConfiguration[]
+
+  integrations         MemberIntegration[]
+  integrationOutbox    IntegrationOutbox[]
+  integrationTaskLinks IntegrationTaskLink[]
 
   @@unique([householdId, userId])
   @@index([householdId, isActive])
@@ -436,6 +456,9 @@ model TaskInstance {
   transactions  PointTransaction[]
   notifications Notification[]
 
+  integrationOutbox    IntegrationOutbox[]
+  integrationTaskLinks IntegrationTaskLink[]
+
   @@index([householdId, status, offerExpiresAt])
   @@index([householdId, status, dueAt])
   @@index([taskDefinitionId, status])
@@ -620,4 +643,198 @@ model AuditEvent {
   @@index([householdId, action, createdAt])
   @@index([householdId, entityType, entityId])
   @@map("audit_events")
+}
+
+// ───────────────────────── integrations (Todoist) ─────────────────────────
+// Architektur: .planning/architecture-todoist-integration.md (r9).
+//
+// Die Integration ist NIVEAUGESTEUERT (level-triggered): ein Hintergrund-
+// Reconciler vergleicht Soll (TaskAssignment mit status=ACTIVE, §6) gegen Ist
+// (offene IntegrationTaskLink-Zeilen) und handelt auf der Differenz. Sie
+// beobachtet KEINE Ereignisse und schreibt in KEINER Kerntransaktion — deshalb
+// kann ein Todoist-Ausfall §28 (Atomarität von Übernahme/Freikauf/Erledigung)
+// nicht verletzen. Kein Use-Case wurde für diese Integration verändert.
+
+enum IntegrationProvider {
+  TODOIST
+}
+
+enum IntegrationStatus {
+  ACTIVE
+  /// Todoist antwortete 401/403. Entzieht der Verbindung die Lebensfähigkeit
+  /// (§6 Bedingung 4), womit das Soll entfällt — Unterdrückung kommt aus der
+  /// URSACHE, nicht aus einer Endzustandszeile.
+  INVALID_CREDENTIALS
+  /// Mitglied hat getrennt. Zeile bleibt (Fremdschlüssel!), Geheimnis ist weg.
+  DISABLED
+}
+
+/// ORPHANED ist der EINZIGE absorbierende Endzustand: der CREATE war bei
+/// Todoist erfolgreich, aber die zurückgegebene ID ist unwiederbringlich
+/// verloren. Ein erneuter Vorschlag könnte nichts reparieren, sondern nur ein
+/// Duplikat erzeugen — die Ursache ist unumkehrbar. Alle anderen Endzustände
+/// dürfen NICHT absorbieren (das war der Fehler von Revision r4).
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+  DEAD
+  SKIPPED
+  ORPHANED
+}
+
+enum OutboxOperation {
+  CREATE_TASK
+  CLOSE_TASK
+}
+
+/// Die Zugangsdaten, pro HouseholdMember (NICHT pro User): jede
+/// Autorisierungsregel dieses Codebase stützt sich darauf, dass jede Zeile eine
+/// householdId trägt (§36); User und Session tragen bewusst keine (§1.2).
+/// Preis: wer in zwei Haushalten ist, verbindet zweimal.
+model MemberIntegration {
+  id          String              @id @default(cuid())
+  householdId String              @map("household_id")
+  memberId    String              @map("member_id")
+  provider    IntegrationProvider
+  status      IntegrationStatus   @default(ACTIVE)
+
+  /// AES-256-GCM. Nie geloggt, nie serialisiert, von keiner Route zurückgegeben.
+  /// NULL nach dem Trennen: das Geheimnis verschwindet, die Zeile bleibt.
+  /// Umkehrbare Verschlüsselung, KEIN Hash — anders als User.passwordHash muss
+  /// dieses Geheimnis wortgleich an Todoist zurückgespielt werden.
+  tokenCiphertext Bytes?  @map("token_ciphertext")
+  tokenIv         Bytes?  @map("token_iv")
+  tokenAuthTag    Bytes?  @map("token_auth_tag")
+  tokenKeyVersion Int?    @map("token_key_version")
+  /// Letzte 4 Zeichen, Klartext. Damit die UI "…a3f9" zeigen kann, ohne zu
+  /// entschlüsseln.
+  tokenHint       String? @map("token_hint")
+
+  /// Opake v1-ID: String, nicht Int. NULL = Todoist-Inbox.
+  projectId   String? @map("project_id")
+  projectName String? @map("project_name")
+
+  /// Schlüssel sind EXAKT die AssignmentKind-Werte: VOLUNTARY und RANDOM,
+  /// GROSSGESCHRIEBEN. Der Reconciler indiziert mit triggers[assignment.kind];
+  /// kleingeschriebene Schlüssel ergäben `undefined` → falsy → NICHTS wäre je
+  /// gewünscht und die Integration täte stillschweigend gar nichts.
+  triggers Json @default("{\"VOLUNTARY\":true,\"RANDOM\":true}")
+
+  lastSuccessAt DateTime? @map("last_success_at")
+  lastErrorAt   DateTime? @map("last_error_at")
+  lastErrorCode String?   @map("last_error_code")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  household Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  member    HouseholdMember       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  outbox    IntegrationOutbox[]
+  links     IntegrationTaskLink[]
+
+  /// householdId führt bewusst: eslint-rules/index.js akzeptiert einen
+  /// zusammengesetzten Schlüssel nur, wenn sein Name mit householdId_ beginnt.
+  @@unique([householdId, memberId, provider])
+  @@index([householdId, status])
+  @@map("member_integrations")
+}
+
+/// Die Warteschlange. Zeilen entstehen AUSSCHLIESSLICH im Reconciler, nie in
+/// einer Kerntransaktion.
+model IntegrationOutbox {
+  /// UUID statt cuid: diese ID wird wortgleich als Todoist-Sync-Command-`uuid`
+  /// übertragen und liefert damit Exactly-once-Zustellung.
+  id String @id @default(uuid())
+
+  householdId   String @map("household_id")
+  memberId      String @map("member_id")
+  integrationId String @map("integration_id")
+
+  operation OutboxOperation
+  status    OutboxStatus    @default(PENDING)
+
+  taskInstanceId String @map("task_instance_id")
+  assignmentId   String @map("assignment_id")
+
+  /// "todoist:{integrationId}:create:{assignmentId}" bzw. ":close:".
+  /// Vorbild: PointTransaction.idempotencyKey. KEIN globales @@unique —
+  /// stattdessen ein PARTIELLER Unique-Index nur über PENDING/FAILED
+  /// (siehe Migration). Ein globales Unique würde Endzustandszeilen den
+  /// Schlüssel dauerhaft belegen lassen und damit die Selbstheilung zerstören.
+  enqueueKey String @map("enqueue_key")
+
+  payload Json
+
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+  lastErrorCode String?  @map("last_error_code")
+  /// Gekürzt. Enthält NIE das Token.
+  lastErrorBody String?  @map("last_error_body")
+
+  /// Doppelt genutzt, bewusst: bei CREATE_TASK NULL bis zum Erfolg, dann die
+  /// von Todoist gelieferte ID; bei CLOSE_TASK beim Einreihen aus
+  /// IntegrationTaskLink kopiert, also von Anfang an gesetzt. Deshalb nullable,
+  /// obwohl IntegrationTaskLink.externalTaskId NOT NULL ist.
+  externalTaskId String? @map("external_task_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  /// Übergang in einen Endzustand (SENT/DEAD/SKIPPED/ORPHANED). Trägt die
+  /// Sperrfrist (1 h) und das Deckel-Fenster (24 h).
+  settledAt DateTime? @map("settled_at")
+  /// Gibt dem zustandslosen 60-s-Reconciler ein Gedächtnis pro Schlüssel:
+  /// `notifications` besitzt keinen Dedup-Schlüssel, also wäre "genau eine
+  /// Benachrichtigung" sonst nur behauptet und nicht mechanisiert.
+  memberNotifiedAt DateTime? @map("member_notified_at")
+
+  household   Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  member      HouseholdMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  integration MemberIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  instance    TaskInstance      @relation(fields: [taskInstanceId], references: [id], onDelete: Cascade)
+
+  /// Trägt den Anspruch des Dispatchers UND die In-Flight- sowie die
+  /// ORPHANED-Abfrage des Reconcilers: das Präfix (household_id, status) genügt
+  /// für alle drei.
+  @@index([householdId, status, nextAttemptAt])
+  /// Trägt die Sperrfrist- und Deckel-Abfrage (über settled_at prädiziert).
+  @@index([householdId, settledAt])
+  @@index([integrationId])
+  @@index([taskInstanceId])
+  @@map("integration_outbox")
+}
+
+/// Der dauerhafte Ist-Zustand: welche Todoist-Aufgabe zu welcher Zuweisung
+/// gehört. Wird NIE geprunt und ist die Autorität für "existiert schon".
+model IntegrationTaskLink {
+  id             String @id @default(cuid())
+  householdId    String @map("household_id")
+  memberId       String @map("member_id")
+  integrationId  String @map("integration_id")
+  taskInstanceId String @map("task_instance_id")
+
+  /// Der Schlüssel ist die ZUWEISUNG, nicht die Instanz: nach einem Freikauf
+  /// wird dieselbe Instanz erneut angeboten und kann derselben Person erneut
+  /// zufallen — als NEUE TaskAssignment-Zeile. Ein Instanz-Schlüssel würde den
+  /// zweiten Durchlauf dauerhaft blockieren.
+  assignmentId String @map("assignment_id")
+
+  /// NOT NULL. Eine Verknüpfung entsteht ausschliesslich NACH einem bestätigten
+  /// CREATE mit bekannter Todoist-ID. Damit trägt jedes CLOSE garantiert eine
+  /// ID — und es gibt keine "unbestätigten" Zeilen, die ein Reparatursubsystem
+  /// bräuchten.
+  externalTaskId String @map("external_task_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  closedAt  DateTime? @map("closed_at")
+  /// RECONCILED (normal) | DISCONNECTED (Trennung).
+  closeReason String? @map("close_reason")
+
+  household   Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  member      HouseholdMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  integration MemberIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  instance    TaskInstance      @relation(fields: [taskInstanceId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, assignmentId])
+  @@index([taskInstanceId])
+  @@map("integration_task_links")
 }

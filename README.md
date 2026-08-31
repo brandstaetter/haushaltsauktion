@@ -72,6 +72,9 @@ Beide Ports, sowie `DB_PORT`, sind über Umgebungsvariablen konfigurierbar
 | `LOG_LEVEL` | nein | `info` | pino-Log-Level |
 | `CORS_ORIGINS` | nein | — | Komma-getrennte erlaubte Origins (Dev-SPA auf anderem Port) |
 | `SETUP_TOKEN` | nein | — (Feature deaktiviert) | Schaltet `POST /api/register` frei — siehe [Ersteinrichtung](#ersteinrichtung-neuer-haushalt) |
+| `INTEGRATION_ENCRYPTION_KEY` | nein — aber **ohne ihn ist die Todoist-Integration inaktiv** | — | AES-256-GCM-Schlüssel für die Todoist-Tokens der Mitglieder. Base64-kodiert; **dekodiert muss der Wert exakt 32 Byte ergeben** (`openssl rand -base64 32` liefert das direkt). Fehlt er, wird die Integration nicht zusammengesetzt: keine Wirkung, **keine Fehlermeldung**. Ein *fehlerhafter* Wert bricht dagegen absichtlich schon beim Start ab. |
+| `INTEGRATION_ENCRYPTION_KEYS` | nein | — | Nur während einer Schlüsselrotation: `1:<alt>,2:<neu>` — siehe [`docs/todoist.md`](./docs/todoist.md) |
+| `TODOIST_INTERVAL_SECONDS` | nein | `60` | Intervall des Todoist-Workers; `0` schaltet ihn ab. **Bei mehr als einer API-Instanz auf allen außer einer `0` setzen** — siehe [`docs/todoist.md`](./docs/todoist.md) |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | nein | `haushalt` / `haushalt` / `haushaltsauktion` | nur für `docker-compose.yml`s `db`-Service |
 
 Eine echte Bereitstellung **muss** `SESSION_SECRET` auf einen zufälligen,
@@ -167,6 +170,48 @@ einen handgeschriebenen arithmetischen Ausdrucks-Parser
 gefordert. Jede Änderung wird serverseitig validiert und lässt sich vor dem
 Speichern über `POST /api/admin/config/preview` live vorschauen, mit
 demselben Code, der auch die verbindliche Berechnung macht.
+
+## Todoist-Integration (optional)
+
+Aufgaben, die *einer bestimmten Person gehören* — zufällig zugewiesen oder
+freiwillig übernommen —, erscheinen automatisch in deren Todoist und werden
+wieder geschlossen, sobald die Zuständigkeit endet (erledigt, freigekauft,
+zurückgegeben, entzogen, abgelaufen). Jedes Mitglied verbindet sein **eigenes**
+Todoist-Konto; ein Haushaltsschalter in der Verwaltung erlaubt das überhaupt
+erst. Standard ist **aus**.
+
+**Nur eine Richtung.** Ein Häkchen in Todoist erledigt die Aufgabe hier
+**nicht** — Erledigen geht ausschließlich in der Haushaltsauktion. Eine
+Erledigung bucht ins Punkte-Ledger und setzt den Aufgabenwert zurück (§28, §44);
+ein externer Schreibpfad dorthin bräuchte ein eigenes Bedrohungsmodell. Der
+Hinweis steht in der Oberfläche vor dem Verbinden und im Text jeder erzeugten
+Todoist-Aufgabe (§31: keine versteckten Regeln).
+
+**Anmeldung per persönlichem API-Token**, nicht OAuth. OAuth verlangt eine
+öffentlich erreichbare HTTPS-Redirect-URI, die eine Familieninstallation im
+Heimnetz typischerweise nicht hat (§37) — OAuth-first wäre für die Zielgruppe
+unbenutzbar gewesen. Der Preis ist ehrlich zu benennen: Ein persönliches Token
+ist **nicht einschränkbar** und gibt vollen Zugriff auf das Todoist-Konto der
+Person. Genau deshalb steht diese Tragweite in der Oberfläche, bevor jemand ein
+Token einfügt. Die Tokens liegen AES-256-GCM-verschlüsselt und werden von keiner
+API-Antwort je zurückgegeben.
+
+**Einschalten:** `INTEGRATION_ENCRYPTION_KEY` setzen (sonst passiert **gar
+nichts, ohne Fehlermeldung**), dann Verwaltung → Einstellungen → Todoist
+erlauben, dann pro Person „Ich" → Todoist → Token einfügen.
+
+> **Laufende Container neu bauen.** Die aktuell laufenden Compose-Images
+> stammen aus der Zeit vor dieser Integration und enthalten sie nicht:
+> `docker compose build api web && docker compose up -d`.
+
+> **Nicht live verifiziert.** Der vollständige Zyklus *verbinden → zuweisen →
+> zustellen* wurde nie gegen den echten Dienst ausgeführt; alle Tests verwenden
+> einen injizierten Fake. Live bestätigt sind der Sync-Endpunkt, die
+> Deduplizierung über die Command-`uuid` und die Fehlerhüllen. Anleitung zur
+> Verifikation: [`docs/todoist.md`](./docs/todoist.md).
+
+Betrieb, Schlüsselrotation, Fehlerdeutung und die Einzelinstanz-Bedingung beim
+Skalieren: **[`docs/todoist.md`](./docs/todoist.md)**.
 
 ## Architektur
 

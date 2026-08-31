@@ -193,3 +193,108 @@ export async function lockMember(
        FOR UPDATE`;
   return rows[0] ?? null;
 }
+
+// ───────────────────── levels 10-11: integrations ─────────────────────
+//
+// Diese Locks liegen VOLLSTÄNDIG ÜBER der Aufgaben-Leiter (§4.2). Die
+// Begründung ist gerichtet, nicht symmetrisch:
+//
+//   - Kein Integrationspfad nimmt je ein Lock auf Level 0-3. Alles, was der
+//     Dispatcher über eine Aufgabe wissen muss, wurde beim Einreihen in
+//     `payload` gesnapshottet.
+//   - Ein Insert in integration_outbox / integration_task_links nimmt über
+//     seine Fremdschlüssel implizit FOR KEY SHARE auf task_instances und
+//     household_members. Das kollidiert mit dem FOR UPDATE von `lockInstance`.
+//     Ein Hintergrund-Insert kann also HINTER einem laufenden Freikauf WARTEN.
+//   - Er kann aber nicht VERKLEMMEN, weil keine Kerntransaktion je auf eine
+//     Integrationszeile wartet. Millisekunden Wartezeit in einem Hintergrundjob
+//     sind unsichtbar.
+//
+// eslint-rules/index.js erzwingt die Reihenfolge statisch (10 vor 11).
+
+export interface IntegrationLockRow {
+  id: string;
+  householdId: string;
+  memberId: string;
+  status: string;
+  hasToken: boolean;
+}
+
+/**
+ * Level 10. Sperrt die Verbindung eines Mitglieds, bevor ihr Status oder ihre
+ * Zeitstempel geschrieben werden.
+ *
+ * FOR NO KEY UPDATE, nicht FOR UPDATE: ein reiner Statuswechsel ändert keinen
+ * Schlüssel, und die schwächere Sperre kollidiert NICHT mit dem FOR KEY SHARE,
+ * das ein gleichzeitiger Outbox-Insert über seinen Fremdschlüssel nimmt. Mit
+ * FOR UPDATE wäre genau das ein vermeidbarer Konflikt.
+ */
+export async function lockIntegration(
+  tx: PrismaTx,
+  householdId: string,
+  integrationId: string,
+): Promise<IntegrationLockRow | null> {
+  const rows = await tx.$queryRaw<IntegrationLockRow[]>`
+    SELECT id,
+           household_id AS "householdId",
+           member_id    AS "memberId",
+           status::text  AS "status",
+           (token_ciphertext IS NOT NULL) AS "hasToken"
+      FROM member_integrations
+     WHERE id = ${integrationId} AND household_id = ${householdId}
+       FOR NO KEY UPDATE`;
+  return rows[0] ?? null;
+}
+
+export interface OutboxClaimRow {
+  id: string;
+  householdId: string;
+  memberId: string;
+  integrationId: string;
+  operation: string;
+  taskInstanceId: string;
+  assignmentId: string;
+  enqueueKey: string;
+  attempts: number;
+  externalTaskId: string | null;
+  payload: unknown;
+}
+
+/**
+ * Level 11. Beansprucht fällige Outbox-Zeilen eines Haushalts.
+ *
+ * `FOR UPDATE SKIP LOCKED`, damit ein zweiter Durchlauf nicht hinter dem ersten
+ * blockiert, sondern die nächsten freien Zeilen nimmt. `household_id` ist Teil
+ * des Prädikats — die household-scope-ESLint-Regel greift bei Roh-SQL NICHT
+ * (sie matcht nur prisma.<model>.<method>), die Disziplin muss also hier im
+ * Code stehen, so wie bei lockInstance.
+ *
+ * Reihenfolge nach created_at: damit bleibt CREATE vor CLOSE innerhalb einer
+ * Verbindung erhalten.
+ */
+export async function lockOutboxBatch(
+  tx: PrismaTx,
+  householdId: string,
+  now: Date,
+  limit: number,
+): Promise<OutboxClaimRow[]> {
+  return tx.$queryRaw<OutboxClaimRow[]>`
+    SELECT id,
+           household_id     AS "householdId",
+           member_id        AS "memberId",
+           integration_id   AS "integrationId",
+           operation::text  AS "operation",
+           task_instance_id AS "taskInstanceId",
+           assignment_id    AS "assignmentId",
+           enqueue_key      AS "enqueueKey",
+           attempts,
+           external_task_id AS "externalTaskId",
+           payload
+      FROM integration_outbox
+     WHERE household_id = ${householdId}
+       AND status IN ('PENDING', 'FAILED')
+       AND next_attempt_at <= ${now}
+     ORDER BY created_at
+     LIMIT ${limit}
+       FOR UPDATE SKIP LOCKED`;
+}

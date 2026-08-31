@@ -19,6 +19,7 @@ import { registerErrorHandler } from './error-mapper.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAssignmentRoutes } from './routes/assignments.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerIntegrationRoutes } from './routes/integrations.js';
 import { registerMemberRoutes } from './routes/members.js';
 import { registerMiscRoutes } from './routes/misc.js';
 import { registerRegisterRoutes } from './routes/register.js';
@@ -74,6 +75,7 @@ export async function buildServer(options: ServerOptions): Promise<FastifyInstan
       await registerAssignmentRoutes(api, deps);
       await registerMemberRoutes(api, deps);
       await registerMiscRoutes(api, deps);
+      await registerIntegrationRoutes(api, deps);
       await registerAdminRoutes(api, deps);
       // Only registered when a setup token is configured — see register.ts's
       // module doc — so `POST /api/register` genuinely 404s otherwise.
