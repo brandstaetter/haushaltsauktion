@@ -106,6 +106,7 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/haushaltsauktion
+            aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 637423428697.dkr.ecr.eu-central-1.amazonaws.com
             docker compose pull
             docker compose up -d
             docker image prune -f
