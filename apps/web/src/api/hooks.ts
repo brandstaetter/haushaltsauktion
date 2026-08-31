@@ -479,6 +479,23 @@ export function useUpdateTaskEligibility() {
   });
 }
 
+/** The `MANUAL` recurrence path of §18 — an admin materializes the next instance on demand. */
+export function useMaterializeTaskDefinition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<{ instance: TaskInstanceDetailDto }>(`/admin/task-definitions/${id}/materialize`, {
+        method: 'POST',
+        body: {},
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: dashboardQueryKey });
+      void qc.invalidateQueries({ queryKey: ['tasks'] });
+      void qc.invalidateQueries({ queryKey: ['history'] });
+    },
+  });
+}
+
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({

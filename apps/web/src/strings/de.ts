@@ -377,6 +377,8 @@ export const de = {
       createSuccess: 'Aufgabe wurde angelegt.',
       saved: 'Gespeichert.',
       archivedSuccess: 'Aufgabe wurde archiviert.',
+      materializeButton: 'Jetzt anbieten',
+      materializedSuccess: 'Neue Instanz wurde erstellt.',
       eligibilityButton: 'Berechtigung',
       eligibilityTitle: 'Berechtigung: {title}',
       eligibilityHint:

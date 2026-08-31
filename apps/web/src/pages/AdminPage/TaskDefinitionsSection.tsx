@@ -6,6 +6,7 @@ import {
   useAdminTaskDefinitions,
   useArchiveTaskDefinition,
   useCreateTaskDefinition,
+  useMaterializeTaskDefinition,
   useUpdateTaskDefinition,
   useUpdateTaskEligibility,
 } from '../../api/hooks';
@@ -536,16 +537,20 @@ function DefinitionRow({
   definition,
   error,
   archiving,
+  materializing,
   onEdit,
   onEligibility,
   onArchive,
+  onMaterialize,
 }: {
   definition: AdminTaskDefinitionDto;
   error: string | null;
   archiving: boolean;
+  materializing: boolean;
   onEdit: () => void;
   onEligibility: () => void;
   onArchive: () => void;
+  onMaterialize: () => void;
 }) {
   const { de } = useStrings();
   const archived = definition.archivedAt !== null;
@@ -588,6 +593,11 @@ function DefinitionRow({
         <Button variant="secondary" onClick={onEligibility}>
           {de.admin.taskDefinitions.eligibilityButton}
         </Button>
+        {!archived && definition.recurrenceType === 'MANUAL' && (
+          <Button variant="secondary" onClick={onMaterialize} loading={materializing}>
+            {de.admin.taskDefinitions.materializeButton}
+          </Button>
+        )}
         {!archived && (
           <Button variant="danger" onClick={onArchive} loading={archiving}>
             {de.admin.taskDefinitions.archive}
@@ -607,6 +617,7 @@ export function TaskDefinitionsSection() {
   const { data: categoriesData } = useAdminCategories();
   const { data: membersData } = useAdminMembers();
   const archiveDefinition = useArchiveTaskDefinition();
+  const materializeDefinition = useMaterializeTaskDefinition();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -614,6 +625,7 @@ export function TaskDefinitionsSection() {
   const [rowErrors, setRowErrors] = useState<Record<string, string | null>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [materializingId, setMaterializingId] = useState<string | null>(null);
 
   const definitions = data?.items ?? [];
   const categories = categoriesData?.items ?? [];
@@ -641,6 +653,24 @@ export function TaskDefinitionsSection() {
       },
       onError: (err) => {
         setArchivingId(null);
+        setRowErrors((prev) => ({
+          ...prev,
+          [definition.id]: taskDefinitionErrorMessage(err, de),
+        }));
+      },
+    });
+  };
+
+  const handleMaterialize = (definition: AdminTaskDefinitionDto) => {
+    setRowErrors((prev) => ({ ...prev, [definition.id]: null }));
+    setMaterializingId(definition.id);
+    materializeDefinition.mutate(definition.id, {
+      onSuccess: () => {
+        setMaterializingId(null);
+        setMessage(de.admin.taskDefinitions.materializedSuccess);
+      },
+      onError: (err) => {
+        setMaterializingId(null);
         setRowErrors((prev) => ({
           ...prev,
           [definition.id]: taskDefinitionErrorMessage(err, de),
@@ -680,9 +710,11 @@ export function TaskDefinitionsSection() {
               definition={definition}
               error={rowErrors[definition.id] ?? null}
               archiving={archivingId === definition.id}
+              materializing={materializingId === definition.id}
               onEdit={() => openEdit(definition.id)}
               onEligibility={() => setEligibilityForId(definition.id)}
               onArchive={() => handleArchive(definition)}
+              onMaterialize={() => handleMaterialize(definition)}
             />
           ))}
         </ul>
