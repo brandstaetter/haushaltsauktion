@@ -40,6 +40,25 @@ services:
       SETUP_TOKEN: ${SETUP_TOKEN}
       NODE_ENV: production
       PORT: "3000"
+      # ── Todoist-Integration (optional) ────────────────────────────────
+      # Verschlüsselt die persönlichen Todoist-Tokens der Mitglieder im Ruhezustand.
+      # FEHLT DIESER WERT, wird die Integration NICHT zusammengesetzt — sie tut
+      # dann schlicht nichts, ohne Fehlermeldung. Wer "die Integration ist kaputt"
+      # meldet, hat fast immer diesen Wert nicht gesetzt.
+      # Erzeugen mit:  openssl rand -base64 32   (genau 32 Byte, base64-kodiert)
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}
+      # Nur während einer Rotation gesetzt: "1:<alt-base64>,2:<neu-base64>".
+      # Runbook: docs/todoist.md → Schlüsselrotation.
+      INTEGRATION_ENCRYPTION_KEYS: ${INTEGRATION_ENCRYPTION_KEYS}
+      # Reconcile+Dispatch-Intervall in Sekunden; `0` schaltet den Worker ab.
+      #
+      # EINZELINSTANZ-BEDINGUNG: Die Benachrichtigungs-Idempotenz setzt genau
+      # EINEN Reconciler voraus. Wird die API horizontal skaliert, muss dieser
+      # Wert auf allen Instanzen ausser einer `0` sein — sonst kann eine
+      # veraltete Lesung über den abgeschlossenen Versand einer anderen Instanz
+      # hinweg eine doppelte Todoist-Aufgabe erzeugen, nicht nur eine doppelte
+      # Benachrichtigung. Vor dem Skalieren: docs/todoist.md lesen.
+      TODOIST_INTERVAL_SECONDS: ${TODOIST_INTERVAL_SECONDS:-60}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s

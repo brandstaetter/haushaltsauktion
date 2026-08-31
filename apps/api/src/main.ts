@@ -19,7 +19,10 @@ import {
 } from './app/deps.js';
 import { loadEnv } from './config.js';
 import { buildServer } from './infra/http/server.js';
+import { createSecretBox, parseKeyring } from './infra/integrations/secret-box.js';
+import { createTodoistClient } from './infra/integrations/todoist-client.js';
 import { startSweepWorker } from './infra/jobs/worker.js';
+import { startTodoistWorker } from './infra/jobs/todoist-worker.js';
 
 async function main(): Promise<void> {
   const env = loadEnv();
@@ -34,6 +37,24 @@ async function main(): Promise<void> {
     error: (obj, msg) => console.error(msg ?? '', obj),
   };
 
+  /**
+   * The Todoist integration is composed only when a key is configured.
+   *
+   * A household that never enables it needs no encryption key, so the absence
+   * of `INTEGRATION_ENCRYPTION_KEY` is a normal state rather than a
+   * misconfiguration — `Deps.todoist`/`Deps.secrets` stay undefined and both
+   * integration jobs become no-ops. `parseKeyring` throws on a malformed key,
+   * which is deliberate: failing at boot beats failing on the first member who
+   * tries to connect.
+   */
+  const hasKey =
+    (env.INTEGRATION_ENCRYPTION_KEY ?? '') !== '' ||
+    (env.INTEGRATION_ENCRYPTION_KEYS ?? '') !== '';
+  const secrets = hasKey
+    ? createSecretBox(parseKeyring(env.INTEGRATION_ENCRYPTION_KEY, env.INTEGRATION_ENCRYPTION_KEYS))
+    : undefined;
+  const todoist = hasKey ? createTodoistClient() : undefined;
+
   const deps: Deps = {
     db,
     clock: systemClock,
@@ -42,16 +63,30 @@ async function main(): Promise<void> {
     get logger() {
       return logger;
     },
+    ...(secrets !== undefined ? { secrets } : {}),
+    ...(todoist !== undefined ? { todoist } : {}),
   };
 
   const app = await buildServer({ env, deps });
   logger = app.log as unknown as Logger;
 
   const worker = startSweepWorker(deps, env.SWEEP_INTERVAL_SECONDS);
+  // Reconcile + dispatch. `TODOIST_INTERVAL_SECONDS=0` disables it — and is
+  // also the single-reconciler guard: notification idempotency assumes exactly
+  // one reconciler process, so any deployment running more than one API
+  // instance must set it to `0` on all but one.
+  const todoistWorker = startTodoistWorker(deps, env.TODOIST_INTERVAL_SECONDS);
+  if (todoist !== undefined && env.TODOIST_INTERVAL_SECONDS > 0) {
+    logger.info(
+      { intervalSeconds: env.TODOIST_INTERVAL_SECONDS },
+      'todoist integration active',
+    );
+  }
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, 'shutting down');
     worker.stop();
+    todoistWorker.stop();
     await app.close();
     await db.$disconnect();
     process.exit(0);

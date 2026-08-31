@@ -32,6 +32,22 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-dev-only-change-me}
       NODE_ENV: ${NODE_ENV:-production}
       PORT: "3000"
+      # ── Todoist-Integration (optional) ────────────────────────────────
+      # OHNE INTEGRATION_ENCRYPTION_KEY wird die Integration gar nicht erst
+      # zusammengesetzt: kein Worker, keine Routenwirkung, keine Fehlermeldung.
+      # "Tut nichts" ist dann KEIN Defekt, sondern genau dieser fehlende Wert.
+      # Erzeugen mit:  openssl rand -base64 32
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-}
+      # Nur während einer Schlüsselrotation setzen — siehe docs/todoist.md.
+      INTEGRATION_ENCRYPTION_KEYS: ${INTEGRATION_ENCRYPTION_KEYS:-}
+      # Reconcile+Dispatch-Intervall. `0` schaltet den Worker ab.
+      #
+      # ACHTUNG bei mehr als EINER API-Instanz: der Reconciler muss einzeln
+      # laufen. Auf allen Instanzen ausser einer `0` setzen, sonst können zwei
+      # Reconciler dieselbe Benachrichtigung doppelt senden und — über einen
+      # veralteten Lesevorgang — sogar eine doppelte Todoist-Aufgabe erzeugen.
+      # Das ist ein Korrektheitsproblem, keine Kosmetik (siehe docs/todoist.md).
+      TODOIST_INTERVAL_SECONDS: ${TODOIST_INTERVAL_SECONDS:-60}
     ports:
       - "${API_PORT:-3000}:3000"
     healthcheck:

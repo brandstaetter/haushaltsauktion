@@ -115,6 +115,22 @@ export interface NotificationsConfig {
   dueSoonLeadMinutes: number;
 }
 
+/**
+ * Third-party integrations, household level (§16/§17).
+ *
+ * Only the on/off switch lives here. A member's own token, project and trigger
+ * choices are personal and belong on `MemberIntegration` — household config is
+ * admin-editable, and an admin must never be able to read or change another
+ * adult's credential (§36).
+ */
+export interface TodoistIntegrationConfig {
+  enabled: boolean;
+}
+
+export interface IntegrationsConfig {
+  todoist: TodoistIntegrationConfig;
+}
+
 export interface HouseholdConfig {
   tasks: TasksConfig;
   voluntary: VoluntaryConfig;
@@ -125,6 +141,7 @@ export interface HouseholdConfig {
   points: PointsConfig;
   fairness: FairnessConfig;
   notifications: NotificationsConfig;
+  integrations: IntegrationsConfig;
 }
 
 /**
@@ -142,4 +159,10 @@ export interface PublicHouseholdConfig {
   valueIncrease: Pick<ValueIncreaseConfig, 'strategy' | 'minimumIncrease' | 'maximumValue'>;
   completion: Pick<CompletionConfig, 'resetStrategy'>;
   pointDecayEnabled: boolean;
+  /**
+   * Just the switch. The web app needs it to decide whether to render the
+   * Todoist section on a member's account page at all — and nothing else from
+   * the section is any of the client's business.
+   */
+  integrations: { todoist: Pick<TodoistIntegrationConfig, 'enabled'> };
 }

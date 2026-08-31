@@ -114,8 +114,13 @@ export function testDeps(db: PrismaClient): Deps {
 export async function buildTestServer(
   db: PrismaClient,
   envOverrides: Record<string, string> = {},
+  /** Lets a test inject hostile ports — see `todoist-isolation.test.ts`. */
+  depsOverrides: Partial<Deps> = {},
 ): Promise<FastifyInstance> {
-  return buildServer({ env: testEnv(envOverrides), deps: testDeps(db) });
+  return buildServer({
+    env: testEnv(envOverrides),
+    deps: { ...testDeps(db), ...depsOverrides },
+  });
 }
 
 /**
@@ -127,6 +132,11 @@ export async function buildTestServer(
  */
 export async function dropHousehold(db: PrismaClient, ids: FixtureIds): Promise<void> {
   const householdId = ids.householdId;
+  // Integration rows first: both carry FKs to task_instances and
+  // household_members, so they must go before the rows they point at.
+  await db.integrationOutbox.deleteMany({ where: { householdId } });
+  await db.integrationTaskLink.deleteMany({ where: { householdId } });
+  await db.memberIntegration.deleteMany({ where: { householdId } });
   await db.notification.deleteMany({ where: { householdId } });
   await db.auditEvent.deleteMany({ where: { householdId } });
   await db.taskHistoryEvent.deleteMany({ where: { householdId } });

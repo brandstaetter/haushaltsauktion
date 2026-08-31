@@ -19,6 +19,12 @@ const LOCK_LEVELS = {
   lockAssignment: 2,
   lockActiveAssignmentOfInstance: 2,
   lockMember: 3,
+  // Integrationen (Todoist) liegen VOLLSTÄNDIG ÜBER der Aufgaben-Leiter: kein
+  // Integrationspfad nimmt je ein Lock auf Level 0-3, und keine
+  // Kerntransaktion wartet je auf eine Integrationszeile. Sie erweitern damit
+  // die bestehende Gesamtordnung, statt eine parallele zu bilden.
+  lockIntegration: 10,
+  lockOutboxBatch: 11,
 };
 
 const lockOrder = {
@@ -106,6 +112,12 @@ const SCOPED_MODELS = new Set([
   'taskHistoryEvent',
   'notification',
   'auditEvent',
+  // Integrationen (Todoist). Ohne diese Einträge deckt die Regel die neuen
+  // Tabellen stillschweigend NICHT ab — und §36 bekäme ein Loch genau dort, wo
+  // die Zugangsdaten liegen.
+  'memberIntegration',
+  'integrationOutbox',
+  'integrationTaskLink',
 ]);
 
 const SCOPED_METHODS =

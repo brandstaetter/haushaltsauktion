@@ -173,6 +173,17 @@ const NotificationsSchema = z
   })
   .default(DEFAULT_CONFIG.notifications);
 
+/** §16/§17 — the household-level switch for third-party integrations. */
+const IntegrationsSchema = z
+  .strictObject({
+    todoist: z
+      .strictObject({
+        enabled: z.boolean().default(DEFAULT_CONFIG.integrations.todoist.enabled),
+      })
+      .default(DEFAULT_CONFIG.integrations.todoist),
+  })
+  .default(DEFAULT_CONFIG.integrations);
+
 const HouseholdConfigShape = z
   .strictObject({
     tasks: TasksSchema,
@@ -184,6 +195,7 @@ const HouseholdConfigShape = z
     points: PointsSchema,
     fairness: FairnessSchema,
     notifications: NotificationsSchema,
+    integrations: IntegrationsSchema,
   })
   .default(DEFAULT_CONFIG);
 

@@ -38,6 +38,19 @@ export const ErrorCode = Object.freeze({
   CONFIG_INVALID: 'CONFIG_INVALID',
   LAST_ADMIN: 'LAST_ADMIN',
   RATE_LIMITED: 'RATE_LIMITED',
+
+  /**
+   * Third-party integrations.
+   *
+   * `INTEGRATION_UNAUTHORIZED` is deliberately NOT the existing
+   * `INVALID_CREDENTIALS`, which means *login* credentials: overloading it
+   * would make "your Todoist token is stale" indistinguishable from "your
+   * session is bad" in the client, and the two need very different UI.
+   */
+  INTEGRATION_DISABLED: 'INTEGRATION_DISABLED',
+  INTEGRATION_UNAUTHORIZED: 'INTEGRATION_UNAUTHORIZED',
+  INTEGRATION_UNAVAILABLE: 'INTEGRATION_UNAVAILABLE',
+
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const);
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

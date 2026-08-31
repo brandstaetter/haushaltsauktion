@@ -266,6 +266,37 @@ export const de = {
     adminEntry: 'Verwaltung',
     settings: 'Einstellungen',
   },
+  todoist: {
+    title: 'Todoist',
+    // §31: keine versteckten Regeln. Beide Sätze stehen VOR dem Eingabefeld.
+    intro:
+      'Neu zugewiesene oder freiwillig übernommene Aufgaben erscheinen automatisch in deinem Todoist.',
+    oneWayWarning:
+      'Wichtig: Ein Häkchen in Todoist erledigt die Aufgabe hier NICHT. Erledigt wird sie nur in der Haushaltsauktion.',
+    tokenScopeWarning:
+      'Dein persönliches Todoist-Token gibt vollen Zugriff auf dein Todoist-Konto. Es wird verschlüsselt gespeichert und nie wieder angezeigt.',
+    tokenLabel: 'Persönliches API-Token',
+    tokenHelp: 'Zu finden in Todoist unter Einstellungen → Integrationen → Entwickler.',
+    connect: 'Verbinden',
+    connecting: 'Wird verbunden…',
+    connected: 'Verbunden',
+    disconnect: 'Trennen',
+    disconnectConfirm:
+      'Wirklich trennen? Wir versuchen zuerst, deine offenen Todoist-Aufgaben zu schliessen. Was wir nicht erreichen, bleibt in Todoist stehen und wird von der Haushaltsauktion nicht mehr angefasst.',
+    test: 'Verbindung testen',
+    testing: 'Wird geprüft…',
+    testOk: 'Verbindung funktioniert.',
+    project: 'Projekt',
+    projectInbox: 'Posteingang',
+    triggers: 'Wann eine Todoist-Aufgabe entsteht',
+    triggerRandom: 'Bei zufälliger Zuweisung',
+    triggerVoluntary: 'Bei freiwilliger Übernahme',
+    invalidCredentials:
+      'Todoist hat dein Token abgelehnt. Bitte neu verbinden — bis dahin werden keine Aufgaben übertragen.',
+    unavailable: 'Todoist ist gerade nicht erreichbar. Bitte später erneut versuchen.',
+    lastSuccess: 'Zuletzt erfolgreich',
+    saveFailed: 'Konnte nicht gespeichert werden.',
+  },
   ledger: {
     title: 'Punktekonto',
     empty: 'Noch keine Punktebewegungen.',
@@ -452,6 +483,9 @@ export const de = {
       rewardMultiplier: 'Belohnungsmultiplikator',
       rewardTiming: 'Belohnungszeitpunkt',
       allowRelease: 'Zurückgeben erlauben',
+      todoistEnabled: 'Todoist-Integration für diesen Haushalt erlauben',
+      todoistEnabledHint:
+        'Jedes Mitglied verbindet danach sein eigenes Todoist-Konto unter „Ich“. Wird die Integration wieder ausgeschaltet, werden offene Todoist-Aufgaben des Haushalts geschlossen; beim erneuten Einschalten werden sie neu angelegt.',
       enabled: 'Aktiviert',
       allowNegativeBalance: 'Negativen Kontostand erlauben',
       minimumBalance: 'Mindestguthaben für Freikauf',

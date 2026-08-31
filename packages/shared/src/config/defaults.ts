@@ -92,6 +92,22 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
     inAppEnabled: true, // §24
     dueSoonLeadMinutes: 120,
   }),
+
+  integrations: Object.freeze({
+    todoist: Object.freeze({
+      /**
+       * Off by default, deliberately.
+       *
+       * An integration that reaches a third party must not switch itself on for
+       * existing households at upgrade time; a household opts in knowingly.
+       * Note the consequence of level-triggered reconciliation: turning this
+       * off later *closes* every open Todoist task in the household on the next
+       * pass rather than freezing them, because "off" has to mean "not
+       * operating", not "operating invisibly".
+       */
+      enabled: false,
+    }),
+  }),
 }) satisfies HouseholdConfig;
 
 /** A mutable deep copy, for callers that want to patch the defaults. */
@@ -130,5 +146,8 @@ export function toPublicConfig(cfg: HouseholdConfig): PublicHouseholdConfig {
       resetStrategy: cfg.completion.resetStrategy,
     },
     pointDecayEnabled: cfg.points.decay.enabled,
+    // The switch only. A member's token, project and triggers are personal and
+    // never travel through the household projection.
+    integrations: { todoist: { enabled: cfg.integrations.todoist.enabled } },
   };
 }

@@ -33,6 +33,39 @@ const EnvSchema = z.object({
    * route.
    */
   SETUP_TOKEN: z.string().min(16).optional(),
+
+  /**
+   * AES-256-GCM key for third-party credentials at rest (Todoist §4).
+   *
+   * Deliberately stricter than `SESSION_SECRET` above: base64 that decodes to
+   * **exactly** 32 bytes. `z.string().min(8)` would accept a 9-character string
+   * and then fail inside `createCipheriv` on the first member who connects — a
+   * boot-time error beats a runtime one nobody sees until it matters.
+   *
+   * Optional so a household that never enables the integration is not forced to
+   * generate a key; `main.ts` builds the keyring only when needed.
+   */
+  INTEGRATION_ENCRYPTION_KEY: z
+    .string()
+    .optional()
+    .refine((v) => v === undefined || Buffer.from(v, 'base64').length === 32, {
+      message: 'INTEGRATION_ENCRYPTION_KEY muss base64-kodiert genau 32 Bytes ergeben.',
+    }),
+  /** Rotation window: `1:<base64>,2:<base64>`. Parsed by `parseKeyring`. */
+  INTEGRATION_ENCRYPTION_KEYS: z.string().optional(),
+
+  /**
+   * The Todoist reconcile+dispatch worker. `0` disables it, mirroring
+   * `SWEEP_INTERVAL_SECONDS`.
+   *
+   * **This is also the single-reconciler guard.** Notification idempotency
+   * relies on exactly one reconciler process (see the architecture's §7): any
+   * deployment running more than one API instance must set this to `0` on all
+   * but one, which makes single-reconciler operation a configuration fact rather
+   * than a hope. Note `0` disables the *worker*, not all Todoist traffic — a
+   * member disconnecting on that instance still gets a best-effort close flush.
+   */
+  TODOIST_INTERVAL_SECONDS: z.coerce.number().int().min(0).default(60),
 });
 
 export type AppEnv = z.infer<typeof EnvSchema>;

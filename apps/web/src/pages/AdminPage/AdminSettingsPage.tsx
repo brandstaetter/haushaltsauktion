@@ -163,6 +163,24 @@ export function AdminSettingsPage() {
       </section>
 
       <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>{de.todoist.title}</h2>
+        <label className={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={draft.integrations.todoist.enabled}
+            onChange={(e) =>
+              update('integrations', { todoist: { enabled: e.target.checked } })
+            }
+          />
+          <span>{de.admin.fields.todoistEnabled}</span>
+        </label>
+        {/* The consequence an admin cannot infer: this is level-triggered, so
+            switching it off closes every open Todoist task in the household
+            rather than freezing them, and switching it back on re-creates them. */}
+        <p className={styles.hint}>{de.admin.fields.todoistEnabledHint}</p>
+      </section>
+
+      <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{de.admin.sections.buyout}</h2>
         <label className={styles.checkbox}>
           <input
