@@ -1,0 +1,12 @@
+# Installed on the Lightsail instance at /etc/systemd/system/backup-db.timer.
+# Enable with: systemctl enable --now backup-db.timer
+
+[Unit]
+Description=Taeglicher Trigger fuer haushaltsauktion-backup
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

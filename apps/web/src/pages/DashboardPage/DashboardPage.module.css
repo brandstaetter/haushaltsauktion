@@ -1,0 +1,243 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--hairline);
+  border-top-color: var(--accent);
+  border-radius: var(--r-full);
+  animation: spin 1s linear infinite;
+  margin: auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.center {
+  text-align: center;
+  padding: var(--s-7) var(--s-4);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.greeting {
+  font: var(--t-h1);
+}
+
+.balanceCard {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  display: grid;
+  gap: var(--s-1);
+}
+
+.balanceLabel {
+  font: var(--t-label);
+  color: var(--ink-3);
+}
+
+.balanceValue {
+  font: var(--t-h1);
+}
+
+.weekDelta {
+  font: var(--t-body);
+  color: var(--success);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.sectionTitle {
+  font: var(--t-h2);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.empty {
+  color: var(--ink-3);
+  font: var(--t-body);
+  padding: var(--s-4) 0;
+}
+
+.row {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.decisionCard {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--s-3);
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  text-align: left;
+  min-height: 56px;
+}
+
+.decisionTitle {
+  font: var(--t-h3);
+  margin: 0;
+}
+
+.decisionValue {
+  font: var(--t-h2);
+}
+
+.decisionHint {
+  font: var(--t-label);
+  color: var(--accent);
+}
+
+.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: var(--t-body-sm);
+  cursor: pointer;
+}
+
+.household {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-3);
+}
+
+.summaryCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.summaryValue {
+  font: var(--t-h2);
+}
+
+.summaryLabel {
+  font: var(--t-label);
+  color: var(--ink-3);
+  text-align: center;
+}
+
+.rejectedBadge {
+  align-self: flex-start;
+  font: var(--t-label);
+  color: var(--danger);
+}
+
+.rejectForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.hint {
+  color: var(--ink-3);
+  font: var(--t-body-sm);
+}
+
+.message {
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font: var(--t-body-sm);
+}
+
+.field textarea {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--ground);
+  color: var(--ink);
+  font: var(--t-body);
+  resize: vertical;
+}
+
+.outcomeGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.outcomeGroup legend {
+  font: var(--t-label);
+  color: var(--ink-3);
+  padding: 0 0 var(--s-2);
+}
+
+.outcomeOption {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+.outcomeOption input {
+  margin-top: 3px;
+}
+
+.outcomeOption > span {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}

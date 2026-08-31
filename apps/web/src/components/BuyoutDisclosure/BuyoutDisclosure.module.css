@@ -1,0 +1,44 @@
+.section {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+}
+
+.sectionTitle {
+  font: var(--t-h3);
+  margin: 0 0 var(--s-2);
+}
+
+.denied {
+  margin: 0 0 var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--ink-2);
+  font: var(--t-body-sm);
+}
+
+.dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.dl div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.dl dt {
+  font: var(--t-label);
+  color: var(--ink-3);
+}
+
+.dl dd {
+  font: var(--t-h3);
+  margin: 0;
+}

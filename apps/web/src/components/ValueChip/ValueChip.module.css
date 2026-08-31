@@ -1,0 +1,49 @@
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid transparent;
+  border-radius: var(--r-sm);
+  min-width: 56px;
+  padding: var(--s-2) var(--s-3);
+  gap: var(--s-1);
+}
+
+.value {
+  font: var(--t-h2);
+  letter-spacing: -0.01em;
+}
+
+.meta {
+  font: var(--t-label);
+  color: var(--ink-3);
+}
+
+.tier0 {
+  background: var(--value-fill-0);
+  border-color: var(--value-border-0);
+  color: var(--value-ink-0);
+}
+
+.tier1 {
+  background: var(--value-fill-1);
+  border-color: var(--value-border-1);
+  color: var(--value-ink-1);
+}
+
+.tier2 {
+  background: var(--value-fill-2);
+  border-color: var(--value-border-2);
+  color: var(--value-ink-2);
+}
+
+.tier3 {
+  background: var(--value-fill-3);
+  border-color: var(--value-border-3);
+  color: var(--value-ink-3);
+}
+
+.sm .value { font-size: 18px; }
+.md .value { font-size: 24px; }
+.lg .value { font-size: 36px; }

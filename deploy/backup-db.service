@@ -1,0 +1,12 @@
+# Installed on the Lightsail instance at /etc/systemd/system/backup-db.service.
+# Triggered by backup-db.timer — see docs/hosting-plan.md §6/§9.
+
+[Unit]
+Description=Haushaltsauktion - naechtliches DB-Backup nach S3
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/haushaltsauktion
+ExecStart=/opt/haushaltsauktion/deploy/backup-db.sh

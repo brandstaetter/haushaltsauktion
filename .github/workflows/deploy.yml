@@ -1,0 +1,111 @@
+# Test → build → push → deploy, per docs/hosting-plan.md §3.
+#
+# Gitleaks (.github/workflows/gitleaks.yml) is a separate, required status
+# check enforced via branch protection on `main` — it gates the merge that
+# triggers this workflow, not a job inside it (see hosting-plan.md §9).
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_API_REPOSITORY: haushaltsauktion-api
+  ECR_WEB_REPOSITORY: haushaltsauktion-web
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: haushalt
+          POSTGRES_PASSWORD: haushalt
+          POSTGRES_DB: haushaltsauktion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U haushalt -d haushaltsauktion"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://haushalt:haushalt@localhost:5432/haushaltsauktion
+      SESSION_SECRET: ci-only-not-a-real-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC — no long-lived AWS keys stored as secrets
+      contents: read
+    outputs:
+      image-tag: ${{ steps.tag.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: echo "value=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_CI_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_API_REPOSITORY }}:${{ steps.tag.outputs.value }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_API_REPOSITORY }}:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB_REPOSITORY }}:${{ steps.tag.outputs.value }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB_REPOSITORY }}:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production # optionally require manual approval in repo settings
+    steps:
+      - name: Pull latest images and restart the stack on the Lightsail instance
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/haushaltsauktion
+            docker compose pull
+            docker compose up -d
+            docker image prune -f

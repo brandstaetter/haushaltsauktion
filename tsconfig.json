@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "//": "Repo-weiter Typecheck: `npx tsc --noEmit`. Deckt Quellen, Tests und den Seed ab. Die Build-Konfigurationen liegen je Workspace in tsconfig.json, die reinen Prüfkonfigurationen in tsconfig.test.json.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@haushaltsauktion/shared": ["packages/shared/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/shared/src/**/*.ts",
+    "packages/shared/test/**/*.ts",
+    "packages/shared/vitest.config.ts",
+    "apps/api/src/**/*.ts",
+    "apps/api/test/**/*.ts",
+    "apps/api/prisma/**/*.ts",
+    "apps/api/vitest.config.ts"
+  ]
+}

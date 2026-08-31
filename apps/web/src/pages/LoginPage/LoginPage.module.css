@@ -1,0 +1,87 @@
+.page {
+  max-width: 360px;
+  margin: auto;
+  padding: var(--s-6) var(--s-4);
+}
+
+.title {
+  font: var(--t-display);
+  text-align: center;
+  margin-bottom: var(--s-2);
+}
+
+.subtitle {
+  font: var(--t-h2);
+  text-align: center;
+  color: var(--ink-2);
+  margin-bottom: var(--s-6);
+}
+
+.error {
+  background: #fae7e6;
+  color: var(--danger);
+  border: 1px solid #f0c6c4;
+  border-radius: var(--r-sm);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.label {
+  font: var(--t-label);
+  color: var(--ink-2);
+}
+
+.field input {
+  min-height: 48px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-sm);
+  padding: 0 var(--s-3);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.forgot {
+  text-align: center;
+  font: var(--t-body-sm);
+  margin-top: var(--s-4);
+}
+
+.demo {
+  margin-top: var(--s-7);
+  border-top: 1px solid var(--hairline);
+  padding-top: var(--s-4);
+}
+
+.demoLabel {
+  font: var(--t-label);
+  color: var(--ink-3);
+  text-align: center;
+  margin: 0 0 var(--s-2);
+}
+
+.demoRow {
+  display: flex;
+  gap: var(--s-2);
+  justify-content: center;
+}
+
+.demoButton {
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  padding: var(--s-2) var(--s-3);
+  min-height: 40px;
+  color: var(--accent);
+}

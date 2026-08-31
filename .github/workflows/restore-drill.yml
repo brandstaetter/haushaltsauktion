@@ -1,0 +1,95 @@
+# Weekly automated restore drill — docs/hosting-plan.md §7 Stufe 1.
+#
+# Restores the latest S3 backup dump into a throwaway Postgres, brings it to
+# the current migration state exactly as the API container does on boot, and
+# runs sanity checks. On failure GitHub's default scheduled-workflow email
+# notification goes to the repo owner — sufficient at this household's size
+# (see hosting-plan.md §7).
+#
+# This does NOT replace the quarterly full-instance DR drill (§7 Stufe 2),
+# which restores a whole Lightsail snapshot into a new instance and is run
+# manually.
+
+name: Restore Drill
+
+on:
+  schedule:
+    - cron: '0 4 * * 1' # every Monday, 04:00 UTC
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-central-1
+
+jobs:
+  restore-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC — read-only backup-bucket role, no long-lived keys
+      contents: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: haushalt
+          POSTGRES_PASSWORD: haushalt
+          POSTGRES_DB: haushaltsauktion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U haushalt -d haushaltsauktion"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://haushalt:haushalt@localhost:5432/haushaltsauktion
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_BACKUP_READ_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Find latest backup
+        id: latest
+        run: |
+          set -euo pipefail
+          KEY=$(aws s3api list-objects-v2 \
+            --bucket "${{ secrets.BACKUP_BUCKET }}" \
+            --prefix "backups/" \
+            --query 'sort_by(Contents,&LastModified)[-1].Key' \
+            --output text)
+          if [ -z "$KEY" ] || [ "$KEY" = "None" ]; then
+            echo "::error::Keine Backups unter s3://${{ secrets.BACKUP_BUCKET }}/backups/ gefunden."
+            exit 1
+          fi
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Download latest backup
+        run: |
+          aws s3 cp "s3://${{ secrets.BACKUP_BUCKET }}/${{ steps.latest.outputs.key }}" backup.sql.gz
+
+      - name: Restore dump into ephemeral Postgres
+        run: |
+          set -euo pipefail
+          gunzip -c backup.sql.gz | PGPASSWORD=haushalt psql -h localhost -U haushalt -d haushaltsauktion -v ON_ERROR_STOP=1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bring restored schema to current migration state
+        run: npm run db:migrate -w apps/api
+
+      - name: Run restore sanity checks
+        run: npm run verify-restore -w apps/api
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "Restored backup: ${{ steps.latest.outputs.key }}" >> "$GITHUB_STEP_SUMMARY"

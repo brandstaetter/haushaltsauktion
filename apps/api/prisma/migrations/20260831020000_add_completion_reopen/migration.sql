@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "HistoryEventType" ADD VALUE 'REOPENED_TO_ASSIGNEE';

@@ -1,0 +1,8 @@
+.badge {
+  display: inline-block;
+  font: var(--t-label);
+  color: var(--ink-2);
+  background: var(--accent-soft);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
+}

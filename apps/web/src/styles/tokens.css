@@ -1,0 +1,78 @@
+:root {
+  --ground: #eef1f4;
+  --surface: #ffffff;
+  --hairline: #d5dde5;
+  --ink: #141a22;
+  --ink-2: #4a5765;
+  --ink-3: #5c6b7a;
+  --accent: #2b3fa0;
+  --accent-soft: #edf0fa;
+  --success: #2f6b4f;
+  --danger: #a8231f;
+
+  --value-fill-0: #ffffff;
+  --value-ink-0: #141a22;
+  --value-border-0: #d5dde5;
+  --value-fill-1: #fbf0d8;
+  --value-ink-1: #71510f;
+  --value-border-1: #e4cf9b;
+  --value-fill-2: #f8e5b8;
+  --value-ink-2: #5f420a;
+  --value-border-2: #d9bc72;
+  --value-fill-3: #f2d48d;
+  --value-ink-3: #4c340a;
+  --value-border-3: #c9a44e;
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 40px;
+  --s-9: 56px;
+  --s-10: 72px;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-full: 999px;
+
+  --t-display: 700 40px/1.05 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --t-h1: 600 28px/1.15 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --t-h2: 600 22px/1.2 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --t-h3: 600 18px/1.3 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+  --t-body: 400 16px/1.5 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+  --t-body-sm: 400 14px/1.45 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+  --t-label: 500 13px/1.3 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+  --t-mono: 400 13px/1.5 ui-monospace, 'SFMono-Regular', 'Segoe UI Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #141a22;
+    --surface: #1d2530;
+    --hairline: #2e3846;
+    --ink: #eaeff5;
+    --ink-2: #b3becb;
+    --ink-3: #94a1b0;
+    --accent: #8e9df0;
+    --accent-soft: #252b3d;
+    --success: #6fc597;
+    --danger: #f28683;
+
+    --value-fill-0: #1d2530;
+    --value-ink-0: #f5dfa3;
+    --value-border-0: #3a2e12;
+    --value-fill-1: #3a2e12;
+    --value-ink-1: #f5dfa3;
+    --value-border-1: #4a3a14;
+    --value-fill-2: #4a3a14;
+    --value-ink-2: #f7e4ae;
+    --value-border-2: #5a4616;
+    --value-fill-3: #5a4616;
+    --value-ink-3: #faebc0;
+    --value-border-3: #6b5318;
+  }
+}

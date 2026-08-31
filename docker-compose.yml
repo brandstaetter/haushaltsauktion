@@ -1,0 +1,54 @@
+# Lokaler Start: docker compose up
+# Danach: npm run db:migrate && npm run seed
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-haushalt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-haushalt}
+      POSTGRES_DB: ${POSTGRES_DB:-haushaltsauktion}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-haushalt} -d ${POSTGRES_DB:-haushaltsauktion}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-haushalt}:${POSTGRES_PASSWORD:-haushalt}@db:5432/${POSTGRES_DB:-haushaltsauktion}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-only-change-me}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "3000"
+    ports:
+      - "${API_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+volumes:
+  db-data:

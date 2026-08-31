@@ -1,0 +1,95 @@
+{
+  "project": "Hausarbietsboerse",
+  "description": "Haushaltsauktion — web app for fair, gamified distribution of household chores (see CLAUDE.md spec)",
+  "language": "typescript",
+  "framework": "react",
+  "packageManager": "npm",
+  "stackProvisional": true,
+  "typecheck": {
+    "command": "npx tsc --noEmit",
+    "perFile": false,
+    "timeoutMs": 25000
+  },
+  "test": {
+    "command": "npx vitest run",
+    "framework": "vitest"
+  },
+  "qualityRules": {
+    "builtIn": [
+      "no-confirm-alert",
+      "no-transition-all"
+    ],
+    "custom": []
+  },
+  "protectedFiles": [
+    ".claude/harness.json",
+    ".claude/settings.json"
+  ],
+  "features": {
+    "intakeScanner": true,
+    "telemetry": true
+  },
+  "registeredSkills": [
+    "architect",
+    "archon",
+    "ascii-diagram",
+    "autopilot",
+    "cost",
+    "create-app",
+    "create-skill",
+    "daemon",
+    "dashboard",
+    "decision-map",
+    "deploy-steward",
+    "design",
+    "do",
+    "doc-gen",
+    "evolve",
+    "experiment",
+    "fleet",
+    "grill",
+    "houseclean",
+    "improve",
+    "infra-audit",
+    "learn",
+    "live-preview",
+    "loop",
+    "map",
+    "marshal",
+    "merge-review",
+    "organize",
+    "postmortem",
+    "pr-watch",
+    "prd",
+    "qa",
+    "refactor",
+    "research",
+    "research-fleet",
+    "review",
+    "scaffold",
+    "schedule",
+    "session-handoff",
+    "setup",
+    "systematic-debugging",
+    "telemetry",
+    "test-gen",
+    "triage",
+    "unharness",
+    "verify",
+    "watch",
+    "wiki",
+    "workspace"
+  ],
+  "registeredSkillCount": 49,
+  "agentTimeouts": {
+    "skill": 600000,
+    "research": 900000,
+    "build": 1800000
+  },
+  "trust": {
+    "sessionCount": 0,
+    "campaignCount": 0,
+    "level": "novice",
+    "sessions_completed": 3
+  }
+}

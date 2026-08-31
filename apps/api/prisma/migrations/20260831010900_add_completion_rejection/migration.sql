@@ -1,0 +1,8 @@
+-- AlterEnum
+ALTER TYPE "AssignmentStatus" ADD VALUE 'REJECTED';
+
+-- AlterEnum
+ALTER TYPE "HistoryEventType" ADD VALUE 'COMPLETION_REJECTED';
+
+-- AlterEnum
+ALTER TYPE "AuditAction" ADD VALUE 'TASK_COMPLETION_REJECTED';

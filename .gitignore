@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Test / coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+# Sitzungs-Cookies der E2E-Demo-Anmeldungen (je Lauf neu erzeugt)
+e2e/.auth/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Citadel runtime state (config is tracked, transient state is not)
+.claude/circuit-breaker-state.json
+.claude/compact-state.json
+.claude/agent-context/
+.planning/telemetry/
+.planning/screenshots/
+
+# Vendored Citadel runtime (regenerate with /do setup)
+.citadel/scripts/
+.citadel/plugin-root.txt
+.citadel/*.template.md

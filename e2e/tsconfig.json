@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "//": "Playwright transpiliert die Specs, ohne sie zu prüfen. Diese Konfiguration schließt die Lücke: `npm run typecheck:e2e`. Eigene Datei, weil hier DOM-Typen nötig sind (`page.evaluate`), die im Backend-Typecheck nichts zu suchen haben.",
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "noEmit": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["**/*.ts", "../playwright.config.ts"]
+}

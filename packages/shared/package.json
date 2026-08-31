@@ -1,0 +1,41 @@
+{
+  "name": "@haushaltsauktion/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Geteilte Domaintypen, Konfigurationsschema und Formel-Parser (Architektur §7.1)",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "default": "./dist/config/index.js"
+    },
+    "./formula": {
+      "types": "./dist/formula/index.d.ts",
+      "default": "./dist/formula/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "tsc -b",
+    "clean": "rimraf dist || rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

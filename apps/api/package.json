@@ -1,0 +1,50 @@
+{
+  "name": "@haushaltsauktion/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend: Domainkern, Persistenz, API (Architektur §7.1)",
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "tsx watch --env-file=../../.env src/main.ts",
+    "predev": "npm run build -w @haushaltsauktion/shared",
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "prisma:format": "prisma format",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:reset": "prisma migrate reset --force",
+    "seed": "tsx prisma/seed.ts",
+    "preseed": "npm run build -w @haushaltsauktion/shared",
+    "create-admin": "tsx prisma/create-admin.ts",
+    "precreate-admin": "npm run build -w @haushaltsauktion/shared",
+    "verify-restore": "tsx prisma/verify-restore.ts",
+    "sim": "tsx src/simulation/run.ts",
+    "presim": "npm run build -w @haushaltsauktion/shared"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/rate-limit": "^10.3.0",
+    "@haushaltsauktion/shared": "*",
+    "@node-rs/argon2": "^2.2.0",
+    "@prisma/client": "^6.19.3",
+    "fastify": "^5.12.1",
+    "pino": "^9.14.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@typescript-eslint/utils": "^8.68.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-import": "^2.32.0",
+    "prisma": "^6.19.3",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
+  }
+}
