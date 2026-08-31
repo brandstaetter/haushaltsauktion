@@ -17,7 +17,9 @@
  * generate-don't-transcribe preference: a three-field command envelope is a
  * different risk profile from a full response schema, and choosing it **deleted**
  * an entire failure-handling subsystem rather than adding one. The read path
- * still uses the SDK — see `todoist-read.ts`.
+ * originally used the SDK for the same reason; it was later switched to a
+ * plain hand-written GET too, after PR review surfaced that the SDK requires
+ * Node >=24 against this repo's Node 20 CI/deploy — see `todoist-read.ts`.
  *
  * **Transport shape** (from the docs, and the live 401 probe): the request is
  * `application/x-www-form-urlencoded` with a `commands` field holding a JSON

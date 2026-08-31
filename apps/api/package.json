@@ -27,7 +27,6 @@
     "presim": "npm run build -w @haushaltsauktion/shared"
   },
   "dependencies": {
-    "@doist/todoist-sdk": "^15.0.2",
     "@fastify/cookie": "^11.1.2",
     "@fastify/rate-limit": "^10.3.0",
     "@haushaltsauktion/shared": "*",

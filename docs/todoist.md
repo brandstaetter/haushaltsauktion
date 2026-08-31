@@ -61,7 +61,7 @@ Der Worker gleicht danach höchstens einmal pro `TODOIST_INTERVAL_SECONDS` ab.
 
 | Variable | Pflicht | Default | Zweck |
 |---|---|---|---|
-| `INTEGRATION_ENCRYPTION_KEY` | für die Integration | — | AES-256-GCM-Schlüssel für die Tokens. Base64, **genau 32 Byte**. |
+| `INTEGRATION_ENCRYPTION_KEY` | für die Integration | — | AES-256-GCM-Schlüssel für die Tokens. Base64-kodiert; **dekodiert genau 32 Byte**. |
 | `INTEGRATION_ENCRYPTION_KEYS` | nein | — | Nur während einer Rotation: `1:<alt>,2:<neu>` |
 | `TODOIST_INTERVAL_SECONDS` | nein | `60` | Reconcile+Dispatch-Intervall; `0` schaltet den Worker ab |
 

@@ -2,97 +2,118 @@
  * The read path: the member's project list, for the settings picker
  * (Architektur Todoist §8.1).
  *
- * This is the half where the official `@doist/todoist-sdk` earns its place —
- * official types, maintained against v1, and no transcription of a response
- * schema. Verified before adoption: v15.0.2 targets `api.todoist.com/api/v1/`
- * and its dist contains no reference to the retired v2 REST base path — which
- * matters, because that path now answers HTTP 410 (confirmed by live probe).
- * The literal string is deliberately not written here, so the repository-wide
- * grep gate for it stays a plain, exception-free check.
+ * **Revised after PR review.** This originally used the official
+ * `@doist/todoist-sdk` — official types, maintained against v1, no
+ * transcription of a response schema. That reasoning still holds, but the
+ * package declares `engines.node: ">=24"` while this repo's CI and deploy
+ * workflows pin Node 20 (`.github/workflows/{deploy,restore-drill}.yml`), a
+ * real compatibility risk flagged by automated PR review rather than caught
+ * before merge. Bumping the platform's Node version to accommodate a single
+ * read-only GET call would be a much larger, riskier change than the
+ * dependency it's working around.
  *
- * The SDK's own types are deliberately **not** re-exported. `listProjects`
- * narrows to the two fields the picker needs, so an SDK major version cannot
- * ripple into `app/` or the web client.
+ * So this file now hand-writes the GET the same way `todoist-sync.ts`
+ * hand-writes the two writes — same `FetchLike` injection, same error
+ * classification, same narrow return type (`listProjects` only ever
+ * surfaces `{id, name}`, so a wire-format change upstream cannot ripple
+ * into `app/` or the web client). `@doist/todoist-sdk` has been removed
+ * from `apps/api/package.json` entirely; nothing else in the codebase
+ * referenced it.
  */
 
-import { TodoistApi } from '@doist/todoist-sdk';
-
 import type { TodoistProject, TodoistResult } from '../../app/integrations/ports.js';
-import { classifyHttpFailure, classifyTransportError, parseErrorBody } from './todoist-errors.js';
+import {
+  classifyHttpFailure,
+  classifyTransportError,
+  parseErrorBody,
+} from './todoist-errors.js';
+
+const PROJECTS_URL = 'https://api.todoist.com/api/v1/projects';
+const DEFAULT_TIMEOUT_MS = 15_000;
 
 /** Injected so tests never construct a real client. */
 export interface ProjectLister {
   listProjects(token: string): Promise<TodoistResult<TodoistProject[]>>;
 }
 
-/**
- * Digs an HTTP status out of whatever the SDK threw.
- *
- * The SDK does not export a typed error class we can rely on across majors, so
- * this reads defensively rather than instanceof-ing something that may vanish.
- * An unrecognised shape is treated as transient — the safe default, since the
- * alternative would be marking a member's token invalid on an SDK quirk.
- */
-function statusFromUnknownError(error: unknown): { status?: number | undefined; body: unknown } {
-  if (typeof error !== 'object' || error === null) return { body: null };
-  const candidate = error as Record<string, unknown>;
+/** Matches `todoist-sync.ts`'s injection point so both clients share one fetch impl. */
+export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
-  const direct =
-    typeof candidate.httpStatusCode === 'number'
-      ? candidate.httpStatusCode
-      : typeof candidate.status === 'number'
-        ? candidate.status
-        : typeof candidate.statusCode === 'number'
-          ? candidate.statusCode
-          : undefined;
-
-  const responseData =
-    typeof candidate.responseData === 'object' && candidate.responseData !== null
-      ? candidate.responseData
-      : typeof candidate.body === 'object' && candidate.body !== null
-        ? candidate.body
-        : null;
-
-  return { status: direct, body: responseData };
+export interface ReadClientOptions {
+  fetchImpl?: FetchLike;
+  timeoutMs?: number;
+  now?: () => Date;
 }
 
-export function createTodoistReadClient(now: () => Date = () => new Date()): ProjectLister {
+export function createTodoistReadClient(options: ReadClientOptions = {}): ProjectLister {
+  const doFetch: FetchLike = options.fetchImpl ?? ((url, init) => fetch(url, init));
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const now = options.now ?? ((): Date => new Date());
+
   return {
     async listProjects(token) {
+      let response: Response;
       try {
-        const api = new TodoistApi(token);
-        const response = await api.getProjects();
-        // The SDK returns a paginated envelope; only `results` matters here, and
-        // a household's project count is far below one page.
-        const raw = (response as { results?: unknown }).results;
-        const rows = Array.isArray(raw) ? raw : [];
-        const projects: TodoistProject[] = rows.flatMap((row) => {
-          if (typeof row !== 'object' || row === null) return [];
-          const project = row as Record<string, unknown>;
-          const id = project.id;
-          const name = project.name;
-          if (typeof id !== 'string' && typeof id !== 'number') return [];
-          if (typeof name !== 'string') return [];
-          return [{ id: String(id), name }];
+        response = await doFetch(PROJECTS_URL, {
+          method: 'GET',
+          headers: {
+            // Identical header for a personal token and an OAuth access token —
+            // see todoist-sync.ts.
+            Authorization: `Bearer ${token}`,
+          },
+          signal: AbortSignal.timeout(timeoutMs),
         });
-        return { ok: true, value: projects };
       } catch (error) {
-        const { status, body } = statusFromUnknownError(error);
-        if (status === undefined) {
-          return { ok: false, failure: classifyTransportError(error) };
+        return { ok: false, failure: classifyTransportError(error) };
+      }
+
+      let json: unknown = null;
+      try {
+        json = await response.json();
+      } catch {
+        // A non-JSON body on an error status is still classifiable by status; on
+        // a 2xx it means we cannot confirm anything, which is a transient
+        // failure rather than an empty project list.
+        if (response.ok) {
+          return {
+            ok: false,
+            failure: {
+              kind: 'TRANSIENT',
+              status: response.status,
+              message: 'Todoist antwortete 2xx, aber ohne verwertbaren JSON-Body.',
+            },
+          };
         }
+      }
+
+      if (!response.ok) {
         return {
           ok: false,
           failure: classifyHttpFailure({
-            status,
-            body: parseErrorBody(body),
-            retryAfterHeader: null,
+            status: response.status,
+            body: parseErrorBody(json),
+            retryAfterHeader: response.headers.get('retry-after'),
             now: now(),
             // A failed project list is never a "benign gone" case.
             operation: 'CREATE_TASK',
           }),
         };
       }
+
+      // The endpoint returns a paginated envelope; only `results` matters
+      // here, and a household's project count is far below one page.
+      const raw = (json as { results?: unknown } | null)?.results;
+      const rows = Array.isArray(raw) ? raw : [];
+      const projects: TodoistProject[] = rows.flatMap((row) => {
+        if (typeof row !== 'object' || row === null) return [];
+        const project = row as Record<string, unknown>;
+        const id = project.id;
+        const name = project.name;
+        if (typeof id !== 'string' && typeof id !== 'number') return [];
+        if (typeof name !== 'string') return [];
+        return [{ id: String(id), name }];
+      });
+      return { ok: true, value: projects };
     },
   };
 }

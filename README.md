@@ -72,7 +72,7 @@ Beide Ports, sowie `DB_PORT`, sind über Umgebungsvariablen konfigurierbar
 | `LOG_LEVEL` | nein | `info` | pino-Log-Level |
 | `CORS_ORIGINS` | nein | — | Komma-getrennte erlaubte Origins (Dev-SPA auf anderem Port) |
 | `SETUP_TOKEN` | nein | — (Feature deaktiviert) | Schaltet `POST /api/register` frei — siehe [Ersteinrichtung](#ersteinrichtung-neuer-haushalt) |
-| `INTEGRATION_ENCRYPTION_KEY` | nein — aber **ohne ihn ist die Todoist-Integration inaktiv** | — | AES-256-GCM-Schlüssel für die Todoist-Tokens der Mitglieder. Base64, genau 32 Byte (`openssl rand -base64 32`). Fehlt er, wird die Integration nicht zusammengesetzt: keine Wirkung, **keine Fehlermeldung**. Ein *fehlerhafter* Wert bricht dagegen absichtlich schon beim Start ab. |
+| `INTEGRATION_ENCRYPTION_KEY` | nein — aber **ohne ihn ist die Todoist-Integration inaktiv** | — | AES-256-GCM-Schlüssel für die Todoist-Tokens der Mitglieder. Base64-kodiert; **dekodiert muss der Wert exakt 32 Byte ergeben** (`openssl rand -base64 32` liefert das direkt). Fehlt er, wird die Integration nicht zusammengesetzt: keine Wirkung, **keine Fehlermeldung**. Ein *fehlerhafter* Wert bricht dagegen absichtlich schon beim Start ab. |
 | `INTEGRATION_ENCRYPTION_KEYS` | nein | — | Nur während einer Schlüsselrotation: `1:<alt>,2:<neu>` — siehe [`docs/todoist.md`](./docs/todoist.md) |
 | `TODOIST_INTERVAL_SECONDS` | nein | `60` | Intervall des Todoist-Workers; `0` schaltet ihn ab. **Bei mehr als einer API-Instanz auf allen außer einer `0` setzen** — siehe [`docs/todoist.md`](./docs/todoist.md) |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | nein | `haushalt` / `haushalt` / `haushaltsauktion` | nur für `docker-compose.yml`s `db`-Service |
