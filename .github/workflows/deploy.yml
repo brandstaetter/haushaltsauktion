@@ -97,6 +97,16 @@ jobs:
     runs-on: ubuntu-latest
     environment: production # optionally require manual approval in repo settings
     steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Sync compose file and Caddyfile to the instance
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "deploy/docker-compose.prod.yml,deploy/Caddyfile"
+          target: /opt/haushaltsauktion/.incoming
+          strip_components: 1
       - name: Pull latest images and restart the stack on the Lightsail instance
         uses: appleboy/ssh-action@v1
         with:
@@ -106,6 +116,9 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/haushaltsauktion
+            mv .incoming/docker-compose.prod.yml docker-compose.yml
+            mv .incoming/Caddyfile Caddyfile
+            rmdir .incoming
             aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 637423428697.dkr.ecr.eu-central-1.amazonaws.com
             if grep -q '^SETUP_TOKEN=' .env; then
               sed -i "s#^SETUP_TOKEN=.*#SETUP_TOKEN=${{ secrets.SETUP_TOKEN }}#" .env

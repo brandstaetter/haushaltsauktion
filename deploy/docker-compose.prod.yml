@@ -33,6 +33,11 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       SESSION_SECRET: ${SESSION_SECRET}
+      # Gates POST /api/register — apps/api/src/infra/http/routes/register.ts
+      # only registers the route when this is a non-empty string, and
+      # apps/api/src/config.ts's schema rejects an empty string outright, so
+      # this must never be left set-but-blank in .env.
+      SETUP_TOKEN: ${SETUP_TOKEN}
       NODE_ENV: production
       PORT: "3000"
     healthcheck:
