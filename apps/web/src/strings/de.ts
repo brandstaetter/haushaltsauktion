@@ -291,6 +291,8 @@ export const de = {
     dryRun: 'Probelauf',
     version: 'Version',
     updatedAt: 'Zuletzt geändert',
+    settingsEntryHint: 'Zuweisung, Freiwillige Übernahme, Freikauf, Wertsteigerung und Aufgaben-Grundwerte.',
+    settingsEntryButton: 'Einstellungen öffnen',
     sections: {
       assignment: 'Zuweisung',
       voluntary: 'Freiwillige Übernahme',

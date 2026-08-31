@@ -11,6 +11,7 @@ import { HistoryPage } from './pages/HistoryPage/HistoryPage';
 import { AccountPage } from './pages/AccountPage/AccountPage';
 import { LedgerPage } from './pages/LedgerPage/LedgerPage';
 import { AdminPage } from './pages/AdminPage/AdminPage';
+import { AdminSettingsPage } from './pages/AdminPage/AdminSettingsPage';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { data: session, isLoading } = useSession();
@@ -92,6 +93,14 @@ export const router = createBrowserRouter([
             element: (
               <AdminRoute>
                 <AdminPage />
+              </AdminRoute>
+            ),
+          },
+          {
+            path: 'verwaltung/einstellungen',
+            element: (
+              <AdminRoute>
+                <AdminSettingsPage />
               </AdminRoute>
             ),
           },
