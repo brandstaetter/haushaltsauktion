@@ -176,11 +176,12 @@ Im Repo bereits vorhanden (Code, kein Provisioning):
 | ECR-Repository | `haushaltsauktion-api` |
 | ECR-Repository | `haushaltsauktion-web` |
 | S3-Backup-Bucket | `haushaltsauktion-backups-637423428697` (versioniert, SSE-AES256, Public Access Block, Lifecycle 30 Tage → Glacier IR → Ablauf nach 365 Tagen) |
-| IAM-Rolle | `gha-haushaltsauktion-deploy` — Trust nur für `repo:brandstaetter/haushaltsauktion:ref:refs/heads/main`; Rechte beschränkt auf ECR-Push in die beiden Repositories oben |
+| IAM-Rolle | `gha-haushaltsauktion-deploy` — Trust nur für dieses Repo/`main`; Rechte beschränkt auf ECR-Push in die beiden Repositories oben |
 | IAM-Rolle | `gha-haushaltsauktion-backup-read` — gleiche Trust-Einschränkung; Rechte beschränkt auf `GetObject`/`ListBucket` unter `backups/*` im Bucket oben |
+| IAM-Nutzer | `haushaltsauktion-box` — läuft **auf** der Instanz selbst (kein OIDC, Lightsail kennt keine Instanzrollen, siehe §4); Rechte: ECR-Pull der beiden Repositories + `s3:PutObject` unter `backups/*`. Zugangsschlüssel liegt in `~/.aws/credentials` auf der Instanz. |
 | Lightsail-Instanz | `haushaltsauktion`, `eu-central-1a`, Ubuntu 24.04 LTS, Bundle `small_3_0` (dualstack) |
 | Statische IP | `haushaltsauktion-ip` → `35.158.29.79` (IPv4), zusätzlich eine automatisch zugewiesene IPv6-Adresse |
-| Lightsail-Key-Pair | `haushaltsauktion-deploy` (ed25519, ausschließlich für den CI-Deploy — kein persönlicher SSH-Key wiederverwendet) |
+| Lightsail-Key-Pair | `haushaltsauktion-deploy-v2` (ed25519, ausschließlich für den CI-Deploy — kein persönlicher SSH-Key wiederverwendet) |
 | Firewall (Instance Public Ports) | TCP 22, 80, 443 offen (0.0.0.0/0 und ::/0) |
 | Automatic Snapshots Add-on | aktiviert, täglich 03:00 UTC |
 | DNS | `aufgaben.brandstaetters.net` — A → `35.158.29.79`, AAAA → die IPv6 der Instanz, in der bestehenden Route53-Zone `brandstaetters.net` (`Z06427381RB31PCZUVW1B`), TTL 300s |
@@ -194,11 +195,14 @@ Auf der Instanz per Bootstrap (`curl get.docker.com`, offizieller AWS-CLI-v2-Ins
 
 **Branch-Protection** auf `main`: `scan` (der Gitleaks-Job) ist als Required Status Check eingetragen (siehe §3/§9). Das erforderte, das Repository auf public zu stellen — GitHubs Free-Plan unterstützt Branch Protection auf private Repos für persönliche Accounts nicht.
 
-**Noch offen** (bewusst nicht Teil dieses Provisioning-Schritts, da domainabhängig):
-- Docker-Compose-Stack + Caddy-Reverse-Proxy + produktive `.env` sind noch nicht auf der Instanz deployt — `deploy.yml`s SSH-Schritt findet aktuell noch kein `docker-compose.yml` unter `/opt/haushaltsauktion`.
-- TLS-Konfiguration (Caddy/Let's-Encrypt) für `aufgaben.brandstaetters.net` — DNS steht bereits (siehe oben).
-- `deploy/backup-db.sh`/`.timer`/`.service` sind noch nicht auf die Instanz kopiert — dafür fehlt die produktive `.env` mit `BACKUP_S3_BUCKET`, die erst mit dem App-Deploy entsteht. Bis dahin läuft `restore-drill.yml` absichtlich fehlschlagend ("kein Backup gefunden").
-- Optional: Environment `production` mit Required Reviewers versehen, damit ein Deploy manuell bestätigt werden muss, bevor `deploy.yml`'s letzter Job läuft.
+### Stolpersteine beim tatsächlichen Provisioning (für's nächste Mal)
+
+- **`_ipv6_`-Lightsail-Bundles sind IPv6-only.** Der ursprünglich geplante $10-Bundle hat gar keine öffentliche IPv4-Adresse; `attachStaticIp` lehnt es sogar direkt ab. Behoben durch Wechsel auf `small_3_0` mit `--ip-address-type dualstack` ($12/Monat statt $10, siehe §2/§5).
+- **Lightsails temporärer SSH-Zertifikatszugriff (`get-instance-access-details`) funktionierte in diesem Account nicht** — drei unabhängige SSH-Clients (Git-Bash-OpenSSH, Windows-OpenSSH, Alpine-OpenSSH im Container) scheiterten alle identisch mit `Permission denied (publickey)`, auch nach einem Instanz-Reboot. Ursache nicht abschließend geklärt (vermutlich eine serverseitige CA-Trust-Eigenheit dieses Setups). Umgangen durch Neuerstellung der Instanz mit einem frisch generierten, dediziert für den Deploy genutzten Schlüsselpaar (`haushaltsauktion-deploy-v2`) — die statische IP blieb dabei erhalten (nur detached/reattached, nicht released), sodass DNS unverändert blieb.
+- **GitHub OIDC-`sub`-Claims enthalten für dieses Repo numerische IDs**, nicht das in den meisten Tutorials gezeigte `repo:OWNER/REPO:ref:...`-Format, sondern `repo:OWNER@OWNER_ID/REPO@REPO_ID:ref:refs/heads/main`. Beide IAM-Rollen-Trust-Policies mussten entsprechend angepasst werden. Ursache: GitHub bietet inzwischen ein anpassbares OIDC-`sub`-Claim-Template pro Repo an; für dieses Repo war offenbar das ID-einschließende Format aktiv. Vor dem Kopieren einer Trust-Policy aus einer Anleitung im Zweifel den tatsächlichen Claim per Debug-Step verifizieren.
+- **Der Lightsail-Instanz fehlt ein ECR-Login vor `docker compose pull`** — ohne IAM-Instanzrolle (siehe oben) muss `deploy.yml`s SSH-Schritt explizit `aws ecr get-login-password | docker login` ausführen, bevor er Images zieht.
+
+**Live-Status:** Die Anwendung läuft unter **https://aufgaben.brandstaetters.net** (gültiges Let's-Encrypt-Zertifikat, automatisch von Caddy bezogen). Alle vier Container (`db`, `api`, `web`, `caddy`) sind healthy. `backup-db.timer` ist aktiv (erster Lauf: nächste 03:00 UTC). Ausstehend: die erste tatsächliche Haushaltsregistrierung über die Weboberfläche (bewusst nicht von hier aus vorgenommen — das ist ein Schritt für die Familie selbst, siehe §11).
 
 ## 11. Offene Entscheidungen für den Nutzer
 
