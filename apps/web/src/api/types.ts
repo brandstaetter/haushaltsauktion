@@ -98,6 +98,11 @@ export interface PublicConfigDto {
       enabled: boolean;
     };
   };
+  integrations: {
+    todoist: {
+      enabled: boolean;
+    };
+  };
 }
 
 export interface AdminConfigDto {
