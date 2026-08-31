@@ -25,7 +25,7 @@ import {
 
 const KEY_1 = randomBytes(32);
 const KEY_2 = randomBytes(32);
-const TOKEN = '0123456789abcdef0123456789abcdef0123a3f9'; // gitleaks:allow — fixture value, not a real credential
+const TOKEN = '0123456789abcdef0123456789abcdef0123a3f9';
 
 /** Flips the first byte. `writeUInt8`/`readUInt8` rather than `buf[0] ^= …`
  *  because `noUncheckedIndexedAccess` types Buffer indexing as possibly
