@@ -151,6 +151,7 @@ enum AuditAction {
   BUYOUT_EXECUTED
   TASK_COMPLETED
   TASK_COMPLETION_REJECTED
+  PASSWORD_RESET
 }
 
 // ───────────────────────── identity plane ─────────────────────────

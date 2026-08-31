@@ -155,3 +155,15 @@
   padding: var(--s-3) 0;
   border-bottom: 1px solid var(--hairline);
 }
+
+.temporaryPassword {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: var(--s-3);
+  border-radius: var(--radius-2, 8px);
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+  user-select: all;
+  word-break: break-all;
+}

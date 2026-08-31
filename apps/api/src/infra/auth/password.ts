@@ -11,6 +11,8 @@
  * same hash comparison so the response time does not leak which one it was.
  */
 
+import { randomBytes } from 'node:crypto';
+
 import { hash, verify } from '@node-rs/argon2';
 
 /**
@@ -42,6 +44,17 @@ export async function verifyPassword(hashed: string, plain: string): Promise<boo
     // attacker the record exists but is corrupt.
     return false;
   }
+}
+
+/**
+ * A one-off password for an admin-created account or an admin-triggered
+ * reset. Must be shown to the admin exactly once (§25) — nothing stores the
+ * plaintext, so a caller who discards the return value has lost it for good.
+ * base64url keeps it copy-pasteable (no characters a shell or URL would mangle)
+ * while still clearing the 8-character minimum `MemberCreateBody` enforces.
+ */
+export function generateTemporaryPassword(): string {
+  return randomBytes(12).toString('base64url');
 }
 
 /** Spend the same time as a real verification, then fail. */

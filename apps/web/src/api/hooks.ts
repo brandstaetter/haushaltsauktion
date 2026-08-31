@@ -522,8 +522,22 @@ export function useCreateMember() {
       displayName: string;
       password?: string;
       role?: MemberRole;
-    }) => api<{ id: string }>('/admin/members', { method: 'POST', body }),
+    }) =>
+      api<{ id: string; temporaryPassword: string | null }>('/admin/members', {
+        method: 'POST',
+        body,
+      }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: adminMembersQueryKey }),
+  });
+}
+
+export function useResetMemberPassword() {
+  return useMutation({
+    mutationFn: ({ id, password }: { id: string; password?: string }) =>
+      api<{ id: string; temporaryPassword: string }>(`/admin/members/${id}/reset-password`, {
+        method: 'POST',
+        body: password === undefined ? {} : { password },
+      }),
   });
 }
 

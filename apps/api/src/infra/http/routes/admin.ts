@@ -31,7 +31,7 @@ import {
   nextOccurrence,
   offerExpiresAt,
 } from '../../../domain/recurrence/next-occurrence.js';
-import { hashPassword } from '../../auth/password.js';
+import { generateTemporaryPassword, hashPassword } from '../../auth/password.js';
 import { requireAdmin } from '../context.js';
 import { IdParam, PageQuery, parse } from './_validate.js';
 
@@ -87,6 +87,10 @@ const MemberPatchBody = z.object({
   isActive: z.boolean().optional(),
   role: z.enum(['MEMBER', 'ADMIN']).optional(),
   maxRandomAssignmentsPerWeek: z.number().int().min(0).max(1000).nullable().optional(),
+});
+
+const PasswordResetBody = z.object({
+  password: z.string().min(8).max(512).optional(),
 });
 
 const RestrictionsBody = z.object({
@@ -621,14 +625,24 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
     const email = body.email.trim().toLowerCase();
 
     // §26 — a person may belong to several households, so an existing user is
-    // reused rather than duplicated. Only the membership is new.
+    // reused rather than duplicated. Only the membership is new — and only a
+    // genuinely new user gets a generated password, since `temporaryPassword`
+    // below must never claim to have changed an existing account's password.
+    const preexisting = await deps.db.user.findUnique({ where: { email }, select: { id: true } });
+    const isNewUser = preexisting === null;
+    const temporaryPassword = isNewUser && body.password === undefined ? generateTemporaryPassword() : null;
+    const newAccountPassword = body.password ?? temporaryPassword;
+
     const user = await deps.db.user.upsert({
       where: { email },
       update: {},
       create: {
         email,
         displayName: body.displayName,
-        passwordHash: await hashPassword(body.password ?? crypto.randomUUID()),
+        // Prisma only evaluates `create` when no row matched `where`, i.e. when
+        // `isNewUser` is true — the branch that always leaves
+        // `newAccountPassword` defined, despite the static type.
+        passwordHash: await hashPassword(newAccountPassword!),
       },
       select: { id: true },
     });
@@ -662,7 +676,9 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         payload: { email, role: body.role },
       },
     });
-    return reply.status(201).send(member);
+    // Shown to the admin exactly once (§25) — nothing persists the plaintext,
+    // so this response is the only place it will ever be visible again.
+    return reply.status(201).send({ ...member, temporaryPassword });
   });
 
   app.patch('/admin/members/:id', async (request, reply) => {
@@ -714,6 +730,67 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
     });
     return { id: params.id };
   });
+
+  /**
+   * Admin-forced password reset. §25 needs this: without it a locked-out
+   * member has no recovery path in a household with no email/SMTP setup.
+   * Rate-limited like `/auth/password` (§36 — no unlimited guesses against
+   * the argon2id hash this ultimately rewrites) and keyed by household so one
+   * admin's resets cannot exhaust another household's budget.
+   */
+  app.post(
+    '/admin/members/:id/reset-password',
+    {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '1 hour',
+          keyGenerator: (request: { ctx?: { householdId: string }; ip: string }) =>
+            request.ctx?.householdId ?? request.ip,
+        },
+      },
+    },
+    async (request, reply) => {
+      const ctx = requireAdmin(request, reply);
+      const params = parse(IdParam, request.params);
+      const body = parse(PasswordResetBody, request.body ?? {});
+
+      const target = await deps.db.householdMember.findFirst({
+        where: { id: params.id, householdId: ctx.householdId },
+        select: { userId: true },
+      });
+      if (target === null) throw new NotFoundError('Mitglied nicht gefunden.');
+
+      const temporaryPassword = body.password ?? generateTemporaryPassword();
+      await deps.db.user.update({
+        where: { id: target.userId },
+        data: { passwordHash: await hashPassword(temporaryPassword) },
+      });
+      // The old password must stop working everywhere immediately — mirrors
+      // the self-service `/auth/password` invalidation in auth.ts.
+      await deps.db.session.updateMany({
+        where: { userId: target.userId, revokedAt: null },
+        data: { revokedAt: deps.clock.now() },
+      });
+
+      await deps.db.auditEvent.create({
+        data: {
+          householdId: ctx.householdId,
+          actorType: 'ADMIN',
+          actorMemberId: ctx.memberId,
+          action: 'PASSWORD_RESET',
+          entityType: 'HouseholdMember',
+          entityId: params.id,
+          // Never the plaintext or its hash — only whether the admin chose it
+          // or it was generated (§36).
+          payload: { generated: body.password === undefined },
+        },
+      });
+
+      // Shown once, same as the create-member temporary password (§25).
+      return reply.status(200).send({ id: params.id, temporaryPassword });
+    },
+  );
 
   app.put('/admin/members/:id/restrictions', async (request, reply) => {
     const ctx = requireAdmin(request, reply);

@@ -104,6 +104,70 @@ describe('MembersSection', () => {
     expect(await screen.findByText('Paul')).toBeInTheDocument();
   });
 
+  it('zeigt das generierte Passwort an, wenn ein Mitglied ohne Passwort angelegt wird', async () => {
+    const user = userEvent.setup();
+    let members: AdminMemberDto[] = [memberFixture()];
+
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string; body?: unknown }) => {
+      if (path === '/admin/members' && (options?.method ?? 'GET') === 'GET') {
+        return { items: members };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/task-definitions') return { items: [] };
+      if (path === '/admin/members' && options?.method === 'POST') {
+        const body = options.body as { email: string; displayName: string; role?: string };
+        const created = memberFixture({
+          id: 'member-2',
+          displayName: body.displayName,
+          role: (body.role as AdminMemberDto['role']) ?? 'MEMBER',
+          isActive: true,
+          pointsCache: 0,
+          user: { email: body.email, isActive: true },
+        });
+        members = [...members, created];
+        return { id: created.id, temporaryPassword: 'generated-secret-pw' };
+      }
+      throw new Error(`unerwarteter Aufruf: ${path} ${options?.method ?? 'GET'}`);
+    });
+
+    renderSection();
+
+    await user.click(screen.getByRole('button', { name: de.admin.members.addButton }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText(de.admin.members.email), 'paul@demo.local');
+    await user.type(within(dialog).getByLabelText(de.admin.members.displayName), 'Paul');
+    await user.click(within(dialog).getByRole('button', { name: de.admin.members.create }));
+
+    expect(await screen.findByText('generated-secret-pw')).toBeInTheDocument();
+  });
+
+  it('erlaubt einem Admin, ein neues Passwort für ein Mitglied zu vergeben', async () => {
+    const user = userEvent.setup();
+    const member = memberFixture();
+
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string; body?: unknown }) => {
+      if (path === '/admin/members' && (options?.method ?? 'GET') === 'GET') {
+        return { items: [member] };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/task-definitions') return { items: [] };
+      if (path === `/admin/members/${member.id}/reset-password` && options?.method === 'POST') {
+        return { id: member.id, temporaryPassword: 'reset-secret-pw' };
+      }
+      throw new Error(`unerwarteter Aufruf: ${path} ${options?.method ?? 'GET'}`);
+    });
+
+    renderSection();
+
+    expect(await screen.findByText('Anna')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: de.admin.members.resetPasswordButton }));
+
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: de.admin.members.resetPasswordConfirm }));
+
+    expect(await screen.findByText('reset-secret-pw')).toBeInTheDocument();
+  });
+
   it('zeigt die LAST_ADMIN-Meldung, wenn der letzte Admin degradiert werden soll', async () => {
     const user = userEvent.setup();
     const member = memberFixture({ role: 'ADMIN', isActive: true });

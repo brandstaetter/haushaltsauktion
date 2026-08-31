@@ -4,6 +4,7 @@ import {
   useAdminCategories,
   useAdminMembers,
   useCreateMember,
+  useResetMemberPassword,
   useTaskDefinitionLabels,
   useUpdateMember,
   useUpdateMemberRestrictions,
@@ -236,6 +237,85 @@ function RestrictionsForm({
   );
 }
 
+// ───────────────────────── temporary password reveal ─────────────────────────
+
+function TemporaryPasswordNotice({
+  password,
+  onClose,
+}: {
+  password: string;
+  onClose: () => void;
+}) {
+  const { de } = useStrings();
+  return (
+    <div className={styles.restrictionsForm}>
+      <p className={styles.hint}>{de.admin.members.temporaryPasswordHint}</p>
+      <p className={styles.temporaryPassword}>{password}</p>
+      <div className={styles.actions}>
+        <Button onClick={onClose}>{de.admin.members.temporaryPasswordClose}</Button>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────── reset-password sheet ─────────────────────────
+
+function ResetPasswordForm({
+  member,
+  onClose,
+  onDone,
+}: {
+  member: AdminMemberDto;
+  onClose: () => void;
+  onDone: (temporaryPassword: string) => void;
+}) {
+  const { de } = useStrings();
+  const resetPassword = useResetMemberPassword();
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    resetPassword.mutate(
+      { id: member.id, ...(password.trim() === '' ? {} : { password }) },
+      {
+        onSuccess: (result) => onDone(result.temporaryPassword),
+        onError: (err) => setError(memberErrorMessage(err, de)),
+      },
+    );
+  };
+
+  return (
+    <form className={styles.restrictionsForm} onSubmit={handleSubmit}>
+      {error && (
+        <div className={styles.message} role="alert">
+          {error}
+        </div>
+      )}
+      <label className={styles.field}>
+        <span>{de.admin.members.resetPasswordNewPassword}</span>
+        <input
+          type="password"
+          autoComplete="new-password"
+          minLength={8}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <span className={styles.hint}>{de.admin.members.resetPasswordHint}</span>
+      </label>
+      <div className={styles.actions}>
+        <Button type="submit" loading={resetPassword.isPending}>
+          {de.admin.members.resetPasswordConfirm}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onClose}>
+          {de.admin.members.cancel}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 // ───────────────────────── member row ─────────────────────────
 
 interface MemberDraft {
@@ -268,6 +348,7 @@ function MemberRow({
   onChange,
   onSave,
   onOpenRestrictions,
+  onOpenResetPassword,
 }: {
   member: AdminMemberDto;
   draft: MemberDraft;
@@ -276,6 +357,7 @@ function MemberRow({
   onChange: (patch: Partial<MemberDraft>) => void;
   onSave: () => void;
   onOpenRestrictions: () => void;
+  onOpenResetPassword: () => void;
 }) {
   const { de } = useStrings();
   const dirty = !sameDraft(draft, draftFromRow(member));
@@ -340,6 +422,9 @@ function MemberRow({
         <Button variant="secondary" onClick={onOpenRestrictions}>
           {de.admin.members.restrictionsButton}
         </Button>
+        <Button variant="secondary" onClick={onOpenResetPassword}>
+          {de.admin.members.resetPasswordButton}
+        </Button>
       </div>
     </li>
   );
@@ -347,7 +432,13 @@ function MemberRow({
 
 // ───────────────────────── add-member sheet ─────────────────────────
 
-function AddMemberForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function AddMemberForm({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (temporaryPassword: string | null) => void;
+}) {
   const { de } = useStrings();
   const createMember = useCreateMember();
   const [email, setEmail] = useState('');
@@ -367,7 +458,7 @@ function AddMemberForm({ onClose, onCreated }: { onClose: () => void; onCreated:
         role,
       },
       {
-        onSuccess: onCreated,
+        onSuccess: (result) => onCreated(result.temporaryPassword),
         onError: (err) => setError(memberErrorMessage(err, de)),
       },
     );
@@ -439,6 +530,8 @@ export function MembersSection() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [restrictionsForId, setRestrictionsForId] = useState<string | null>(null);
+  const [resetPasswordForId, setResetPasswordForId] = useState<string | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, MemberDraft>>({});
   const [rowErrors, setRowErrors] = useState<Record<string, string | null>>({});
   const [message, setMessage] = useState<string | null>(null);
@@ -447,6 +540,7 @@ export function MembersSection() {
   const categories = categoriesData?.items ?? [];
   const taskLabels = taskLabelsData?.items ?? [];
   const restrictionsFor = members.find((m) => m.id === restrictionsForId) ?? null;
+  const resetPasswordFor = members.find((m) => m.id === resetPasswordForId) ?? null;
 
   const draftFor = (member: AdminMemberDto): MemberDraft => drafts[member.id] ?? draftFromRow(member);
 
@@ -499,6 +593,7 @@ export function MembersSection() {
               onChange={(patch) => handleChange(member, patch)}
               onSave={() => handleSave(member)}
               onOpenRestrictions={() => setRestrictionsForId(member.id)}
+              onOpenResetPassword={() => setResetPasswordForId(member.id)}
             />
           ))}
         </ul>
@@ -511,9 +606,10 @@ export function MembersSection() {
       <Sheet open={addOpen} onOpenChange={setAddOpen} title={de.admin.members.addTitle}>
         <AddMemberForm
           onClose={() => setAddOpen(false)}
-          onCreated={() => {
+          onCreated={(newTemporaryPassword) => {
             setAddOpen(false);
             setMessage(de.admin.members.createSuccess);
+            if (newTemporaryPassword) setTemporaryPassword(newTemporaryPassword);
           }}
         />
       </Sheet>
@@ -533,6 +629,41 @@ export function MembersSection() {
             categories={categories}
             taskLabels={taskLabels}
             onClose={() => setRestrictionsForId(null)}
+          />
+        )}
+      </Sheet>
+
+      <Sheet
+        open={resetPasswordFor !== null}
+        onOpenChange={(open) => !open && setResetPasswordForId(null)}
+        title={
+          resetPasswordFor
+            ? interpolate(de.admin.members.resetPasswordTitle, { name: resetPasswordFor.displayName })
+            : de.admin.members.resetPasswordButton
+        }
+      >
+        {resetPasswordFor && (
+          <ResetPasswordForm
+            member={resetPasswordFor}
+            onClose={() => setResetPasswordForId(null)}
+            onDone={(newTemporaryPassword) => {
+              setResetPasswordForId(null);
+              setMessage(de.admin.members.resetPasswordSuccess);
+              setTemporaryPassword(newTemporaryPassword);
+            }}
+          />
+        )}
+      </Sheet>
+
+      <Sheet
+        open={temporaryPassword !== null}
+        onOpenChange={(open) => !open && setTemporaryPassword(null)}
+        title={de.admin.members.temporaryPasswordHeading}
+      >
+        {temporaryPassword && (
+          <TemporaryPasswordNotice
+            password={temporaryPassword}
+            onClose={() => setTemporaryPassword(null)}
           />
         )}
       </Sheet>
