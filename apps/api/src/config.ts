@@ -44,11 +44,19 @@ const EnvSchema = z.object({
    *
    * Optional so a household that never enables the integration is not forced to
    * generate a key; `main.ts` builds the keyring only when needed.
+   *
+   * Treats `""` the same as absent, not just `undefined`. Docker Compose
+   * substitutes an *empty string* for a referenced variable that isn't set in
+   * `.env` (`INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}`) — it
+   * does not omit the variable from the container's environment. Without this,
+   * an operator who simply never set the key (the documented, supported "I'm
+   * not using this integration" state) gets a boot-time crash instead of the
+   * silent no-op `main.ts`'s own `hasKey` check is designed to produce.
    */
   INTEGRATION_ENCRYPTION_KEY: z
     .string()
     .optional()
-    .refine((v) => v === undefined || Buffer.from(v, 'base64').length === 32, {
+    .refine((v) => v === undefined || v === '' || Buffer.from(v, 'base64').length === 32, {
       message: 'INTEGRATION_ENCRYPTION_KEY muss base64-kodiert genau 32 Bytes ergeben.',
     }),
   /** Rotation window: `1:<base64>,2:<base64>`. Parsed by `parseKeyring`. */
