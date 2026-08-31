@@ -21,7 +21,7 @@ import { storageStatePath } from './helpers';
 test.use({ storageState: storageStatePath('elke') });
 
 test('Admin ändert einen Regelwert, er bleibt nach Neuladen bestehen', async ({ page }) => {
-  await page.goto('/verwaltung');
+  await page.goto('/verwaltung/einstellungen');
 
   const input = page.getByLabel('Angebotsdauer (Minuten)');
   await expect(input).toBeVisible();
