@@ -183,6 +183,9 @@ Im Repo bereits vorhanden (Code, kein Provisioning):
 | Lightsail-Key-Pair | `haushaltsauktion-deploy` (ed25519, ausschließlich für den CI-Deploy — kein persönlicher SSH-Key wiederverwendet) |
 | Firewall (Instance Public Ports) | TCP 22, 80, 443 offen (0.0.0.0/0 und ::/0) |
 | Automatic Snapshots Add-on | aktiviert, täglich 03:00 UTC |
+| DNS | `aufgaben.brandstaetters.net` — A → `35.158.29.79`, AAAA → die IPv6 der Instanz, in der bestehenden Route53-Zone `brandstaetters.net` (`Z06427381RB31PCZUVW1B`), TTL 300s |
+
+Hinweis zur AAAA-Adresse: Anders als die IPv4 ist sie nicht "statisch" im Lightsail-Sinn — Lightsails Static-IP-Feature deckt nur IPv4 ab. Ändert sich die IPv6 der Instanz (z. B. nach einem seltenen Stop/Start), muss der AAAA-Record von Hand nachgezogen werden; der A-Record bleibt davon unberührt.
 
 Auf der Instanz per Bootstrap (`curl get.docker.com`, offizieller AWS-CLI-v2-Installer) bereits eingerichtet: Docker Engine + Compose-Plugin, AWS CLI v2, Verzeichnis `/opt/haushaltsauktion` (Eigentümer `ubuntu`). Das Ubuntu-24.04-Image liefert kein apt-Paket `awscli` mehr — deshalb der offizielle Installer statt `apt-get install awscli`.
 
@@ -193,12 +196,12 @@ Auf der Instanz per Bootstrap (`curl get.docker.com`, offizieller AWS-CLI-v2-Ins
 
 **Noch offen** (bewusst nicht Teil dieses Provisioning-Schritts, da domainabhängig):
 - Docker-Compose-Stack + Caddy-Reverse-Proxy + produktive `.env` sind noch nicht auf der Instanz deployt — `deploy.yml`s SSH-Schritt findet aktuell noch kein `docker-compose.yml` unter `/opt/haushaltsauktion`.
-- Domain/DNS-A-Record auf `35.158.29.79`, TLS-Konfiguration.
+- TLS-Konfiguration (Caddy/Let's-Encrypt) für `aufgaben.brandstaetters.net` — DNS steht bereits (siehe oben).
 - `deploy/backup-db.sh`/`.timer`/`.service` sind noch nicht auf die Instanz kopiert — dafür fehlt die produktive `.env` mit `BACKUP_S3_BUCKET`, die erst mit dem App-Deploy entsteht. Bis dahin läuft `restore-drill.yml` absichtlich fehlschlagend ("kein Backup gefunden").
 - Optional: Environment `production` mit Required Reviewers versehen, damit ein Deploy manuell bestätigt werden muss, bevor `deploy.yml`'s letzter Job läuft.
 
 ## 11. Offene Entscheidungen für den Nutzer
 
-- Domain: vorhandene Domain wiederverwenden oder neu registrieren?
+- ~~Domain: vorhandene Domain wiederverwenden oder neu registrieren?~~ Entschieden: bestehende Route53-Zone `brandstaetters.net`, Subdomain `aufgaben.brandstaetters.net` (§10).
 - Region: `eu-central-1` (Frankfurt) empfohlen für niedrige Latenz in Europa und DSGVO-Datenresidenz — bitte bestätigen, falls Familie außerhalb Europas sitzt.
-- Backup-Ziel: einfacher Lightsail-Bucket (weniger Konfiguration, geringfügig teurer) vs. rohes S3 + Glacier-Lifecycle (günstiger auf Dauer, etwas mehr IAM-Konfiguration) — beide oben mit eingepreist, Entscheidung ändert die Gesamtkosten nur um ~$0.50/Monat.
+- Backup-Ziel: einfacher Lightsail-Bucket (weniger Konfiguration, geringfügig teurer) vs. rohes S3 + Glacier-Lifecycle (günstiger auf Dauer, etwas mehr IAM-Konfiguration) — beide oben mit eingepreist, Entscheidung ändert die Gesamtkosten nur um ~$0.50/Monat. Entschieden: rohes S3 (§10).
