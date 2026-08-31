@@ -10,7 +10,7 @@
 
 .text {
   font: var(--t-body-sm);
-  color: var(--ink-1);
+  color: var(--ink);
 }
 
 .actions {

@@ -6,7 +6,7 @@
 
 .intro {
   font: var(--t-body);
-  color: var(--ink-1);
+  color: var(--ink);
   margin: 0;
 }
 
@@ -58,7 +58,7 @@
 .name {
   font: var(--t-body);
   font-weight: 600;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 
 .excluded,
