@@ -1,0 +1,3 @@
+aufgaben.brandstaetters.net {
+	reverse_proxy web:80
+}
