@@ -54,12 +54,12 @@ Architektur:
 
 | Plan | RAM | vCPU | SSD | Traffic inkl. |
 |---|---|---|---|---|
-| $5/Monat | 1 GB | 2 | 40 GB | 2 TB |
-| **$10/Monat (empfohlen)** | 2 GB | 2 | 60 GB | 3 TB |
+| $7/Monat (`micro_3_0`) | 1 GB | 2 | 40 GB | 2 TB |
+| **$12/Monat (`small_3_0`, provisioniert)** | 2 GB | 2 | 60 GB | 3 TB |
 
-Empfehlung: **$10-Tier**. Der $5-Tier reicht für den laufenden Betrieb (3 schlanke Container), wird aber knapp, sobald Images direkt auf der Instanz gebaut werden (Node/TSC-Build braucht während `npm ci`/`vite build` deutlich mehr als 1 GB RSS). Deshalb Punkt 3.
+Empfehlung: **`small_3_0`**. Beim tatsächlichen Provisioning (§10) stellte sich heraus, dass die günstigeren `_ipv6_`-Bundle-Varianten (die ursprünglich mit $10/Monat für dieselben Specs eingeplant waren) **IPv6-only** sind — keine öffentliche IPv4-Adresse, `attachStaticIp` schlägt dafür sogar mit `InvalidInputException` fehl. Für eine Familie, deren Heimnetz üblicherweise IPv4-basiert ist, ist das unbrauchbar. Deshalb `small_3_0` (klassisches Bundle, $12/Monat, `--ip-address-type dualstack` bei der Erstellung → IPv4 **und** IPv6).
 
-*Preise Stand Trainingsdaten — vor dem eigentlichen Provisioning auf der aktuellen [Lightsail-Preisseite](https://aws.amazon.com/lightsail/pricing/) verifizieren.*
+*Preise Stand Provisioning (siehe §10) — auf der aktuellen [Lightsail-Preisseite](https://aws.amazon.com/lightsail/pricing/) im Zweifel neu verifizieren.*
 
 ## 3. Deployment-Fluss (kein Build auf der Zielinstanz)
 
@@ -85,14 +85,14 @@ Damit findet auf der Produktionsinstanz nie ein `npm ci`/`tsc`/`vite build` stat
 
 | Posten | Kosten |
 |---|---|
-| Lightsail-Instanz (2 GB/2 vCPU/60 GB/3 TB) | $10.00 |
+| Lightsail-Instanz (2 GB/2 vCPU/60 GB/3 TB, dualstack) | $12.00 |
 | Lightsail Object Storage (Backups, 5 GB Small Bundle) *oder* S3 + Glacier IR | $1.00 – $1.50 |
 | Route 53 Hosted Zone (falls Domain-DNS bei AWS verwaltet wird) | $0.50 |
 | Domain-Registrierung (falls neu, jährlich umgelegt) | ~$1.00 |
 | ECR-Image-Speicher | < $0.20 |
 | Restore-Drill (siehe §7), quartalsweise 1h temporäre Instanz | < $0.10 im Schnitt |
 | CloudWatch Basis-Monitoring | $0.00 (Free Tier) |
-| **Summe** | **≈ $12–13 / Monat** |
+| **Summe** | **≈ $14–15 / Monat** |
 
 Zum Vergleich, warum andere AWS-Optionen verworfen wurden:
 - **ECS Fargate + RDS**: allein der Application Load Balancer kostet ~$16–18/Monat fix, dazu RDS `db.t4g.micro` (~$12–13/Monat) und Fargate-Task-Zeit — landet bei $35–45+/Monat für eine Last, die das nicht braucht.
@@ -168,21 +168,33 @@ Im Repo bereits vorhanden (Code, kein Provisioning):
 | `apps/api/prisma/verify-restore.ts` (`npm run verify-restore -w apps/api`) | Sanity-Checks nach einem Restore: Kern-Tabellen, Ledger-Konsistenz, Hash-Chain |
 | `deploy/backup-db.sh`, `deploy/backup-db.service`, `deploy/backup-db.timer` | Nächtliches `pg_dump` → S3 auf der Instanz (§6 Ebene B) |
 
-**Damit die Workflows tatsächlich laufen, müssen noch angelegt werden** (reine AWS-/GitHub-Konfiguration, kein Code):
+**AWS-Ressourcen (Account `637423428697`, Region `eu-central-1`) — provisioniert:**
 
-*In AWS:*
-- Ein ECR-Repository `haushaltsauktion-api` und eines `haushaltsauktion-web` (Region `eu-central-1`).
-- Eine OIDC-Identitätsanbieter-Registrierung für `token.actions.githubusercontent.com`, falls im Account noch nicht vorhanden.
-- Eine IAM-Rolle für `deploy.yml` (Trust Policy auf dieses Repo/Branch beschränkt) mit Rechten für `ecr:GetAuthorizationToken` + Push auf die beiden Repositories.
-- Eine zweite, nur lesende IAM-Rolle für `restore-drill.yml` mit `s3:ListBucket`/`s3:GetObject` beschränkt auf den Backup-Bucket/-Prefix.
-- Der S3- bzw. Lightsail-Bucket für Backups selbst (§6), plus der separate IAM-Nutzer mit `PutObject`-Zugriff für `deploy/backup-db.sh` auf der Instanz.
+| Ressource | Wert |
+|---|---|
+| OIDC-Provider | `token.actions.githubusercontent.com` |
+| ECR-Repository | `haushaltsauktion-api` |
+| ECR-Repository | `haushaltsauktion-web` |
+| S3-Backup-Bucket | `haushaltsauktion-backups-637423428697` (versioniert, SSE-AES256, Public Access Block, Lifecycle 30 Tage → Glacier IR → Ablauf nach 365 Tagen) |
+| IAM-Rolle | `gha-haushaltsauktion-deploy` — Trust nur für `repo:brandstaetter/haushaltsauktion:ref:refs/heads/main`; Rechte beschränkt auf ECR-Push in die beiden Repositories oben |
+| IAM-Rolle | `gha-haushaltsauktion-backup-read` — gleiche Trust-Einschränkung; Rechte beschränkt auf `GetObject`/`ListBucket` unter `backups/*` im Bucket oben |
+| Lightsail-Instanz | `haushaltsauktion`, `eu-central-1a`, Ubuntu 24.04 LTS, Bundle `small_3_0` (dualstack) |
+| Statische IP | `haushaltsauktion-ip` → `35.158.29.79` (IPv4), zusätzlich eine automatisch zugewiesene IPv6-Adresse |
+| Lightsail-Key-Pair | `haushaltsauktion-deploy` (ed25519, ausschließlich für den CI-Deploy — kein persönlicher SSH-Key wiederverwendet) |
+| Firewall (Instance Public Ports) | TCP 22, 80, 443 offen (0.0.0.0/0 und ::/0) |
+| Automatic Snapshots Add-on | aktiviert, täglich 03:00 UTC |
 
-*In GitHub (Repo-Settings → Secrets and variables → Actions):*
-- `AWS_CI_DEPLOY_ROLE_ARN` — Rolle für Build+Push (`deploy.yml`).
-- `AWS_BACKUP_READ_ROLE_ARN` — Rolle für den Restore-Test (`restore-drill.yml`).
-- `BACKUP_BUCKET` — Name des Backup-Buckets (von beiden Workflows referenziert, aktuell nur in `restore-drill.yml` verdrahtet).
-- `DEPLOY_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY` — Zugangsdaten für den SSH-Deploy-Schritt (privater Schlüssel, dessen öffentliches Gegenstück in `~/.ssh/authorized_keys` auf der Instanz liegt).
-- Branch-Protection-Regel für `main`: `gitleaks` als Required Status Check eintragen (§3/§9).
+Auf der Instanz per Bootstrap (`curl get.docker.com`, offizieller AWS-CLI-v2-Installer) bereits eingerichtet: Docker Engine + Compose-Plugin, AWS CLI v2, Verzeichnis `/opt/haushaltsauktion` (Eigentümer `ubuntu`). Das Ubuntu-24.04-Image liefert kein apt-Paket `awscli` mehr — deshalb der offizielle Installer statt `apt-get install awscli`.
+
+**GitHub Secrets (Repo `brandstaetter/haushaltsauktion`) — gesetzt:**
+`AWS_CI_DEPLOY_ROLE_ARN`, `AWS_BACKUP_READ_ROLE_ARN`, `BACKUP_BUCKET`, `DEPLOY_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY`.
+
+**Branch-Protection** auf `main`: `scan` (der Gitleaks-Job) ist als Required Status Check eingetragen (siehe §3/§9). Das erforderte, das Repository auf public zu stellen — GitHubs Free-Plan unterstützt Branch Protection auf private Repos für persönliche Accounts nicht.
+
+**Noch offen** (bewusst nicht Teil dieses Provisioning-Schritts, da domainabhängig):
+- Docker-Compose-Stack + Caddy-Reverse-Proxy + produktive `.env` sind noch nicht auf der Instanz deployt — `deploy.yml`s SSH-Schritt findet aktuell noch kein `docker-compose.yml` unter `/opt/haushaltsauktion`.
+- Domain/DNS-A-Record auf `35.158.29.79`, TLS-Konfiguration.
+- `deploy/backup-db.sh`/`.timer`/`.service` sind noch nicht auf die Instanz kopiert — dafür fehlt die produktive `.env` mit `BACKUP_S3_BUCKET`, die erst mit dem App-Deploy entsteht. Bis dahin läuft `restore-drill.yml` absichtlich fehlschlagend ("kein Backup gefunden").
 - Optional: Environment `production` mit Required Reviewers versehen, damit ein Deploy manuell bestätigt werden muss, bevor `deploy.yml`'s letzter Job läuft.
 
 ## 11. Offene Entscheidungen für den Nutzer
