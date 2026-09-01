@@ -85,6 +85,17 @@ Damit das auch einen kaputten `web`-Container (falsches `nginx.conf`, abgestürz
 
 Was der Check **bewusst nicht** prüft: fachliche Korrektheit (Login funktioniert, Aufgaben laden, Punkte stimmen) oder öffentliche Erreichbarkeit über `aufgaben.brandstaetters.net` von außen (DNS, Caddy-TLS, Firewall) — das deckt die E2E-Suite bzw. der externe Uptime-Check (§8) ab, nicht der Deploy-Health-Check. Er bestätigt ausschließlich: alle vier Container sind gestartet und haben ihren jeweiligen Docker-Healthcheck bestanden.
 
+Ein zweiter, unabhängiger Check läuft vor `docker compose pull` und prüft, ob
+`INTEGRATION_ENCRYPTION_KEY`(S) in der Instanz-`.env` gesetzt ist. Anders als
+der Health-Check oben bricht dieser den Job **nicht** ab, wenn der Wert
+fehlt — Abwesenheit ist ein gültiger Zustand (§4 unten, `docs/todoist.md`) —
+er schreibt nur eine `::warning::`-Annotation ins Workflow-Log. Grund: ein
+fehlender Schlüssel führt zu keinem Absturz und keinem Fehler (siehe
+`docs/todoist.md`), sondern nur dazu, dass Mitglieder ihr eigenes
+Todoist-Token nie speichern können, sobald ein Haushalt die Integration in
+den Admin-Einstellungen aktiviert — ein Zustand, der sonst erst auffällt,
+wenn jemand das meldet.
+
 ## 4. Secrets
 
 - `SESSION_SECRET`, DB-Zugangsdaten: als `.env`-Datei **nur auf der Instanz**, nicht im Image, nicht im Repo (schon jetzt via `.env`/`.env.example`-Trennung so gehandhabt).

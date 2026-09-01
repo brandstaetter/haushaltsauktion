@@ -125,6 +125,18 @@ jobs:
             else
               echo "SETUP_TOKEN=${{ secrets.SETUP_TOKEN }}" >> .env
             fi
+
+            # Visibility only — mirrors apps/api/src/main.ts's own `hasKey`
+            # check. Without this key the API boots fine and composes
+            # nothing for Todoist (no crash, no error, see docs/todoist.md),
+            # so a missing key is otherwise invisible until a member reports
+            # they can't connect their account.
+            if grep -qE '^INTEGRATION_ENCRYPTION_KEYS?=.+' .env; then
+              echo "INTEGRATION_ENCRYPTION_KEY(S) is set on this instance."
+            else
+              echo "::warning::INTEGRATION_ENCRYPTION_KEY is not set on this instance. Any household with the Todoist integration enabled in Admin Settings will have members unable to connect their own token. See docs/todoist.md."
+            fi
+
             docker compose pull
             docker compose up -d
 
