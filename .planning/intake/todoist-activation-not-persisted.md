@@ -1,8 +1,9 @@
 ---
 title: "Activating the Todoist integration in Admin Settings appears not to persist"
-status: pending
+status: completed
 priority: normal
 target: apps/web/src/api/hooks.ts, apps/web/src/pages/AdminPage/AdminSettingsPage.tsx
+campaign: activating-the-todoist-integration-in-admin-settings-appears-not-to-persist
 ---
 
 ## Description

@@ -369,6 +369,7 @@ export function useSaveConfig() {
     mutationFn: (body: { expectedVersion: number; values: Record<string, unknown> }) =>
       api('/admin/config', { method: 'PUT', body }),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminConfigQueryKey });
       void qc.invalidateQueries({ queryKey: publicConfigQueryKey });
       void qc.invalidateQueries({ queryKey: ['tasks'] });
       void qc.invalidateQueries({ queryKey: dashboardQueryKey });
