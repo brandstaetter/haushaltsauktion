@@ -212,7 +212,17 @@ Hinweis zur AAAA-Adresse: Anders als die IPv4 ist sie nicht "statisch" im Lights
 Auf der Instanz per Bootstrap (`curl get.docker.com`, offizieller AWS-CLI-v2-Installer) bereits eingerichtet: Docker Engine + Compose-Plugin, AWS CLI v2, Verzeichnis `/opt/haushaltsauktion` (Eigentümer `ubuntu`). Das Ubuntu-24.04-Image liefert kein apt-Paket `awscli` mehr — deshalb der offizielle Installer statt `apt-get install awscli`.
 
 **GitHub Secrets (Repo `brandstaetter/haushaltsauktion`) — gesetzt:**
-`AWS_CI_DEPLOY_ROLE_ARN`, `AWS_BACKUP_READ_ROLE_ARN`, `BACKUP_BUCKET`, `DEPLOY_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY`.
+`AWS_CI_DEPLOY_ROLE_ARN`, `AWS_BACKUP_READ_ROLE_ARN`, `BACKUP_BUCKET`, `DEPLOY_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY`, `SETUP_TOKEN`, `INTEGRATION_ENCRYPTION_KEY`.
+
+`SETUP_TOKEN` und `INTEGRATION_ENCRYPTION_KEY` werden bei jedem Deploy vom
+`deploy`-Job in die Instanz-`.env` geschrieben (`.github/workflows/deploy.yml`)
+— anders als `SESSION_SECRET` und die DB-Zugangsdaten (§4 oben), die
+bewusst nur einmalig von Hand in der Instanz-`.env` liegen und von CI nie
+angefasst werden. `INTEGRATION_ENCRYPTION_KEY` fehlte deshalb zunächst in
+Produktion: es war (wie `SESSION_SECRET`) als "einmalig von Hand setzen"
+vorgesehen, dieser Schritt wurde beim initialen Provisioning aber
+ausgelassen. Der Wechsel auf CI-Sync schließt genau diese Lücke — ein
+vergessener manueller Schritt kann sie nicht mehr reproduzieren.
 
 **Branch-Protection** auf `main`: `scan` (der Gitleaks-Job) ist als Required Status Check eingetragen (siehe §3/§9). Das erforderte, das Repository auf public zu stellen — GitHubs Free-Plan unterstützt Branch Protection auf private Repos für persönliche Accounts nicht.
 

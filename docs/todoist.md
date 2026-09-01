@@ -93,6 +93,16 @@ INTEGRATION_ENCRYPTION_KEYS=
 TODOIST_INTERVAL_SECONDS=60
 ```
 
+**In Produktion** ist dieser manuelle `.env`-Schritt seit
+`INTEGRATION_ENCRYPTION_KEY` als GitHub Secret entfällt: `deploy.yml`
+schreibt den Wert bei jedem Deploy in die Instanz-`.env`, genau wie
+`SETUP_TOKEN` (siehe `docs/hosting-plan.md` §10). Ein neuer Schlüssel muss
+dort per `gh secret set INTEGRATION_ENCRYPTION_KEY` hinterlegt werden — das
+Bearbeiten der Instanz-`.env` von Hand ist für diese Variable in Produktion
+nicht mehr nötig (und wird beim nächsten Deploy ohnehin überschrieben).
+`INTEGRATION_ENCRYPTION_KEYS` bleibt bewusst manuell, siehe Schlüsselrotation
+unten.
+
 ---
 
 ## Einzelinstanz-Bedingung beim Skalieren
@@ -164,12 +174,21 @@ SELECT token_key_version, count(*)
  GROUP BY 1;
 ```
 
-**4. Fenster schließen**, sobald nur noch die neue Version vorkommt:
+**4. Fenster schließen**, sobald nur noch die neue Version vorkommt.
 
-```dotenv
-INTEGRATION_ENCRYPTION_KEY=<neuer-schluessel>
-INTEGRATION_ENCRYPTION_KEYS=
+`INTEGRATION_ENCRYPTION_KEY` wird seit `deploy.yml`'s CI-Sync (siehe oben)
+bei **jedem** Deploy aus dem GitHub Secret in die Instanz-`.env`
+zurückgeschrieben — ein Von-Hand-Edit dieser Variable direkt auf der
+Instanz würde also beim nächsten Deploy stillschweigend wieder auf den
+alten Schlüssel zurückfallen. Stattdessen das Secret aktualisieren:
+
+```bash
+gh secret set INTEGRATION_ENCRYPTION_KEY --body "<neuer-schluessel>"
 ```
+
+Danach auf der Instanz `INTEGRATION_ENCRYPTION_KEYS=` leeren (diese
+Variable bleibt weiterhin nur manuell in `.env` gepflegt) und neu
+deployen, damit der neue Schlüssel synchronisiert wird.
 
 > **Das Fenster nicht zu früh schließen.** Eine Zeile mit einer Version, die im
 > Keyring fehlt, ist unwiederbringlich: Das Token kann nicht mehr entschlüsselt
