@@ -9,6 +9,7 @@ import {
 import { useAdminConfig, useSaveConfig } from '../../api/hooks';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../../components/Button/Button';
+import { DurationInput } from '../../components/DurationInput/DurationInput';
 import styles from './AdminPage.module.css';
 
 function clone<T>(value: T): T {
@@ -71,14 +72,9 @@ export function AdminSettingsPage() {
         <h2 className={styles.sectionTitle}>{de.admin.sections.assignment}</h2>
         <label className={styles.field}>
           <span>{de.admin.fields.offerDurationMinutes}</span>
-          <input
-            type="number"
-            min={1}
-            max={20160}
-            value={draft.assignment.offerDurationMinutes}
-            onChange={(e) =>
-              update('assignment', { offerDurationMinutes: parseInt(e.target.value, 10) || 1 })
-            }
+          <DurationInput
+            valueMinutes={draft.assignment.offerDurationMinutes}
+            onChange={(minutes) => update('assignment', { offerDurationMinutes: minutes ?? 1 })}
           />
         </label>
         <label className={styles.field}>
