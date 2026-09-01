@@ -1,6 +1,6 @@
 ---
 title: "Todoist household toggle can be enabled with no server-side integration support, leaving members unable to connect"
-status: pending
+status: completed
 priority: normal
 target: apps/api/src/app/integrations/connectTodoist.ts, apps/api/src/infra/http/routes/admin.ts, apps/api/src/app/config/updateConfig.ts, apps/web/src/pages/AdminPage/AdminSettingsPage.tsx, apps/web/src/pages/AccountPage/TodoistSection.tsx
 ---

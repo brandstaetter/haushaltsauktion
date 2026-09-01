@@ -141,6 +141,10 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       defaults: DEFAULT_CONFIG,
       updatedAt: row?.createdAt.toISOString() ?? null,
       updatedBy: row?.createdBy ?? null,
+      // Lets the admin UI show the consequence *before* flipping the switch
+      // (§31), rather than after the write is rejected or, worse, silently
+      // accepted with no member ever able to connect.
+      integrationsAvailable: { todoist: deps.todoist !== undefined && deps.secrets !== undefined },
     };
   });
 

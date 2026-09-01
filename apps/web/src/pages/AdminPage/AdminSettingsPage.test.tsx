@@ -58,6 +58,7 @@ describe('AdminSettingsPage', () => {
       defaults: cloneDefaultConfig(),
       updatedAt: null,
       updatedBy: null,
+      integrationsAvailable: { todoist: true },
     };
 
     mockedApi.mockImplementation(
