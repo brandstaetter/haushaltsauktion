@@ -127,4 +127,36 @@ jobs:
             fi
             docker compose pull
             docker compose up -d
+
+            # `docker compose up -d` exiting 0 only means the containers
+            # were *started* — it says nothing about whether they stayed
+            # up. Poll until every service has left its startup healthcheck
+            # window, and fail loudly (with logs) on a crash-looping, exited,
+            # or unhealthy container instead of reporting green regardless.
+            echo "Waiting for the stack to report healthy..."
+            attempt=0
+            max_attempts=24 # 24 * 5s = 120s bounded window
+            until [ "$attempt" -ge "$max_attempts" ]; do
+              status="$(docker compose ps)"
+              if echo "$status" | grep -qE 'Restarting|Exit|unhealthy'; then
+                echo "::error::A service is crash-looping, exited, or unhealthy after deploy."
+                echo "$status"
+                docker compose logs --tail=200
+                exit 1
+              fi
+              if ! echo "$status" | grep -q 'starting'; then
+                echo "$status"
+                echo "All services settled."
+                break
+              fi
+              attempt=$((attempt + 1))
+              sleep 5
+            done
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "::error::Timed out waiting for the stack to become healthy."
+              docker compose ps
+              docker compose logs --tail=200
+              exit 1
+            fi
+
             docker image prune -f

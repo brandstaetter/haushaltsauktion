@@ -75,6 +75,16 @@ Um mit der kleinen Instanz auszukommen und Ausfallzeiten beim Deploy zu vermeide
 
 Damit findet auf der Produktionsinstanz nie ein `npm ci`/`tsc`/`vite build` statt — das entschärft die RAM-Grenze zusätzlich zum Instanz-Upgrade.
 
+### 3.1 Post-Deploy Health Check
+
+`docker compose up -d` mit Exit-Code 0 bedeutet nur, dass die Container *gestartet* wurden — nicht, dass sie gesund geblieben sind. Am 2026-08-31 hat genau diese Lücke einen Produktionsausfall verschleiert: PR #3 deployte `docker-compose.prod.yml` mit `INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}`, die Instanz-`.env` hatte den Wert nicht gesetzt, Compose substituierte einen leeren String, die API-Konfigurationsvalidierung lehnte das beim Boot ab und der Container crash-loopte — während `docker compose up -d` weiterhin 0 zurückgab, der `deploy`-Job grün lief, und Caddy 502 auf jede Anfrage lieferte.
+
+Der Deploy-Job (`.github/workflows/deploy.yml`) pollt seither nach `docker compose up -d` bis zu 120 Sekunden lang (24 × 5s) `docker compose ps` und bricht sofort mit `docker compose logs --tail=200` im Workflow-Log ab, sobald ein Service `Restarting`, `Exited` oder `unhealthy` meldet. Erst wenn kein Service mehr im Zustand `starting` ist, gilt der Stack als hochgefahren und der Job kann grün werden.
+
+Damit das auch einen kaputten `web`-Container (falsches `nginx.conf`, abgestürztes nginx) erkennt, hat `web` in `deploy/docker-compose.prod.yml` inzwischen einen eigenen Healthcheck (`wget --spider http://localhost/`) — vorher hatten nur `db` und `api` einen, sodass ein rein am Reverse-Proxy hängender Fehler nie zum Poll-Fehlschlag geführt hätte, egal wie lange gewartet wird.
+
+Was der Check **bewusst nicht** prüft: fachliche Korrektheit (Login funktioniert, Aufgaben laden, Punkte stimmen) oder öffentliche Erreichbarkeit über `aufgaben.brandstaetters.net` von außen (DNS, Caddy-TLS, Firewall) — das deckt die E2E-Suite bzw. der externe Uptime-Check (§8) ab, nicht der Deploy-Health-Check. Er bestätigt ausschließlich: alle vier Container sind gestartet und haben ihren jeweiligen Docker-Healthcheck bestanden.
+
 ## 4. Secrets
 
 - `SESSION_SECRET`, DB-Zugangsdaten: als `.env`-Datei **nur auf der Instanz**, nicht im Image, nicht im Repo (schon jetzt via `.env`/`.env.example`-Trennung so gehandhabt).
@@ -163,7 +173,7 @@ Im Repo bereits vorhanden (Code, kein Provisioning):
 | Datei | Zweck |
 |---|---|
 | `.github/workflows/gitleaks.yml` + `.gitleaks.toml` | Secret-Scan, Pflicht-Gate vor Build/Deploy (§3 Schritt 0) |
-| `.github/workflows/deploy.yml` | Test (`typecheck`/`lint`/`test` inkl. Integrationstests gegen Postgres-Service-Container) → Build+Push beider Images nach ECR (OIDC) → SSH-Deploy auf die Instanz |
+| `.github/workflows/deploy.yml` | Test (`typecheck`/`lint`/`test` inkl. Integrationstests gegen Postgres-Service-Container) → Build+Push beider Images nach ECR (OIDC) → SSH-Deploy auf die Instanz → Post-Deploy Health Check (§3.1) |
 | `.github/workflows/restore-drill.yml` | Wöchentlicher automatisierter Restore-Test (§7 Stufe 1) |
 | `apps/api/prisma/verify-restore.ts` (`npm run verify-restore -w apps/api`) | Sanity-Checks nach einem Restore: Kern-Tabellen, Ledger-Konsistenz, Hash-Chain |
 | `deploy/backup-db.sh`, `deploy/backup-db.service`, `deploy/backup-db.timer` | Nächtliches `pg_dump` → S3 auf der Instanz (§6 Ebene B) |

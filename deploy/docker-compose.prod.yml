@@ -70,6 +70,15 @@ services:
     restart: unless-stopped
     depends_on:
       - api
+    # Unlike db/api, a broken nginx.conf or a crashed nginx process doesn't
+    # trip any *other* signal — the container itself would happily stay "Up".
+    # This is what the deploy workflow's post-deploy poll (deploy.yml) relies
+    # on to catch that case instead of reporting green.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   caddy:
     image: caddy:2-alpine
