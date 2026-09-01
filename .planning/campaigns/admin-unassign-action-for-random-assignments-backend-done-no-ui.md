@@ -1,19 +1,19 @@
 ---
 version: 1
 id: "cf6f4be1-689e-46b5-abf4-04e5f075013e"
-status: active
+status: complete
 started: "2026-09-01T05:02:35.148Z"
-completed_at: null
+completed_at: "2026-09-01T07:10:00.000Z"
 direction: "Admin \\"unassign\\" action for random assignments — backend done, no UI"
 phase_count: 4
-current_phase: 2
-branch: null
+current_phase: 4
+branch: feat/admin-unassign-random-assignment-ui
 worktree_status: null
 ---
 
 # Campaign: Admin \"unassign\" action for random assignments — backend done, no UI
 
-Status: active
+Status: complete
 Started: 2026-09-01T05:02:35.148Z
 Direction: Admin \"unassign\" action for random assignments — backend done, no UI
 
@@ -53,30 +53,32 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | # | Status | Type | Phase | Done When |
 |---|--------|------|-------|-----------|
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
-| 2 | pending | build | Implement requested change | Required files are changed and implementation diff is available |
-| 3 | pending | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
+| 3 | complete | verify | Run verification | npm run test passes |
+| 4 | complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
 | Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
 |---|---|---|---|---|---|---|---|
-| phase:2 | implementation-diff | file_diff | yes | git diff --stat | pending | 2 | implement requested change |
-| phase:3 | verification-command | test_result | yes | npm run test | pending | 2 | fix verification failures |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/admin-unassign-action-for-random-assignments-backend-done-no-ui.md | pending | 2 | package delivery for review |
+| phase:2 | implementation-diff | file_diff | yes | 5 files changed, 163 insertions(+), 1 deletion(-) (hooks.ts, types.ts, TaskDetailPage.tsx/.module.css, de.ts) | resolved | 2 | none |
+| phase:3 | verification-command | test_result | yes | `npm run -w apps/web typecheck` clean; `npm run test` — 128+244+73 tests passed across all workspaces | resolved | 2 | none |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/11 | resolved | 2 | review pull request |
 
 ## Decision Log
 
 - 2026-09-01T05:02:35.148Z: Created delivery campaign from intake preflight.
   Reason: Convert intake into an evidence-backed delivery loop before implementation.
+- 2026-09-01: Implemented, verified, and packaged as PR #11.
+  Reason: All acceptance criteria met — admin-only unassign action wired on TaskDetailPage against the existing revoke-assignment endpoint; REVOKED history string added; typecheck and full test suite pass.
 
 ## Active Context
 
-Delivery preflight complete. Next action: implement Phase 2 using the claimed scope, acceptance criteria, map context, and evidence contract.
+All phases complete. PR #11 open for review.
 
 ## Continuation State
 
-Phase: 2
-Sub-step: implementation not started
-Files modified: campaign scaffold only
+Phase: 4
+Sub-step: complete
+Files modified: apps/web/src/api/hooks.ts, apps/web/src/api/types.ts, apps/web/src/pages/TaskDetailPage/TaskDetailPage.tsx, apps/web/src/pages/TaskDetailPage/TaskDetailPage.module.css, apps/web/src/strings/de.ts
 Blocking: none
