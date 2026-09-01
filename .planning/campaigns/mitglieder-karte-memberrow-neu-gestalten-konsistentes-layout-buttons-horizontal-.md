@@ -86,7 +86,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
 | 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
 | 3 | complete | verify | Run verification | npm run test passes |
-| 4 | complete | package | Package for review | PR link or local review package is recorded |
+| 4 |  complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
@@ -94,7 +94,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 |---|---|---|---|---|---|---|---|
 | phase:2 | implementation-diff | file_diff | yes | `apps/web/src/components/Button/Button.tsx` (+`sm` size, +`icon` prop), `apps/web/src/components/Button/Button.module.css` (+`.sm`), `apps/web/src/pages/AdminPage/MembersSection.tsx` (boxed Aktiv-checkbox + balance cells, horizontal icon buttons via `lucide-react`'s `Save`/`Ban`/`KeyRound`), `apps/web/src/pages/AdminPage/AdminPage.module.css` (+`.memberFieldBox`, `.memberActiveBox`, `.rowActions` now flex-row equal-width) | pass | 2 | — |
 | phase:3 | verification-command | test_result | yes | `npm run typecheck` clean, `npm run lint` clean, `npm run test` — 465/465 passed (shared 128, api 248, web 89, incl. `MembersSection.test.tsx` unchanged/passing); visually verified against the real dev server (Playwright screenshot, not just unit tests) at desktop width and at 390×844 (the project's own mobile e2e viewport) — role/active/max-assignments/balance cells render as visually equal boxed fields, and the three action buttons sit in one horizontal row with icon+label at both widths | pass | 2 | — |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/mitglieder-karte-memberrow-neu-gestalten-konsistentes-layout-buttons-horizontal-.md | pending | 2 | package delivery for review |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/32 | resolved | 2 | review pull request |
 
 ## Decision Log
 
@@ -109,18 +109,21 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 
 ## Active Context
 
-Implementation, local verification (typecheck/lint/full unit suite green),
-and visual verification (Playwright screenshots at desktop and the
-project's 390×844 mobile viewport) are complete. Branch
-`feat/member-row-card-redesign` has the commit; next action is opening the
-PR and packaging delivery evidence.
+Implementation, local verification, and visual verification are complete.
+PR #32 is open (branched from `main` before PR #31's CI changes were
+merged, so only `scan`/CodeQL/Analyze run on it — all pass; this PR carries
+no `test`/`e2e` job of its own since `main`'s `deploy.yml` doesn't yet have
+the `pull_request` trigger). PR #32 is ready for human review/merge — this
+session does not merge it. The campaign stays `active` (not `completed`)
+until the PR is actually merged, matching this repo's delivery-campaign
+convention.
 
 ## Continuation State
 
-Phase: 4
-Sub-step: implementation and verification done, PR not yet opened
+Phase: 4 (implementation, verification, and available CI all green; PR open for review)
+Sub-step: none pending from this session — next action belongs to the reviewer (merge PR #32)
 Files modified: apps/web/src/components/Button/Button.tsx,
   apps/web/src/components/Button/Button.module.css,
   apps/web/src/pages/AdminPage/MembersSection.tsx,
   apps/web/src/pages/AdminPage/AdminPage.module.css
-Blocking: none
+Blocking: none — awaiting PR review/merge (human decision)
