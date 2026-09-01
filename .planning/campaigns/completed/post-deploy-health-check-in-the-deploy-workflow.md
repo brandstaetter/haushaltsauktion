@@ -59,9 +59,9 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 
 | Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
 |---|---|---|---|---|---|---|---|
-| phase:2 | implementation-diff | file_diff | yes | PR #6 (deploy.yml poll loop + web healthcheck + docs), PR #8 (curl fix for the web healthcheck) | complete | 2 | — |
-| phase:3 | verification-command | test_result | yes | `npx tsc --noEmit` clean; `npm run test --workspaces` — web (67/67) passed, api integration tests need a local Postgres this environment didn't have (pre-existing gap, unrelated to this change) so real verification came from GitHub Actions' `test` job (with a real Postgres service container) on push to main, which passed on both merges | complete | 2 | — |
-| phase:4 | review-package | review_package | yes | PR #6 https://github.com/brandstaetter/haushaltsauktion/pull/6 (merged), PR #8 https://github.com/brandstaetter/haushaltsauktion/pull/8 (merged) | complete | 2 | — |
+| phase:2 | implementation-diff | file_diff | yes | PR #6 (deploy.yml poll loop + web healthcheck + docs), PR #8 (curl fix for the web healthcheck) | pass | 2 | — |
+| phase:3 | verification-command | test_result | yes | `npx tsc --noEmit` clean; `npm run test --workspaces` — web (67/67) passed, api integration tests need a local Postgres this environment didn't have (pre-existing gap, unrelated to this change) so real verification came from GitHub Actions' `test` job (with a real Postgres service container) on push to main, which passed on both merges | pass | 2 | — |
+| phase:4 | review-package | review_package | yes | PR #6 https://github.com/brandstaetter/haushaltsauktion/pull/6 (merged), PR #8 https://github.com/brandstaetter/haushaltsauktion/pull/8 (merged) | pass | 2 | — |
 
 ## Decision Log
 
