@@ -126,15 +126,31 @@ jobs:
               echo "SETUP_TOKEN=${{ secrets.SETUP_TOKEN }}" >> .env
             fi
 
-            # Visibility only — mirrors apps/api/src/main.ts's own `hasKey`
+            # Synced from GitHub Secrets the same way as SETUP_TOKEN above,
+            # rather than requiring a one-time manual edit of the instance's
+            # .env — that manual step is exactly what got missed after initial
+            # provisioning and left this key unset in production. An empty
+            # secret still lands as an empty string here, which
+            # apps/api/src/config.ts and main.ts already treat as "integration
+            # not configured" rather than an error (see docs/todoist.md), so
+            # this is safe to run unconditionally on every deploy.
+            if grep -q '^INTEGRATION_ENCRYPTION_KEY=' .env; then
+              sed -i "s#^INTEGRATION_ENCRYPTION_KEY=.*#INTEGRATION_ENCRYPTION_KEY=${{ secrets.INTEGRATION_ENCRYPTION_KEY }}#" .env
+            else
+              echo "INTEGRATION_ENCRYPTION_KEY=${{ secrets.INTEGRATION_ENCRYPTION_KEY }}" >> .env
+            fi
+
+            # Visibility check — mirrors apps/api/src/main.ts's own `hasKey`
             # check. Without this key the API boots fine and composes
             # nothing for Todoist (no crash, no error, see docs/todoist.md),
             # so a missing key is otherwise invisible until a member reports
-            # they can't connect their account.
+            # they can't connect their account. Now that the key above is
+            # synced from a GitHub Secret, this mainly catches that secret
+            # having been left empty.
             if grep -qE '^INTEGRATION_ENCRYPTION_KEYS?=.+' .env; then
               echo "INTEGRATION_ENCRYPTION_KEY(S) is set on this instance."
             else
-              echo "::warning::INTEGRATION_ENCRYPTION_KEY is not set on this instance. Any household with the Todoist integration enabled in Admin Settings will have members unable to connect their own token. See docs/todoist.md."
+              echo "::warning::INTEGRATION_ENCRYPTION_KEY is not set (the GitHub Secret is empty or missing). Any household with the Todoist integration enabled in Admin Settings will have members unable to connect their own token. See docs/todoist.md."
             fi
 
             docker compose pull
