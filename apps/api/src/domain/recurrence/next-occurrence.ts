@@ -129,27 +129,33 @@ export function dueAtFor(rule: RecurrenceRule, occurrenceStart: Date): Date | nu
 export interface OfferWindowInput {
   publishedAt: Date;
   dueAt: Date | null;
-  offerDurationMinutes: number;
-  /** OQ-4 — lets a household guarantee the draw happens before the chore is late. */
+  /**
+   * Auto-assignment fires once fewer than this many minutes remain before
+   * `dueAt` — OQ-4, reworked per the intake decision below. Unused when
+   * `dueAt` is `null`.
+   */
   leadMinutesBeforeDue: number;
 }
 
 /**
- * §5.8:
- *   `offerExpiresAt = min(publishedAt + offerDurationMinutes,
- *                         dueAt - leadMinutesBeforeDue)`
+ * §5.8, reworked: a task with no due date has nothing to anchor "how close to
+ * the deadline" against, so it never auto-expires and therefore never gets
+ * randomly assigned — it stays `AVAILABLE` until someone volunteers. A task
+ * with a due date auto-expires exactly `leadMinutesBeforeDue` before it, not
+ * on a fixed short timer regardless of how far off the deadline is —
+ * `offerDurationMinutes` no longer factors in here at all (it still governs
+ * the offer window `reopen.ts`/`executeBuyout.ts`/`rejectCompletion.ts` open
+ * after a buyout, release, or rejected completion).
  *
- * At the default `leadMinutesBeforeDue = 0` the clamp reduces to `dueAt`, which
- * is the spec's implicit behaviour. The result is never before `publishedAt`:
- * a task published after its own due date is offered for an instant rather than
- * being retroactively expired.
+ * The result is never before `publishedAt`: a task published less than
+ * `leadMinutesBeforeDue` minutes before its own due date is offered for an
+ * instant rather than being retroactively expired.
  */
-export function offerExpiresAt(input: OfferWindowInput): Date {
-  const byDuration = input.publishedAt.getTime() + input.offerDurationMinutes * 60_000;
-  if (input.dueAt === null) return new Date(byDuration);
+export function offerExpiresAt(input: OfferWindowInput): Date | null {
+  if (input.dueAt === null) return null;
 
   const byDueDate = input.dueAt.getTime() - input.leadMinutesBeforeDue * 60_000;
-  return new Date(Math.max(input.publishedAt.getTime(), Math.min(byDuration, byDueDate)));
+  return new Date(Math.max(input.publishedAt.getTime(), byDueDate));
 }
 
 /**
