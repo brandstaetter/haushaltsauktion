@@ -5,7 +5,10 @@ export const de = {
     tasks: 'Aufgaben',
     history: 'Verlauf',
     account: 'Ich',
-    admin: 'Verwaltung',
+    adminSettings: 'Einstellungen',
+    adminMembers: 'Benutzer',
+    adminTasks: 'Aufgaben',
+    adminCategories: 'Kategorien',
   },
   login: {
     title: 'Haushaltsauktion',

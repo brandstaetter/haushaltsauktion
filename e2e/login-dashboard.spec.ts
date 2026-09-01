@@ -71,9 +71,12 @@ test.describe('Dashboard', () => {
   });
 
   test('führt Elke als Administratorin in die Verwaltung', async ({ page }) => {
-    // Der Seed macht Elke zur ADMIN (§25) — der Navigationspunkt ist der
-    // sichtbare Beweis, dass die Rolle aus der Sitzung stammt.
-    await expect(page.getByRole('link', { name: 'Verwaltung' })).toBeVisible();
+    // Der Seed macht Elke zur ADMIN (§25) — die vier Verwaltungs-Navigationspunkte
+    // sind der sichtbare Beweis, dass die Rolle aus der Sitzung stammt.
+    const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+    await expect(nav.getByRole('link', { name: 'Einstellungen' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Benutzer' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Kategorien' })).toBeVisible();
   });
 });
 
@@ -84,7 +87,10 @@ test.describe('Mitglied ohne Adminrechte', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Hallo Arthur' })).toBeVisible();
 
-    await expect(page.getByRole('link', { name: 'Verwaltung' })).toHaveCount(0);
+    const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+    await expect(nav.getByRole('link', { name: 'Einstellungen' })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Benutzer' })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Kategorien' })).toHaveCount(0);
   });
 
   test('wird von der Verwaltungsseite zurück auf die Startseite geschickt', async ({ page }) => {

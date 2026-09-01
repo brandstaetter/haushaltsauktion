@@ -3,12 +3,10 @@ import { useNavigate } from 'react-router';
 import { useRunSweep } from '../../api/hooks';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../../components/Button/Button';
-import { MembersSection } from './MembersSection';
 import { TaskDefinitionsSection } from './TaskDefinitionsSection';
-import { CategoriesSection } from './CategoriesSection';
 import styles from './AdminPage.module.css';
 
-export function AdminPage() {
+export function AdminTasksPage() {
   const { de } = useStrings();
   const navigate = useNavigate();
   const sweep = useRunSweep();
@@ -35,7 +33,7 @@ export function AdminPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>{de.admin.title}</h1>
+      <h1 className={styles.title}>{de.nav.adminTasks}</h1>
 
       {message && (
         <div className={styles.message} role="status">
@@ -43,19 +41,7 @@ export function AdminPage() {
         </div>
       )}
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>{de.account.settings}</h2>
-        <p className={styles.hint}>{de.admin.settingsEntryHint}</p>
-        <Button variant="secondary" onClick={() => navigate('/verwaltung/einstellungen')}>
-          {de.admin.settingsEntryButton}
-        </Button>
-      </section>
-
-      <MembersSection />
-
       <TaskDefinitionsSection />
-
-      <CategoriesSection />
 
       <div className={styles.actions}>
         <Button variant="secondary" onClick={() => handleSweep(false)} loading={sweep.isPending}>
