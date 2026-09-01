@@ -216,6 +216,8 @@ export const de = {
       POINTS_CLAWED_BACK: '{member} hat {points} Punkte für {task} zurückgegeben',
       COMPLETION_REJECTED: 'Erledigung von {task} durch {member} wurde abgelehnt',
       REOPENED_TO_ASSIGNEE: '{task} wurde {member} zur Nacherledigung zurückgegeben',
+      RE_OFFERED: '{task} wurde erneut angeboten — Wert {value}',
+      CANCELLED: '{task} wurde abgebrochen',
     },
   },
   notifications: {
