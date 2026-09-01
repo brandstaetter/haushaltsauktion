@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import cn from 'classnames';
+import { Ban, KeyRound, Save } from 'lucide-react';
 import type { MemberRole } from '@haushaltsauktion/shared';
 import {
   useAdminCategories,
@@ -386,13 +388,15 @@ function MemberRow({
             <option value="ADMIN">{de.admin.members.roleValues.ADMIN}</option>
           </select>
         </label>
-        <label className={styles.checkbox}>
-          <input
-            type="checkbox"
-            checked={draft.isActive}
-            onChange={(e) => onChange({ isActive: e.target.checked })}
-          />
+        <label className={styles.field}>
           <span>{de.admin.members.active}</span>
+          <span className={cn(styles.memberFieldBox, styles.memberActiveBox)}>
+            <input
+              type="checkbox"
+              checked={draft.isActive}
+              onChange={(e) => onChange({ isActive: e.target.checked })}
+            />
+          </span>
         </label>
         <label className={styles.field}>
           <span>{de.admin.members.maxRandomAssignmentsPerWeek}</span>
@@ -411,18 +415,18 @@ function MemberRow({
         </label>
         <div className={styles.field}>
           <span>{de.admin.members.balance}</span>
-          <span>{formatNumber(member.pointsCache)}</span>
+          <span className={styles.memberFieldBox}>{formatNumber(member.pointsCache)}</span>
         </div>
       </div>
 
       <div className={styles.rowActions}>
-        <Button onClick={onSave} loading={saving} disabled={!dirty}>
+        <Button size="sm" icon={Save} onClick={onSave} loading={saving} disabled={!dirty}>
           {de.admin.members.save}
         </Button>
-        <Button variant="secondary" onClick={onOpenRestrictions}>
+        <Button size="sm" icon={Ban} variant="secondary" onClick={onOpenRestrictions}>
           {de.admin.members.restrictionsButton}
         </Button>
-        <Button variant="secondary" onClick={onOpenResetPassword}>
+        <Button size="sm" icon={KeyRound} variant="secondary" onClick={onOpenResetPassword}>
           {de.admin.members.resetPasswordButton}
         </Button>
       </div>

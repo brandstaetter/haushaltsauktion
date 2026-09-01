@@ -127,10 +127,45 @@
   gap: var(--s-3);
 }
 
+/* Gives the "Aktiv"-checkbox and the read-only balance cell the same
+   bordered-box weight as the role `<select>`/number `<input>` cells next to
+   them in `.memberFields` — without those, a bare checkbox and a plain text
+   span read as much lighter/smaller than their boxed siblings even though
+   all four are equally important fields. */
+.memberFieldBox {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: var(--t-body);
+}
+
+.memberActiveBox {
+  justify-content: center;
+}
+
+.memberActiveBox input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Three roughly equal-width buttons in one row instead of `.lg`'s
+   `width: 100%` stacking each full-width underneath the last — that stack
+   was what consumed more than half the card's height. */
 .rowActions {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--s-2);
+}
+
+.rowActions > * {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .restrictionsForm {
