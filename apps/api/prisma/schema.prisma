@@ -126,6 +126,12 @@ enum NotificationType {
   /// Stilles Dauerversagen wäre schlimmer als gar keine Integration: das
   /// Mitglied glaubt sonst, seine Aufgaben stünden in Todoist.
   INTEGRATION_FAILED
+
+  /// D-07 (Todoist-Integrationsarchitektur): eine freiwillige Übernahme löste
+  /// bislang keine Benachrichtigung aus. Bewusst kein Recycling von
+  /// TASK_ASSIGNED — dessen "du wurdest zugelost"-Bedeutung wird in der UI
+  /// vorausgesetzt.
+  TASK_TAKEN
 }
 
 enum AuditAction {

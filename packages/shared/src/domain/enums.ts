@@ -117,6 +117,8 @@ export type HistoryEventType = (typeof HistoryEventType)[keyof typeof HistoryEve
 export const NotificationType = asEnum({
   TASK_AVAILABLE: 'TASK_AVAILABLE',
   TASK_ASSIGNED: 'TASK_ASSIGNED',
+  /** Voluntary pickup — distinct from `TASK_ASSIGNED`'s "you were selected at random" meaning. */
+  TASK_TAKEN: 'TASK_TAKEN',
   TASK_DUE_SOON: 'TASK_DUE_SOON',
   TASK_VALUE_INCREASED: 'TASK_VALUE_INCREASED',
   TASK_COMPLETED: 'TASK_COMPLETED',

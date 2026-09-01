@@ -172,6 +172,20 @@ export async function volunteerForTask(
       },
     ]);
 
+    // D-07: voluntary pickup is one of the two moments a task becomes
+    // someone's job (the other is TASK_ASSIGNED, emitted by the random-draw
+    // sweep). Deliberately a distinct type, not a reuse of TASK_ASSIGNED,
+    // whose "you were selected at random" meaning is relied on elsewhere.
+    await deps.notifier.emit(tx, [
+      {
+        householdId: input.householdId,
+        memberId: input.memberId,
+        type: 'TASK_TAKEN',
+        payload: { taskInstanceId: input.instanceId, value: locked.currentValue },
+        taskInstanceId: input.instanceId,
+      },
+    ]);
+
     // ── ON_ACCEPT only: level 3 ─────────────────────────────────────────
     // Under the default ON_COMPLETE this is 0 and no ledger row is written at
     // all — the zero is an absence, not a zero-amount entry (§8.2 step 1).

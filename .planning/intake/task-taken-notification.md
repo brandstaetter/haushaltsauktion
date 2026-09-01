@@ -1,6 +1,6 @@
 ---
 title: "TASK_TAKEN notification for voluntary pickup"
-status: pending
+status: completed
 priority: normal
 target: apps/api/src/app/tasks/volunteerForTask.ts, apps/api/src/app/assignment/reopen.ts
 ---
