@@ -1,8 +1,9 @@
 ---
 title: "History entries missing task name and new value (NO_VOLUNTEER, VALUE_RESET, RANDOMLY_ASSIGNED)"
-status: pending
+status: in-progress
 priority: normal
 target: apps/web/src/strings/de.ts, apps/web/src/pages/HistoryPage/HistoryPage.tsx
+campaign: history-entries-missing-task-name-and-new-value-no-volunteer-value-reset-randoml
 ---
 
 ## Description
