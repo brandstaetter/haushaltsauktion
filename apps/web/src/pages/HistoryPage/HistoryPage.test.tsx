@@ -46,4 +46,16 @@ describe('renderEvent', () => {
   it('falls back to "type: task" for an unknown event type', () => {
     expect(renderEvent(de, event('SOMETHING_NEW'))).toBe('SOMETHING_NEW: Bad putzen');
   });
+
+  it('names the task and shows the new value when a task is re-offered', () => {
+    expect(
+      renderEvent(de, event('RE_OFFERED', { payload: { value: 9, offerExpiresAt: null } })),
+    ).toBe('Bad putzen wurde erneut angeboten — Wert 9');
+  });
+
+  it('names the task for an admin-cancelled instance', () => {
+    expect(renderEvent(de, event('CANCELLED', { payload: { reason: null } }))).toBe(
+      'Bad putzen wurde abgebrochen',
+    );
+  });
 });

@@ -1,6 +1,6 @@
 ---
 title: "Verlauf: RE_OFFERED (and CANCELLED) history events render as the raw enum literal, not a message"
-status: pending
+status: completed
 priority: normal
 target: apps/web/src/strings/de.ts
 ---
