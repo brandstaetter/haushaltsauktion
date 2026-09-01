@@ -6,8 +6,8 @@ started: "2026-09-01T03:57:12.531Z"
 completed_at: null
 direction: "History entries missing task name and new value (NO_VOLUNTEER, VALUE_RESET, RANDOMLY_ASSIGNED)"
 phase_count: 4
-current_phase: 2
-branch: null
+current_phase: 4
+branch: "fix/history-entries-missing-task-and-value"
 worktree_status: null
 ---
 
@@ -55,15 +55,15 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
 | 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
 | 3 | complete | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 4 |  complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
 | Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
 |---|---|---|---|---|---|---|---|
-| phase:2 | implementation-diff | file_diff | yes | `de.ts` 13 event-type templates gained `{task}`; `VALUE_RESET` switched `{value}`→`{to}` (matching the actual payload key); `HistoryPage.tsx` exports `renderEvent` and adds a `{to}` replace line; new `HistoryPage.test.tsx` (5 tests) | complete | 2 | — |
-| phase:3 | verification-command | test_result | yes | `npx tsc --noEmit` (root) clean; `npm run typecheck -w apps/web` clean; `npx eslint` on all three touched files clean; `npm run test -w apps/web` — 72/72 passed (5 new + 67 existing, no regressions) | complete | 2 | — |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/history-entries-missing-task-name-and-new-value-no-volunteer-value-reset-randoml.md | pending | 2 | package delivery for review |
+| phase:2 | implementation-diff | file_diff | yes | `de.ts` 13 event-type templates gained `{task}`; `VALUE_RESET` switched `{value}`→`{to}` (matching the actual payload key); `HistoryPage.tsx` exports `renderEvent` and adds a `{to}` replace line; new `HistoryPage.test.tsx` (5 tests) | pass | 2 | — |
+| phase:3 | verification-command | test_result | yes | `npx tsc --noEmit` (root) clean; `npm run typecheck -w apps/web` clean; `npx eslint` on all three touched files clean; `npm run test -w apps/web` — 72/72 passed (5 new + 67 existing, no regressions) | pass | 2 | — |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/9 | resolved | 2 | review pull request |
 
 ## Decision Log
 
