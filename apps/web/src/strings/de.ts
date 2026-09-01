@@ -453,6 +453,16 @@ export const de = {
           'Es gibt noch {count} offene Instanz(en) dieser Aufgabe. Erst erledigen oder abbrechen, bevor sie archiviert werden kann.',
         generic: 'Das hat nicht funktioniert.',
       },
+      instances: {
+        title: 'Laufende Instanzen',
+        empty: 'Aktuell keine offenen Instanzen.',
+        assignedTo: '{name} ({kind})',
+        unassigned: 'niemand',
+        kindLabels: {
+          VOLUNTARY: 'freiwillig',
+          RANDOM: 'zufällig',
+        },
+      },
     },
     categories: {
       title: 'Kategorien',

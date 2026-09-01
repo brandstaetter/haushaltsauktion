@@ -300,7 +300,23 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         eligibility: true,
         instances: {
           where: { status: { in: ['DRAFT', 'AVAILABLE', 'ASSIGNED', 'PAUSED'] } },
-          select: { id: true, status: true, currentValue: true, dueAt: true },
+          select: {
+            id: true,
+            status: true,
+            currentValue: true,
+            dueAt: true,
+            // Same shape as `INSTANCE_INCLUDE.assignments` in taskDto.ts, minus
+            // the buyout-quote fields the admin list doesn't need — one active
+            // assignment per instance, joined for the member's display name.
+            assignments: {
+              where: { status: 'ACTIVE' },
+              select: {
+                id: true,
+                kind: true,
+                member: { select: { id: true, displayName: true } },
+              },
+            },
+          },
         },
       },
     });

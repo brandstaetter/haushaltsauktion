@@ -156,6 +156,31 @@
   border-bottom: 1px solid var(--hairline);
 }
 
+.instanceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--ground);
+}
+
+.instanceRow a {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex: 1;
+  color: inherit;
+  text-decoration: none;
+}
+
+.instanceRow a:hover {
+  text-decoration: underline;
+}
+
 .temporaryPassword {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 1.1rem;

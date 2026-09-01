@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { de } from '../../strings/de';
 import { interpolate } from '../../utils/format';
-import type { AdminTaskDefinitionDto } from '../../api/types';
+import type { AdminTaskDefinitionDetailDto, AdminTaskDefinitionDto } from '../../api/types';
 import { TaskDefinitionsSection } from './TaskDefinitionsSection';
 
 vi.mock('../../api/client', () => ({
@@ -64,9 +65,11 @@ function renderSection() {
     },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <TaskDefinitionsSection />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <TaskDefinitionsSection />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -150,5 +153,66 @@ describe('TaskDefinitionsSection', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       interpolate(de.admin.taskDefinitions.errors.hasOpenInstances, { count: 2 }),
     );
+  });
+
+  it('zeigt die laufenden Instanzen mit Zuweisung, wenn eine Aufgabe bearbeitet wird', async () => {
+    const user = userEvent.setup();
+    const definition = definitionFixture();
+    const detail: AdminTaskDefinitionDetailDto = {
+      ...definition,
+      instances: [
+        {
+          id: 'inst-1',
+          status: 'ASSIGNED',
+          currentValue: 9,
+          dueAt: null,
+          assignments: [
+            { id: 'asg-1', kind: 'RANDOM', member: { id: 'mem-1', displayName: 'Anna' } },
+          ],
+        },
+        {
+          id: 'inst-2',
+          status: 'AVAILABLE',
+          currentValue: 6,
+          dueAt: null,
+          assignments: [],
+        },
+      ],
+      marketValue: { averageVoluntaryTakeoverValue: null, sampleSize: 0 },
+    };
+
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string }) => {
+      const method = options?.method ?? 'GET';
+      if (path === '/admin/task-definitions' && method === 'GET') {
+        return { items: [definition] };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/members') return { items: [] };
+      if (path === `/admin/task-definitions/${definition.id}` && method === 'GET') {
+        return detail;
+      }
+      throw new Error(`unerwarteter Aufruf: ${path} ${method}`);
+    });
+
+    renderSection();
+
+    expect(await screen.findByText('Bad putzen')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: de.admin.taskDefinitions.edit }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText(de.admin.taskDefinitions.instances.title),
+    ).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText(
+        interpolate(de.admin.taskDefinitions.instances.assignedTo, {
+          name: 'Anna',
+          kind: de.admin.taskDefinitions.instances.kindLabels.RANDOM,
+        }),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(de.admin.taskDefinitions.instances.unassigned),
+    ).toBeInTheDocument();
   });
 });
