@@ -55,6 +55,14 @@ export interface RejectCompletionResultDto {
   newAssignmentId: string | null;
 }
 
+/** Result of `POST /admin/instances/:id/revoke-assignment`. */
+export interface RevokeAssignmentResultDto {
+  instanceId: string;
+  status: string;
+  currentValue: number;
+  clawedBack: number;
+}
+
 export interface HistoryEventRow {
   id: string;
   seq: string;

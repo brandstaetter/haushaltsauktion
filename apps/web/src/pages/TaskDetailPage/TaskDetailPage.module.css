@@ -90,3 +90,43 @@
   text-align: center;
   padding: var(--s-7) var(--s-4);
 }
+
+.adminAction {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--danger);
+  font: var(--t-body-sm);
+  padding: var(--s-1) 0;
+}
+
+.unassignForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.message {
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font: var(--t-body-sm);
+}
+
+.field textarea {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--ground);
+  color: var(--ink);
+  font: var(--t-body);
+  resize: vertical;
+}
