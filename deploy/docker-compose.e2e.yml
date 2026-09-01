@@ -14,16 +14,27 @@
 # suite's login flow (e2e/helpers.ts's `loginAsDemoUser`) work against the
 # actual built image instead of the Vite dev server, a healthcheck for
 # `web` so `--wait` has something to wait on (root compose only healthchecks
-# db/api), and disabling the background sweep worker — same reasoning as
+# db/api), disabling the background sweep worker — same reasoning as
 # playwright.config.ts's `env: { SWEEP_INTERVAL_SECONDS: '0' }` for its
 # tsx-based `webServer` entry: a live timer would materialize due instances
 # with a future `offerExpiresAt` outside the tests' control, and flow-3's
-# manual, test-driven sweep would then find nothing ready.
+# manual, test-driven sweep would then find nothing ready — and
+# COOKIE_SECURE=false, documented in README.md ("für lokales HTTP auf
+# `false` setzen"): this stack is reached over plain `http://127.0.0.1`,
+# not HTTPS, so a `Secure` session cookie (config.ts's default) is never
+# sent back on subsequent requests and every session looks unauthenticated.
+# Found by running the suite against this stack for the first time — every
+# session-dependent test failed (flow-3's direct `page.request` call surfaced
+# it as a missing CSRF token; flow-4's config save silently 401'd). The
+# tsx-based dev-server path never hit this because the developer's own
+# `.env` already sets it for local HTTP, but that file is never read by
+# these containers.
 
 services:
   api:
     environment:
       SWEEP_INTERVAL_SECONDS: "0"
+      COOKIE_SECURE: "false"
 
   web:
     build:

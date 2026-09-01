@@ -102,7 +102,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
 | 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
 | 3 | complete | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 4 |  complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
@@ -110,7 +110,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 |---|---|---|---|---|---|---|---|
 | phase:2 | implementation-diff | file_diff | yes | `.github/workflows/deploy.yml` (new `e2e` job + `pull_request` trigger + `build-and-push`/`deploy` guards), `apps/web/Dockerfile` (`VITE_DEMO_LOGIN` build arg), `deploy/docker-compose.e2e.yml` (new CI-only overlay), `playwright.config.ts` (`E2E_EXTERNAL_SERVERS` conditional webServer), `docs/hosting-plan.md` (§3, §3.1, §10 updated) | pass | 2 | — |
 | phase:3 | verification-command | test_result | yes | `npm run typecheck` clean, `npm run lint` clean, `npm run test` — 465/465 passed (shared 128, api 248, web 89); locally built both Docker images and started the full throwaway stack (`docker compose -f docker-compose.yml -f deploy/docker-compose.e2e.yml -p haushaltsauktion-e2e up -d --build --wait`) — db/api/web all reported `Healthy`; confirmed the built web bundle contains the demo-login row (`grep "nur in der Demo"` on the served JS) only because `VITE_DEMO_LOGIN=true` was passed, proving the login-flow fix works against the real image. Did not run the Playwright suite itself against this local stack (would have required overwriting the developer's real, already-populated `.env`, which is out of scope to touch) — the actual E2E run happens on push via the new `e2e` CI job on a clean runner. | pass | 2 | — |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/ci-e2e-tests-gegen-einen-tempor-ren-wegwerf-stack-vor-dem-echten-deploy.md | pending | 2 | package delivery for review |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/31 | resolved | 2 | review pull request |
 
 ## Decision Log
 
@@ -120,23 +120,23 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
   Reason: Keeps the real production image's security property (no demo login in prod) completely unchanged while making the existing E2E suite work unmodified against the throwaway stack's image — the acceptance criteria required the *existing* suite to run against the actual built containers.
 - 2026-09-01T18:45:00Z: Also found the API's background sweep worker (`SWEEP_INTERVAL_SECONDS`, default 60s) would materialize due task instances during a real container run the same way `playwright.config.ts`'s comment already warns about for the `tsx`-based dev run — added the same `SWEEP_INTERVAL_SECONDS=0` override to the throwaway stack's `api` service so `flow-3`'s test-driven sweep isn't racing a live timer.
   Reason: Without this, flow-3 (random-assignment/buyout) would be flaky against the container stack specifically, in a way that wouldn't reproduce locally against the dev server.
+- 2026-09-01T18:39:00Z: PR #31's first `e2e` CI run (the actual, authoritative first execution of the new job) came back red: flow-1/flow-2/mobile-layout passed, but flow-3 failed with "Keine CSRF-Token in der Sitzung gefunden" and flow-4 failed waiting for a save-confirmation toast that never appeared. Root-caused via `apps/api/src/config.ts`: `COOKIE_SECURE` defaults to `true` unless explicitly `"false"`, and README.md already documents "für lokales HTTP auf `false` setzen" — the throwaway stack is reached over plain `http://127.0.0.1`, so the `Secure`-flagged session cookie was never sent back, and every session-dependent request looked unauthenticated (flow-1/2 mostly happened not to hit this because their assertions don't route through a stale/second session read the same way). Local dev's tsx-based E2E path never hits this because the developer's own `.env` already sets `COOKIE_SECURE=false`, but the containers never read that file. Fixed by adding `COOKIE_SECURE: "false"` to the `e2e` overlay's `api` service, next to `SWEEP_INTERVAL_SECONDS`. Verified locally before re-pushing: manually seeded the throwaway stack's DB and curled the real login flow — `Set-Cookie` no longer carries `Secure`, and `/api/auth/me` now returns a populated `csrfToken`.
+  Reason: Root-caused from first principles (compared what the tsx/dev-server path has that the container path doesn't) rather than retrying or loosening the test assertions — this is a genuine environment-config gap the throwaway stack needed to close, not a flaky test.
 
 ## Active Context
 
-Implementation and local verification complete (typecheck/lint/unit tests green,
-manual Docker smoke test of the throwaway stack confirms healthchecks and the
-demo-login build arg both work). Branch `feat/e2e-throwaway-stack` has the
-commit; next action is opening the PR and packaging delivery evidence
-(Phase 4). The actual CI `e2e` job (running the Playwright suite itself
-against the throwaway stack on a clean runner) will execute for the first
-time when this branch's PR is opened — that is the real, authoritative run
-of the new job, not a substitute for it.
+Implementation, local verification, and a first (failing) CI run are done.
+Root-caused the two failures to a missing `COOKIE_SECURE=false` on the
+throwaway stack (session cookies were `Secure`-flagged and never sent back
+over plain HTTP) and pushed the fix. Waiting on the corrected `e2e` CI run
+on PR #31 to confirm all specs pass before this campaign can be considered
+verified end-to-end.
 
 ## Continuation State
 
 Phase: 4
-Sub-step: implementation done, PR not yet opened
+Sub-step: fix pushed for the COOKIE_SECURE bug found in PR #31's first CI run; awaiting the corrected run
 Files modified: .github/workflows/deploy.yml, apps/web/Dockerfile,
   deploy/docker-compose.e2e.yml (new), playwright.config.ts,
   docs/hosting-plan.md
-Blocking: none
+Blocking: none — waiting on GitHub Actions
