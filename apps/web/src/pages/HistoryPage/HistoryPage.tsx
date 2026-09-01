@@ -52,7 +52,7 @@ export function HistoryPage() {
   );
 }
 
-function renderEvent(
+export function renderEvent(
   de: typeof import('../../strings/de').de,
   event: { type: string; taskTitle: string; member: { displayName: string } | null; payload: Record<string, unknown> },
 ): string {
@@ -63,6 +63,7 @@ function renderEvent(
     .replace('{task}', event.taskTitle)
     .replace('{member}', member)
     .replace('{value}', String(event.payload.value ?? ''))
+    .replace('{to}', String(event.payload.to ?? ''))
     .replace('{cost}', String(event.payload.cost ?? ''))
     .replace('{points}', String(event.payload.amount ?? ''))
     .replace('{n}', String(event.payload.candidateCount ?? event.payload.consideredCount ?? ''));
