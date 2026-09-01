@@ -5,6 +5,7 @@ import type {
   HouseholdConfig,
   MemberDto,
   MemberRole,
+  PublicHouseholdConfig,
   RecurrenceType,
   TaskInstanceDetailDto,
   TaskStatus,
@@ -84,35 +85,15 @@ export interface NotificationRow {
   createdAt: string;
 }
 
+/**
+ * `GET /config/public` (`loadPublicConfig`, `apps/api/src/app/config/
+ * updateConfig.ts:171-177`) returns the same versioned envelope as
+ * `AdminConfigDto` — `{ version, values }`, not the config fields
+ * themselves at the top level. Consumers must read `data.values.*`.
+ */
 export interface PublicConfigDto {
-  voluntary: {
-    rewardTiming: 'ON_ACCEPT' | 'ON_COMPLETE';
-    rewardEnabled: boolean;
-    rewardMultiplier: number;
-  };
-  buyout: {
-    enabled: boolean;
-    allowNegativeBalance: boolean;
-  };
-  assignment: {
-    strategy: string;
-  };
-  valueIncrease: {
-    strategy: string;
-    multiplier: number;
-    minimumIncrease: number;
-    maximumValue: number | null;
-  };
-  points: {
-    decay: {
-      enabled: boolean;
-    };
-  };
-  integrations: {
-    todoist: {
-      enabled: boolean;
-    };
-  };
+  version: number;
+  values: PublicHouseholdConfig;
 }
 
 export interface AdminConfigDto {

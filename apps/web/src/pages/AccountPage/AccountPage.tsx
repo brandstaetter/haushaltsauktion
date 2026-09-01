@@ -54,7 +54,7 @@ export function AccountPage() {
       {/* Rendered only when the household has the integration switched on —
           the flag comes from the public config projection, so a household that
           never enabled it sees nothing at all. */}
-      <TodoistSection enabled={publicConfig?.integrations?.todoist?.enabled === true} />
+      <TodoistSection enabled={publicConfig?.values.integrations.todoist.enabled === true} />
       <Button
         variant="ghost"
         onClick={() => logout.mutate()}
