@@ -322,6 +322,15 @@ export const de = {
       CORRECTION: 'Korrektur',
     },
   },
+  components: {
+    duration: {
+      unitLabel: 'Einheit',
+      minutes: 'Minuten',
+      hours: 'Stunden',
+      days: 'Tage',
+    },
+    timezoneNote: 'Zeiten gelten in: {timezone}',
+  },
   admin: {
     title: 'Verwaltung',
     rules: 'Regeln & Werte',

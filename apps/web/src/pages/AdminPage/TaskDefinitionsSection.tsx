@@ -9,6 +9,7 @@ import {
   useArchiveTaskDefinition,
   useCreateTaskDefinition,
   useMaterializeTaskDefinition,
+  useSession,
   useUpdateTaskDefinition,
   useUpdateTaskEligibility,
 } from '../../api/hooks';
@@ -23,7 +24,9 @@ import type {
 import { useStrings } from '../../context/StringsContext';
 import type { Strings } from '../../strings/de';
 import { Button } from '../../components/Button/Button';
+import { DurationInput } from '../../components/DurationInput/DurationInput';
 import { Sheet } from '../../components/Sheet/Sheet';
+import { TimeOfDayInput } from '../../components/TimeOfDayInput/TimeOfDayInput';
 import { formatNumber, interpolate } from '../../utils/format';
 import styles from './AdminPage.module.css';
 
@@ -177,6 +180,7 @@ function RecurrenceFields({
 }) {
   const { de } = useStrings();
   const r = de.admin.taskDefinitions.recurrence;
+  const { data: session } = useSession();
 
   const toggleWeekday = (day: number) => {
     onChange({
@@ -257,26 +261,19 @@ function RecurrenceFields({
         <>
           <label className={styles.field}>
             <span>{r.timeOfDay}</span>
-            <input
-              type="text"
-              placeholder="HH:mm"
-              pattern="^\d{2}:\d{2}$"
-              value={value.timeOfDay}
-              onChange={(e) => onChange({ timeOfDay: e.target.value })}
-            />
+            <TimeOfDayInput value={value.timeOfDay} onChange={(v) => onChange({ timeOfDay: v })} />
           </label>
+          {session?.household && (
+            <p className={styles.hint}>
+              {interpolate(de.components.timezoneNote, { timezone: session.household.timezone })}
+            </p>
+          )}
           <label className={styles.field}>
             <span>{r.dueOffsetMinutes}</span>
-            <input
-              type="number"
-              min={0}
-              value={value.dueOffsetMinutes ?? ''}
+            <DurationInput
+              valueMinutes={value.dueOffsetMinutes}
               placeholder="∞"
-              onChange={(e) =>
-                onChange({
-                  dueOffsetMinutes: e.target.value === '' ? null : parseInt(e.target.value, 10) || 0,
-                })
-              }
+              onChange={(minutes) => onChange({ dueOffsetMinutes: minutes })}
             />
           </label>
         </>
@@ -425,16 +422,10 @@ function TaskDefinitionForm({
       </label>
       <label className={styles.field}>
         <span>{de.admin.taskDefinitions.estimatedMinutes}</span>
-        <input
-          type="number"
-          min={0}
-          value={draft.estimatedMinutes ?? ''}
+        <DurationInput
+          valueMinutes={draft.estimatedMinutes}
           placeholder="∞"
-          onChange={(e) =>
-            update({
-              estimatedMinutes: e.target.value === '' ? null : parseInt(e.target.value, 10) || 0,
-            })
-          }
+          onChange={(minutes) => update({ estimatedMinutes: minutes })}
         />
       </label>
       <label className={styles.checkbox}>

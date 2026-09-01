@@ -1,0 +1,13 @@
+.group {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.group input {
+  flex: 1;
+  min-width: 0;
+}
+
+.group select {
+  flex: 0 0 auto;
+}

@@ -6,7 +6,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { de } from '../../strings/de';
 import { interpolate } from '../../utils/format';
-import type { AdminTaskDefinitionDetailDto, AdminTaskDefinitionDto } from '../../api/types';
+import type {
+  AdminTaskDefinitionDetailDto,
+  AdminTaskDefinitionDto,
+  SessionDto,
+} from '../../api/types';
 import { TaskDefinitionsSection } from './TaskDefinitionsSection';
 
 vi.mock('../../api/client', () => ({
@@ -57,6 +61,23 @@ function definitionFixture(overrides: Partial<AdminTaskDefinitionDto> = {}): Adm
   };
 }
 
+/** `GET /auth/me`, as `RecurrenceFields` reads it for the timezone note. */
+const sessionFixture: SessionDto = {
+  user: { id: 'user-1', email: 'elke@demo.local', displayName: 'Elke' },
+  member: {
+    id: 'mem-elke',
+    displayName: 'Elke',
+    avatarUrl: null,
+    role: 'ADMIN',
+    isActive: true,
+    balance: 0,
+    maxRandomAssignmentsPerWeek: null,
+  },
+  household: { id: 'household-1', name: 'Demo Family', timezone: 'Europe/Vienna' },
+  role: 'ADMIN',
+  csrfToken: 'csrf-token',
+};
+
 function renderSection() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -90,6 +111,7 @@ describe('TaskDefinitionsSection', () => {
         }
         if (path === '/admin/categories') return { items: [] };
         if (path === '/admin/members') return { items: [] };
+        if (path === '/auth/me') return sessionFixture;
         if (path === '/admin/task-definitions' && method === 'POST') {
           const body = options?.body as { title: string; baseValue: number };
           const created = definitionFixture({
@@ -112,6 +134,13 @@ describe('TaskDefinitionsSection', () => {
     await user.click(screen.getByRole('button', { name: de.admin.taskDefinitions.addButton }));
 
     const dialog = await screen.findByRole('dialog');
+    // The household's timezone must be visible next to the recurrence
+    // time-of-day field — a typed "14:00" is ambiguous without it.
+    expect(
+      await within(dialog).findByText(
+        interpolate(de.components.timezoneNote, { timezone: 'Europe/Vienna' }),
+      ),
+    ).toBeInTheDocument();
     await user.type(
       within(dialog).getByLabelText(de.admin.taskDefinitions.titleField),
       'Staubsaugen',
@@ -188,6 +217,7 @@ describe('TaskDefinitionsSection', () => {
       }
       if (path === '/admin/categories') return { items: [] };
       if (path === '/admin/members') return { items: [] };
+      if (path === '/auth/me') return sessionFixture;
       if (path === `/admin/task-definitions/${definition.id}` && method === 'GET') {
         return detail;
       }
