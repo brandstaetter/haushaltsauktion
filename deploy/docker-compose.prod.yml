@@ -75,7 +75,7 @@ services:
     # This is what the deploy workflow's post-deploy poll (deploy.yml) relies
     # on to catch that case instead of reporting green.
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 10s
       timeout: 5s
       retries: 5
