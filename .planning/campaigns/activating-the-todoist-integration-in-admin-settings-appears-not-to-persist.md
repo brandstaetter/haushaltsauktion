@@ -1,7 +1,7 @@
 ---
 version: 1
 id: "0085e290-75c7-40c4-b287-6de5a92bd2b8"
-status: active
+status: completed
 started: "2026-09-01T05:22:56.747Z"
 completed_at: null
 direction: "Activating the Todoist integration in Admin Settings appears not to persist"
@@ -13,7 +13,7 @@ worktree_status: null
 
 # Campaign: Activating the Todoist integration in Admin Settings appears not to persist
 
-Status: active
+Status: completed
 Started: 2026-09-01T05:22:56.747Z
 Direction: Activating the Todoist integration in Admin Settings appears not to persist
 
@@ -93,15 +93,15 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
 | 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
 | 3 | complete | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 4 |   complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
 | Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
 |---|---|---|---|---|---|---|---|
-| phase:2 | implementation-diff | file_diff | yes | git diff --stat | done | 2 | — |
-| phase:3 | verification-command | test_result | yes | npm run test | done | 2 | — |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/activating-the-todoist-integration-in-admin-settings-appears-not-to-persist.md | pending | 2 | package delivery for review |
+| phase:2 | implementation-diff | file_diff | yes | git diff --stat | pass | 2 | — |
+| phase:3 | verification-command | test_result | yes | npm run test | pass | 2 | — |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/14 | resolved | 2 | review pull request |
 
 ## Decision Log
 
@@ -134,3 +134,10 @@ Files modified:
 - apps/web/src/api/hooks.ts
 - apps/web/src/pages/AdminPage/AdminSettingsPage.test.tsx (new)
 Blocking: none
+
+## Completion Record
+
+- Completed At: 2026-09-01T05:32:22.105Z
+- Outcome: review-package
+- PR: https://github.com/brandstaetter/haushaltsauktion/pull/14
+- Verification: npm run test (446 passed), npm run typecheck (clean), npm run lint (clean)
