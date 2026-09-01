@@ -128,17 +128,20 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 ## Active Context
 
 Implementation, local verification, and two CI-driven fixes are done — the
-`e2e` job's first real runs surfaced two genuine bugs (missing
+new `e2e` job's first real runs surfaced two genuine bugs (missing
 `COOKIE_SECURE=false` on the throwaway stack, and a pre-existing
 success-message race in `AdminSettingsPage.tsx`), both root-caused and
-fixed. Waiting on the third `e2e` CI run on PR #31 to confirm every spec
-passes before this campaign can be considered verified end-to-end.
+fixed. The third `e2e` CI run on PR #31 is green (all specs pass, 3m3s);
+`build-and-push`/`deploy` correctly stay skipped on this PR event.
+PR #31 is open and ready for human review/merge — this session does not
+merge it. The campaign stays `active` (not `completed`) until the PR is
+actually merged, matching this repo's convention for delivery campaigns.
 
 ## Continuation State
 
-Phase: 4
-Sub-step: AdminSettingsPage message-race fix pushed; awaiting the corrected CI run
+Phase: 4 (implementation, verification, and CI all green; PR open for review)
+Sub-step: none pending from this session — next action belongs to the reviewer (merge PR #31)
 Files modified: .github/workflows/deploy.yml, apps/web/Dockerfile,
   deploy/docker-compose.e2e.yml (new), playwright.config.ts,
   docs/hosting-plan.md, apps/web/src/pages/AdminPage/AdminSettingsPage.tsx
-Blocking: none — waiting on GitHub Actions
+Blocking: none — awaiting PR review/merge (human decision)
