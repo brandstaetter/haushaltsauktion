@@ -16,6 +16,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 
+import { dbNotifier } from '../../src/app/deps.js';
 import {
   authHeaders,
   buildTestServer,
@@ -45,7 +46,9 @@ beforeAll(async () => {
     members: [{ key: 'elke', displayName: 'Elke', role: 'ADMIN' }],
     definitions: [{ key: 'bad', title: 'Bad putzen', baseValue: BASE_VALUE }],
   });
-  app = await buildTestServer(db);
+  // Overridden from the default nullNotifier so the TASK_TAKEN assertion below
+  // can observe a real row — every other seam stays production (§7.2).
+  app = await buildTestServer(db, {}, { notifier: dbNotifier });
   await app.ready();
   elke = await login(app, ids, 'elke');
 }, 60_000);
@@ -114,6 +117,15 @@ test(
     expect(takenBody.instance.status).toBe('ASSIGNED');
     // §39 `rewardTiming: ON_COMPLETE` — nothing is paid on acceptance.
     expect(takenBody.pointsAwarded).toBe(0);
+
+    // D-07: voluntary pickup emits TASK_TAKEN — distinct from TASK_ASSIGNED,
+    // which means "you were selected at random" throughout the UI.
+    const notification = await db.notification.findFirstOrThrow({
+      where: { householdId: ids.householdId, taskInstanceId: instanceId, type: 'TASK_TAKEN' },
+      select: { memberId: true, payload: true },
+    });
+    expect(notification.memberId).toBe(ids.memberId('elke'));
+    expect(notification.payload).toMatchObject({ taskInstanceId: instanceId, value: CURRENT_VALUE });
 
     const midway = await app.inject({
       method: 'GET',
