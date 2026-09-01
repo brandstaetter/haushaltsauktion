@@ -9,6 +9,7 @@
 
 import { Bell } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -38,6 +39,7 @@ export function renderMessage(
 
 export function NotificationBell() {
   const { de } = useStrings();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const { data } = useNotifications();
   const markRead = useMarkNotificationRead();
@@ -92,6 +94,10 @@ export function NotificationBell() {
                     className={styles.itemButton}
                     onClick={() => {
                       if (!n.readAt) markRead.mutate(n.id);
+                      if (n.taskInstanceId) {
+                        setOpen(false);
+                        navigate(`/aufgaben/${n.taskInstanceId}`);
+                      }
                     }}
                   >
                     <span className={styles.message}>{renderMessage(de, n)}</span>
