@@ -32,6 +32,13 @@ RUN npm run build -w @haushaltsauktion/shared
 RUN npm run build -w @haushaltsauktion/web
 
 FROM nginx:1.27-alpine AS runtime
+# The official nginx:alpine image ships neither wget nor curl — installed
+# explicitly so deploy/docker-compose.prod.yml's healthcheck has something
+# to run against http://localhost/ instead of relying on whatever happens
+# to be in the base image (found the hard way: the first healthcheck
+# attempt used wget, which isn't present here, and reported permanently
+# unhealthy despite nginx itself running fine).
+RUN apk add --no-cache curl
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/apps/web/dist /usr/share/nginx/html
 EXPOSE 80
