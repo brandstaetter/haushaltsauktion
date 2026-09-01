@@ -18,7 +18,7 @@ interface Event<T extends HistoryEventType, P> {
 export type HistoryEventPayload =
   | Event<'CREATED', { title: string; value: number }>
   | Event<'OFFERED', { title: string; value: number }>
-  | Event<'NO_VOLUNTEER', { offerDurationMinutes: number }>
+  | Event<'NO_VOLUNTEER', { leadMinutesBeforeDue: number }>
   | Event<
       'RANDOMLY_ASSIGNED',
       { memberId: string; memberName: string; strategy: AssignmentStrategy; candidateCount: number }

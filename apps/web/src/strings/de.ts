@@ -481,6 +481,9 @@ export const de = {
     },
     fields: {
       offerDurationMinutes: 'Angebotsdauer (Minuten)',
+      leadMinutesBeforeDue: 'Zufallszuweisung ab (Minuten vor Fälligkeit)',
+      leadMinutesBeforeDueHint:
+        'Aufgaben ohne Fälligkeit werden nie automatisch zugelost. Aufgaben mit Fälligkeit erst, sobald weniger als diese Zeitspanne bis zur Fälligkeit verbleibt.',
       strategy: 'Strategie',
       preventImmediateReassignment: 'Keine sofortige Wiederzuweisung',
       relaxConstraintsWhenNoCandidates: 'Einschränkungen aufweichen, falls nötig',

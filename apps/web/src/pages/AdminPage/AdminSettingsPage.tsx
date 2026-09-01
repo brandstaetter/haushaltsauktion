@@ -82,6 +82,19 @@ export function AdminSettingsPage() {
           />
         </label>
         <label className={styles.field}>
+          <span>{de.admin.fields.leadMinutesBeforeDue}</span>
+          <input
+            type="number"
+            min={0}
+            max={20160}
+            value={draft.assignment.leadMinutesBeforeDue}
+            onChange={(e) =>
+              update('assignment', { leadMinutesBeforeDue: parseInt(e.target.value, 10) || 0 })
+            }
+          />
+        </label>
+        <p className={styles.hint}>{de.admin.fields.leadMinutesBeforeDueHint}</p>
+        <label className={styles.field}>
           <span>{de.admin.fields.strategy}</span>
           <select
             value={draft.assignment.strategy}

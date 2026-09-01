@@ -36,7 +36,7 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
     preventImmediateReassignment: true, // §39
     reassignmentCooldownCycles: 1, // §13
     offerDurationMinutes: 60, // §16
-    leadMinutesBeforeDue: 0, // OQ-4
+    leadMinutesBeforeDue: 1440, // OQ-4, reworked: auto-assign within 24h of dueAt
     relaxConstraintsWhenNoCandidates: true, // PRD §3D
   }),
 
@@ -136,6 +136,7 @@ export function toPublicConfig(cfg: HouseholdConfig): PublicHouseholdConfig {
     assignment: {
       strategy: cfg.assignment.strategy,
       offerDurationMinutes: cfg.assignment.offerDurationMinutes,
+      leadMinutesBeforeDue: cfg.assignment.leadMinutesBeforeDue,
     },
     valueIncrease: {
       strategy: cfg.valueIncrease.strategy,

@@ -128,53 +128,50 @@ describe('dueAtFor (§3.2)', () => {
   });
 });
 
-describe('offerExpiresAt (§5.8, OQ-4)', () => {
+describe('offerExpiresAt (§5.8, OQ-4, reworked: auto-assign only within leadMinutesBeforeDue of dueAt)', () => {
   const publishedAt = new Date('2026-08-30T12:00:00Z');
   const cfg = DEFAULT_CONFIG.assignment;
 
-  it('uses the offer duration when there is no due date', () => {
+  it('never auto-expires a task with no due date — it stays AVAILABLE until volunteered', () => {
     expect(
       offerExpiresAt({
         publishedAt,
         dueAt: null,
-        offerDurationMinutes: cfg.offerDurationMinutes,
         leadMinutesBeforeDue: cfg.leadMinutesBeforeDue,
-      }).toISOString(),
-    ).toBe('2026-08-30T13:00:00.000Z');
+      }),
+    ).toBeNull();
   });
 
-  it('clamps to the due date when that comes first', () => {
+  it('uses the default 24h (1440-minute) threshold before the due date', () => {
+    expect(cfg.leadMinutesBeforeDue).toBe(1440);
     expect(
       offerExpiresAt({
-        publishedAt,
-        dueAt: new Date('2026-08-30T12:30:00Z'),
-        offerDurationMinutes: 60,
-        leadMinutesBeforeDue: 0,
-      }).toISOString(),
-    ).toBe('2026-08-30T12:30:00.000Z');
+        publishedAt: new Date('2026-08-28T00:00:00Z'),
+        dueAt: new Date('2026-09-01T00:00:00Z'),
+        leadMinutesBeforeDue: cfg.leadMinutesBeforeDue,
+      })?.toISOString(),
+    ).toBe('2026-08-31T00:00:00.000Z');
   });
 
-  it('brings the draw forward by leadMinutesBeforeDue', () => {
+  it('clamps to leadMinutesBeforeDue before the due date, not a fixed short timer', () => {
     expect(
       offerExpiresAt({
         publishedAt,
         dueAt: new Date('2026-08-30T12:45:00Z'),
-        offerDurationMinutes: 60,
         leadMinutesBeforeDue: 30,
-      }).toISOString(),
+      })?.toISOString(),
     ).toBe('2026-08-30T12:15:00.000Z');
   });
 
-  it('never resolves to a moment before publication', () => {
+  it('never resolves to a moment before publication — a task posted with less than the threshold already remaining is assignable promptly', () => {
     // A task published after its own due date is offered for an instant rather
     // than being retroactively expired.
     expect(
       offerExpiresAt({
         publishedAt,
         dueAt: new Date('2026-08-30T09:00:00Z'),
-        offerDurationMinutes: 60,
         leadMinutesBeforeDue: 0,
-      }).getTime(),
+      })?.getTime(),
     ).toBe(publishedAt.getTime());
   });
 });

@@ -525,7 +525,6 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
           ? offerExpiresAt({
               publishedAt: now,
               dueAt,
-              offerDurationMinutes: current.config.assignment.offerDurationMinutes,
               leadMinutesBeforeDue: current.config.assignment.leadMinutesBeforeDue,
             })
           : null,

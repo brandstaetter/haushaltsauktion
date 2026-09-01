@@ -42,7 +42,12 @@ export interface AssignmentConfig {
   reassignmentCooldownCycles: number;
   /** 1 .. 20160 (14 days) */
   offerDurationMinutes: number;
-  /** OQ-4 / Reconciliation §2 — draw before the chore is already late. */
+  /**
+   * OQ-4 / Reconciliation §2 — an `AVAILABLE` instance with a due date is
+   * never randomly assigned while more than this many minutes remain before
+   * it; once fewer remain, the normal sweep applies. A `null` `dueAt` means
+   * no auto-assignment at all, regardless of this value.
+   */
   leadMinutesBeforeDue: number;
   /** PRD §3D — the starvation fallback. */
   relaxConstraintsWhenNoCandidates: boolean;
@@ -155,7 +160,7 @@ export interface PublicHouseholdConfig {
     costStrategy: BuyoutCostStrategy;
     maximumBuyoutsPerWeek: number | null;
   };
-  assignment: Pick<AssignmentConfig, 'strategy' | 'offerDurationMinutes'>;
+  assignment: Pick<AssignmentConfig, 'strategy' | 'offerDurationMinutes' | 'leadMinutesBeforeDue'>;
   valueIncrease: Pick<ValueIncreaseConfig, 'strategy' | 'minimumIncrease' | 'maximumValue'>;
   completion: Pick<CompletionConfig, 'resetStrategy'>;
   pointDecayEnabled: boolean;

@@ -137,7 +137,6 @@ export async function runAssignmentSweep(
       const expires = offerExpiresAt({
         publishedAt: now,
         dueAt,
-        offerDurationMinutes: config.assignment.offerDurationMinutes,
         leadMinutesBeforeDue: config.assignment.leadMinutesBeforeDue,
       });
 
@@ -207,7 +206,6 @@ export async function runAssignmentSweep(
       const expires = offerExpiresAt({
         publishedAt: now,
         dueAt: instance.dueAt,
-        offerDurationMinutes: cfg.assignment.offerDurationMinutes,
         leadMinutesBeforeDue: cfg.assignment.leadMinutesBeforeDue,
       });
       await tx.taskInstance.updateMany({
@@ -387,7 +385,10 @@ export async function runAssignmentSweep(
           householdId: input.householdId,
           taskInstanceId: instance.id,
           type: 'NO_VOLUNTEER',
-          payload: { offerDurationMinutes: config.assignment.offerDurationMinutes },
+          // The offer closed because the deadline threshold was reached, not
+          // because a fixed duration elapsed — offerDurationMinutes plays no
+          // part in when a due-dated AVAILABLE instance becomes ripe.
+          payload: { leadMinutesBeforeDue: config.assignment.leadMinutesBeforeDue },
         },
         ...selection.trace.constraintsRelaxed.map((c) => ({
           householdId: input.householdId,

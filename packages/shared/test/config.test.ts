@@ -50,7 +50,9 @@ describe('DEFAULT_CONFIG matches CLAUDE.md §39 verbatim', () => {
 
   it('carries the four keys the reconciliation added', () => {
     expect(DEFAULT_CONFIG.fairness.windowDays).toBe(28); // OQ-7
-    expect(DEFAULT_CONFIG.assignment.leadMinutesBeforeDue).toBe(0); // OQ-4
+    // OQ-4, reworked: auto-assignment now only triggers within this many
+    // minutes of a task's due date (default 24h).
+    expect(DEFAULT_CONFIG.assignment.leadMinutesBeforeDue).toBe(1440);
     expect(DEFAULT_CONFIG.tasks.maxOpenInstancesPerDefinition).toBe(1); // OQ-5
     // OQ-1's carriedValue is a TaskDefinition column, driven by this key.
     expect(DEFAULT_CONFIG.completion.resetStrategy).toBe('BASE_VALUE');
@@ -248,6 +250,9 @@ describe('the public projection (Reconciliation §1.3)', () => {
     expect(publicConfig.voluntary.rewardTiming).toBe('ON_COMPLETE');
     expect(publicConfig.buyout.enabled).toBe(true);
     expect(publicConfig.assignment.strategy).toBe('WEIGHTED_FAIRNESS');
+    // §32-adjacent: a member must be able to see the rule that governs
+    // whether/when they might be randomly assigned a due-dated task.
+    expect(publicConfig.assignment.leadMinutesBeforeDue).toBe(1440);
     expect(publicConfig.pointDecayEnabled).toBe(false);
   });
 
