@@ -23,7 +23,7 @@ test.use({ storageState: storageStatePath('elke') });
 test('Admin ändert einen Regelwert, er bleibt nach Neuladen bestehen', async ({ page }) => {
   await page.goto('/verwaltung/einstellungen');
 
-  const input = page.getByLabel('Angebotsdauer (Minuten)');
+  const input = page.getByLabel('Angebotsdauer');
   await expect(input).toBeVisible();
 
   const originalValue = await input.inputValue();
@@ -37,13 +37,13 @@ test('Admin ändert einen Regelwert, er bleibt nach Neuladen bestehen', async ({
   // Nicht der optimistischen UI trauen — neu laden erzwingt ein frisches
   // GET /admin/config vom Server.
   await page.reload();
-  await expect(page.getByLabel('Angebotsdauer (Minuten)')).toHaveValue(String(changed));
+  await expect(page.getByLabel('Angebotsdauer')).toHaveValue(String(changed));
 
   // Zurücksetzen, damit der Testlauf die Konfiguration nicht dauerhaft verändert.
-  await page.getByLabel('Angebotsdauer (Minuten)').fill(String(original));
+  await page.getByLabel('Angebotsdauer').fill(String(original));
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('Konfiguration gespeichert.');
 
   await page.reload();
-  await expect(page.getByLabel('Angebotsdauer (Minuten)')).toHaveValue(String(original));
+  await expect(page.getByLabel('Angebotsdauer')).toHaveValue(String(original));
 });
