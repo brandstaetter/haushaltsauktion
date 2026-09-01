@@ -1,4 +1,5 @@
 import type {
+  AssignmentKind,
   AvailableTaskDto,
   EligibilityMode,
   HouseholdConfig,
@@ -6,6 +7,7 @@ import type {
   MemberRole,
   RecurrenceType,
   TaskInstanceDetailDto,
+  TaskStatus,
 } from '@haushaltsauktion/shared';
 
 export interface SessionDto {
@@ -187,6 +189,30 @@ export interface AdminTaskDefinitionDto {
   createdAt: string;
   updatedAt: string;
   eligibility: { memberId: string; mode: EligibilityMode }[];
+}
+
+/** One open instance of a definition, as `GET /admin/task-definitions/:id`
+ * embeds it — `assignments` holds at most one row (the active assignment). */
+export interface AdminTaskInstanceRowDto {
+  id: string;
+  status: TaskStatus;
+  currentValue: number;
+  dueAt: string | null;
+  assignments: {
+    id: string;
+    kind: AssignmentKind;
+    member: { id: string; displayName: string };
+  }[];
+}
+
+/** Full response of `GET /admin/task-definitions/:id` — the list row plus
+ * its currently open instances and §33's market-value figure. */
+export interface AdminTaskDefinitionDetailDto extends AdminTaskDefinitionDto {
+  instances: AdminTaskInstanceRowDto[];
+  marketValue: {
+    averageVoluntaryTakeoverValue: number | null;
+    sampleSize: number;
+  };
 }
 
 /** Body shape for `POST`/`PUT /admin/task-definitions[/:id]` — mirrors

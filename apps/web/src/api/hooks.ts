@@ -16,6 +16,7 @@ import { api, setCsrfToken } from './client';
 import type {
   AdminConfigDto,
   AdminMemberDto,
+  AdminTaskDefinitionDetailDto,
   AdminTaskDefinitionDto,
   CategoryDto,
   CategoryWriteBody,
@@ -439,6 +440,23 @@ export function useTaskDefinitionLabels(): {
   return useAdminTaskDefinitions();
 }
 
+/**
+ * The single definition's detail view (`GET /admin/task-definitions/:id`) —
+ * unlike `useAdminTaskDefinitions()`'s list rows, this includes the
+ * definition's currently open instances and their active assignee, so the
+ * edit sheet can show what's actually in flight. Query key nests under the
+ * list's key so any list-invalidating mutation (create/update/archive/
+ * eligibility/materialize) also invalidates this by prefix match. `null`
+ * disables the query — used while the edit sheet is closed.
+ */
+export function useAdminTaskDefinitionDetail(id: string | null) {
+  return useQuery({
+    queryKey: [...adminTaskDefinitionsQueryKey, id ?? 'none'],
+    queryFn: () => api<AdminTaskDefinitionDetailDto>(`/admin/task-definitions/${id}`),
+    enabled: id !== null,
+  });
+}
+
 export function useCreateTaskDefinition() {
   const qc = useQueryClient();
   return useMutation({
@@ -492,6 +510,7 @@ export function useMaterializeTaskDefinition() {
       void qc.invalidateQueries({ queryKey: dashboardQueryKey });
       void qc.invalidateQueries({ queryKey: ['tasks'] });
       void qc.invalidateQueries({ queryKey: ['history'] });
+      void qc.invalidateQueries({ queryKey: adminTaskDefinitionsQueryKey });
     },
   });
 }

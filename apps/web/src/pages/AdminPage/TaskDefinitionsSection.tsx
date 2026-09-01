@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { RecurrenceType } from '@haushaltsauktion/shared';
 import {
   useAdminCategories,
   useAdminMembers,
+  useAdminTaskDefinitionDetail,
   useAdminTaskDefinitions,
   useArchiveTaskDefinition,
   useCreateTaskDefinition,
@@ -14,6 +16,7 @@ import { ApiError } from '../../api/client';
 import type {
   AdminMemberDto,
   AdminTaskDefinitionDto,
+  AdminTaskInstanceRowDto,
   CategoryDto,
   RecurrenceDto,
 } from '../../api/types';
@@ -282,6 +285,53 @@ function RecurrenceFields({
   );
 }
 
+// ───────────────────────── live instances ─────────────────────────
+
+/**
+ * §17/§23 visibility: what a definition has actually produced and who holds
+ * it, so an admin editing it can see at a glance what's in flight before
+ * changing base values or eligibility out from under it. Read-only — the
+ * unassign action itself is a separate ticket.
+ */
+function LiveInstancesList({ definitionId }: { definitionId: string }) {
+  const { de } = useStrings();
+  const t = de.admin.taskDefinitions.instances;
+  const { data, isLoading } = useAdminTaskDefinitionDetail(definitionId);
+  const instances = data?.instances ?? [];
+
+  const assigneeLabel = (instance: AdminTaskInstanceRowDto): string => {
+    const assignment = instance.assignments[0];
+    if (!assignment) return t.unassigned;
+    return interpolate(t.assignedTo, {
+      name: assignment.member.displayName,
+      kind: t.kindLabels[assignment.kind],
+    });
+  };
+
+  return (
+    <div className={styles.restrictionsForm}>
+      <h3 className={styles.sectionTitle}>{t.title}</h3>
+      {isLoading ? (
+        <div className={styles.spinner} aria-label="Wird geladen" />
+      ) : instances.length === 0 ? (
+        <p className={styles.hint}>{t.empty}</p>
+      ) : (
+        <ul className={styles.checkboxList}>
+          {instances.map((instance) => (
+            <li key={instance.id} className={styles.instanceRow}>
+              <Link to={`/aufgaben/${instance.id}`}>
+                <span>{de.task.status[instance.status]}</span>
+                <span>{formatNumber(instance.currentValue)}</span>
+                <span>{assigneeLabel(instance)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function TaskDefinitionForm({
   initial,
   categories,
@@ -405,6 +455,8 @@ function TaskDefinitionForm({
       </label>
 
       <RecurrenceFields value={draft.recurrence} onChange={updateRecurrence} />
+
+      {initial && <LiveInstancesList definitionId={initial.id} />}
 
       <div className={styles.actions}>
         <Button type="submit" loading={pending}>

@@ -15,6 +15,7 @@ import { afterAll, beforeAll, expect, test } from 'vitest';
 import {
   authHeaders,
   buildTestServer,
+  createAvailableInstance,
   createHousehold,
   dropHousehold,
   idsFor,
@@ -131,6 +132,42 @@ test('a non-admin cannot materialize a task definition', async () => {
     payload: {},
   });
   expect(response.statusCode).toBe(403);
+});
+
+test('the definition detail view includes an open instance with its active assignee', async () => {
+  const instanceId = await createAvailableInstance(db, ids, 'keller', 5);
+  try {
+    const taken = await app.inject({
+      method: 'POST',
+      url: `/api/tasks/${instanceId}/volunteer`,
+      headers: authHeaders(bob),
+      payload: {},
+    });
+    expect(taken.statusCode).toBe(200);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/admin/task-definitions/${ids.definitionId('keller')}`,
+      headers: authHeaders(admin),
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as {
+      instances: {
+        id: string;
+        status: string;
+        currentValue: number;
+        assignments: { kind: string; member: { id: string; displayName: string } }[];
+      }[];
+    };
+    const instance = body.instances.find((i) => i.id === instanceId);
+    expect(instance).toBeDefined();
+    expect(instance!.status).toBe('ASSIGNED');
+    expect(instance!.assignments).toHaveLength(1);
+    expect(instance!.assignments[0]!.kind).toBe('VOLUNTARY');
+    expect(instance!.assignments[0]!.member).toMatchObject({ displayName: 'Bob' });
+  } finally {
+    await db.taskInstance.delete({ where: { id: instanceId } });
+  }
 });
 
 test('materializing an unknown definition is a 404, not a leak', async () => {
