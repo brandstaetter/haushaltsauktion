@@ -1,9 +1,9 @@
 ---
 version: 1
 id: "8c7d65e7-a30f-4d10-91d3-3a0c47ea5442"
-status: active
+status: completed
 started: "2026-09-01T03:57:12.531Z"
-completed_at: null
+completed_at: "2026-09-01T04:07:59Z"
 direction: "History entries missing task name and new value (NO_VOLUNTEER, VALUE_RESET, RANDOMLY_ASSIGNED)"
 phase_count: 4
 current_phase: 4
@@ -13,7 +13,7 @@ worktree_status: null
 
 # Campaign: History entries missing task name and new value (NO_VOLUNTEER, VALUE_RESET, RANDOMLY_ASSIGNED)
 
-Status: active
+Status: completed
 Started: 2026-09-01T03:57:12.531Z
 Direction: History entries missing task name and new value (NO_VOLUNTEER, VALUE_RESET, RANDOMLY_ASSIGNED)
 
@@ -78,7 +78,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 
 ## Active Context
 
-Phase 3 (verify) complete — typecheck, lint, and tests all clean. Phase 4 next: package for review (PR).
+All 4 phases complete. PR #9 merged into main at e971983 (2026-09-01T04:07:59Z).
 
 ## Continuation State
 
@@ -86,3 +86,11 @@ Phase: 4
 Sub-step: not yet packaged
 Files modified: apps/web/src/strings/de.ts, apps/web/src/pages/HistoryPage/HistoryPage.tsx, apps/web/src/pages/HistoryPage/HistoryPage.test.tsx (new)
 Blocking: none
+
+<!-- session-end: 2026-09-01T04:38:52.462Z -->
+
+<!-- session-end: 2026-09-01T05:02:12.063Z -->
+
+<!-- session-end: 2026-09-01T05:22:26.609Z -->
+
+<!-- session-end: 2026-09-01T10:19:52.965Z -->
