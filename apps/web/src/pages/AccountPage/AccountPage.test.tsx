@@ -28,14 +28,6 @@ import { api } from '../../api/client';
 
 const mockedApi = vi.mocked(api);
 
-const session: SessionDto = {
-  user: { id: 'user-1', email: 'anna@demo.local', displayName: 'Anna' },
-  member: { id: 'member-1', displayName: 'Anna', avatarUrl: null, isActive: true },
-  household: { id: 'household-1', name: 'Demo Family', timezone: 'Europe/Vienna' },
-  role: 'MEMBER',
-  csrfToken: 'csrf-token',
-};
-
 const member: MemberDto = {
   id: 'member-1',
   displayName: 'Anna',
@@ -44,6 +36,14 @@ const member: MemberDto = {
   isActive: true,
   balance: 12,
   maxRandomAssignmentsPerWeek: null,
+};
+
+const session: SessionDto = {
+  user: { id: 'user-1', email: 'anna@demo.local', displayName: 'Anna' },
+  member,
+  household: { id: 'household-1', name: 'Demo Family', timezone: 'Europe/Vienna' },
+  role: 'MEMBER',
+  csrfToken: 'csrf-token',
 };
 
 /** Builds the real `{ version, values }` envelope GET /config/public returns. */
