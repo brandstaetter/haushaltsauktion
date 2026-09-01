@@ -122,21 +122,23 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
   Reason: Without this, flow-3 (random-assignment/buyout) would be flaky against the container stack specifically, in a way that wouldn't reproduce locally against the dev server.
 - 2026-09-01T18:39:00Z: PR #31's first `e2e` CI run (the actual, authoritative first execution of the new job) came back red: flow-1/flow-2/mobile-layout passed, but flow-3 failed with "Keine CSRF-Token in der Sitzung gefunden" and flow-4 failed waiting for a save-confirmation toast that never appeared. Root-caused via `apps/api/src/config.ts`: `COOKIE_SECURE` defaults to `true` unless explicitly `"false"`, and README.md already documents "für lokales HTTP auf `false` setzen" — the throwaway stack is reached over plain `http://127.0.0.1`, so the `Secure`-flagged session cookie was never sent back, and every session-dependent request looked unauthenticated (flow-1/2 mostly happened not to hit this because their assertions don't route through a stale/second session read the same way). Local dev's tsx-based E2E path never hits this because the developer's own `.env` already sets `COOKIE_SECURE=false`, but the containers never read that file. Fixed by adding `COOKIE_SECURE: "false"` to the `e2e` overlay's `api` service, next to `SWEEP_INTERVAL_SECONDS`. Verified locally before re-pushing: manually seeded the throwaway stack's DB and curled the real login flow — `Set-Cookie` no longer carries `Secure`, and `/api/auth/me` now returns a populated `csrfToken`.
   Reason: Root-caused from first principles (compared what the tsx/dev-server path has that the container path doesn't) rather than retrying or loosening the test assertions — this is a genuine environment-config gap the throwaway stack needed to close, not a flaky test.
+- 2026-09-01T18:49:00Z: Second `e2e` CI run: flow-3 now passes (confirms the CSRF/cookie fix), but flow-4 (admin config save) still failed the same way — "Konfiguration gespeichert." toast never observed. Root-caused to a genuine pre-existing bug in `AdminSettingsPage.tsx`, not the container setup: `useSaveConfig`'s `onSuccess` invalidates the `admin-config` query, which refetches `config` and changes its object identity; the page's `useEffect(() => { if (config) { setDraft(...); setMessage(null); } }, [config])` then fires and immediately wipes the success message it had just set — a real race between "show the confirmation" and "the save's own invalidation refetch resets it." This was invisible before because the suite never ran in CI at all, and evidently the timing happened to let it through often enough in ad-hoc local runs against the dev server. Fixed by removing `setMessage(null)` from that effect — it only needs to resync `draft` from fresh server data, not clear a message someone else just set for an unrelated reason.
+  Reason: The new `e2e` CI gate did exactly its job — caught a real, reproducible correctness bug in core admin functionality (§17) that had no coverage until this campaign added it. Per CLAUDE.md §"Beende die Arbeit nicht mit offenen TODOs für Kernfunktionalität," fixed the actual bug rather than loosening the test or excluding flow-4 from the new gate.
 
 ## Active Context
 
-Implementation, local verification, and a first (failing) CI run are done.
-Root-caused the two failures to a missing `COOKIE_SECURE=false` on the
-throwaway stack (session cookies were `Secure`-flagged and never sent back
-over plain HTTP) and pushed the fix. Waiting on the corrected `e2e` CI run
-on PR #31 to confirm all specs pass before this campaign can be considered
-verified end-to-end.
+Implementation, local verification, and two CI-driven fixes are done — the
+`e2e` job's first real runs surfaced two genuine bugs (missing
+`COOKIE_SECURE=false` on the throwaway stack, and a pre-existing
+success-message race in `AdminSettingsPage.tsx`), both root-caused and
+fixed. Waiting on the third `e2e` CI run on PR #31 to confirm every spec
+passes before this campaign can be considered verified end-to-end.
 
 ## Continuation State
 
 Phase: 4
-Sub-step: fix pushed for the COOKIE_SECURE bug found in PR #31's first CI run; awaiting the corrected run
+Sub-step: AdminSettingsPage message-race fix pushed; awaiting the corrected CI run
 Files modified: .github/workflows/deploy.yml, apps/web/Dockerfile,
   deploy/docker-compose.e2e.yml (new), playwright.config.ts,
-  docs/hosting-plan.md
+  docs/hosting-plan.md, apps/web/src/pages/AdminPage/AdminSettingsPage.tsx
 Blocking: none — waiting on GitHub Actions
