@@ -1,20 +1,21 @@
 ---
 version: 1
 id: "9b0835a7-2c31-4d18-8714-d4889ea9ea80"
-status: active
+status: completed
 started: "2026-09-01T03:13:20.668Z"
-completed_at: null
+completed_at: "2026-09-01T03:45:20.000Z"
 direction: "Post-deploy health check in the Deploy workflow"
 phase_count: 4
-current_phase: 2
-branch: null
+current_phase: 4
+branch: "fix/post-deploy-health-check, fix/web-healthcheck-missing-wget"
 worktree_status: null
 ---
 
 # Campaign: Post-deploy health check in the Deploy workflow
 
-Status: active
+Status: completed
 Started: 2026-09-01T03:13:20.668Z
+Completed: 2026-09-01T03:45:20.000Z
 Direction: Post-deploy health check in the Deploy workflow
 
 ## Claimed Scope
@@ -50,30 +51,34 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | # | Status | Type | Phase | Done When |
 |---|--------|------|-------|-----------|
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
-| 2 | pending | build | Implement requested change | Required files are changed and implementation diff is available |
-| 3 | pending | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
+| 3 | complete | verify | Run verification | npm run test passes |
+| 4 | complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
 | Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
 |---|---|---|---|---|---|---|---|
-| phase:2 | implementation-diff | file_diff | yes | git diff --stat | pending | 2 | implement requested change |
-| phase:3 | verification-command | test_result | yes | npm run test | pending | 2 | fix verification failures |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/post-deploy-health-check-in-the-deploy-workflow.md | pending | 2 | package delivery for review |
+| phase:2 | implementation-diff | file_diff | yes | PR #6 (deploy.yml poll loop + web healthcheck + docs), PR #8 (curl fix for the web healthcheck) | complete | 2 | — |
+| phase:3 | verification-command | test_result | yes | `npx tsc --noEmit` clean; `npm run test --workspaces` — web (67/67) passed, api integration tests need a local Postgres this environment didn't have (pre-existing gap, unrelated to this change) so real verification came from GitHub Actions' `test` job (with a real Postgres service container) on push to main, which passed on both merges | complete | 2 | — |
+| phase:4 | review-package | review_package | yes | PR #6 https://github.com/brandstaetter/haushaltsauktion/pull/6 (merged), PR #8 https://github.com/brandstaetter/haushaltsauktion/pull/8 (merged) | complete | 2 | — |
 
 ## Decision Log
 
 - 2026-09-01T03:13:20.668Z: Created delivery campaign from intake preflight.
   Reason: Convert intake into an evidence-backed delivery loop before implementation.
+- 2026-09-01T03:33:12Z: PR #6 merged (poll loop over `docker compose ps` + `web` Docker healthcheck + `docs/hosting-plan.md` §3.1). Deploy run on that merge failed: `web-1` came up `unhealthy` — the healthcheck used `wget --spider`, and official `nginx:alpine` ships neither `wget` nor `curl`. The new check caught this correctly; it was the healthcheck command that was wrong, not the deploy.
+  Reason: Recorded here rather than as a new intake item since it's a direct follow-on bug in the same change, discovered by the change itself doing its job.
+- 2026-09-01T03:45:17Z: PR #8 merged (installs `curl` explicitly in `apps/web/Dockerfile`, switches the healthcheck to use it). Verified locally first: built the image, ran it with the exact healthcheck definition against a stub `api` upstream, confirmed `healthy` on the first check. The resulting deploy run (33467353694) succeeded.
+  Reason: Confirms the health check now works end-to-end in the real environment, not just in isolated local testing.
 
 ## Active Context
 
-Delivery preflight complete. Next action: implement Phase 2 using the claimed scope, acceptance criteria, map context, and evidence contract.
+Campaign complete. Both PRs merged, deploy pipeline green, health check verified working against a real crash-loop-style failure (the wget/curl bug) rather than only against synthetic conditions.
 
 ## Continuation State
 
-Phase: 2
-Sub-step: implementation not started
-Files modified: campaign scaffold only
+Phase: 4 (complete)
+Sub-step: none — campaign closed
+Files modified: .github/workflows/deploy.yml, deploy/docker-compose.prod.yml, apps/web/Dockerfile, docs/hosting-plan.md
 Blocking: none

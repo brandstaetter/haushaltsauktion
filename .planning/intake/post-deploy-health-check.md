@@ -1,6 +1,6 @@
 ---
 title: "Post-deploy health check in the Deploy workflow"
-status: in-progress
+status: completed
 priority: high
 target: .github/workflows/deploy.yml, deploy/docker-compose.prod.yml
 campaign: post-deploy-health-check-in-the-deploy-workflow
