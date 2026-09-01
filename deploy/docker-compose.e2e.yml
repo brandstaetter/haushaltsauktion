@@ -1,0 +1,36 @@
+# Overlay for the throwaway E2E stack used by CI (see
+# .github/workflows/deploy.yml, "e2e" job) — never used for local dev or
+# production. Applied on top of the repo-root docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.e2e.yml \
+#     -p haushaltsauktion-e2e up -d --build --wait
+#
+# Everything here is disposable: a fresh Postgres volume, images built from
+# the current checkout (not pulled from ECR), and dummy credentials that
+# only ever exist for the lifetime of one CI job. `docker-compose.yml`
+# already defaults SESSION_SECRET/POSTGRES_* to non-secret placeholders when
+# unset, so this file only adds what that base file cannot: the
+# VITE_DEMO_LOGIN build arg (apps/web/Dockerfile) that makes the E2E
+# suite's login flow (e2e/helpers.ts's `loginAsDemoUser`) work against the
+# actual built image instead of the Vite dev server, a healthcheck for
+# `web` so `--wait` has something to wait on (root compose only healthchecks
+# db/api), and disabling the background sweep worker — same reasoning as
+# playwright.config.ts's `env: { SWEEP_INTERVAL_SECONDS: '0' }` for its
+# tsx-based `webServer` entry: a live timer would materialize due instances
+# with a future `offerExpiresAt` outside the tests' control, and flow-3's
+# manual, test-driven sweep would then find nothing ready.
+
+services:
+  api:
+    environment:
+      SWEEP_INTERVAL_SECONDS: "0"
+
+  web:
+    build:
+      args:
+        VITE_DEMO_LOGIN: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
