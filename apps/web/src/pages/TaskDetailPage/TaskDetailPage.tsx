@@ -164,7 +164,7 @@ export function TaskDetailPage() {
             {' '}
             zugewiesen
           </p>
-          {task.activeAssignment.kind === 'RANDOM' && (
+          {task.activeAssignment.kind === 'RANDOM' && !isPendingDecision && (
             <AssignmentExplanation assignmentId={task.activeAssignment.id} />
           )}
           {me?.role === 'ADMIN' && (
@@ -250,6 +250,9 @@ export function TaskDetailPage() {
                 the one place §31 explicitly forbids nudging one option over
                 the other. Both branches share `variant="secondary"` so
                 neither reads as the recommended default. */}
+            {task.activeAssignment!.kind === 'RANDOM' && (
+              <AssignmentExplanation assignmentId={task.activeAssignment!.id} />
+            )}
             <Button
               variant="secondary"
               onClick={() => run(accept.mutateAsync(task.activeAssignment!.id))}

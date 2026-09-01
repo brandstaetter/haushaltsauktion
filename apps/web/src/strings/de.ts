@@ -143,25 +143,6 @@ export const de = {
       },
     },
   },
-  decision: {
-    title: 'Du wurdest ausgewählt',
-    currentValue: 'Aktueller Wert',
-    balance: 'Dein Punktestand',
-    optionsHeading: 'Zwei Möglichkeiten',
-    rowPoints: 'Punkte',
-    rowBalanceAfter: 'Kontostand danach',
-    rowValueAfter: 'Aufgabenwert danach',
-    unchanged: 'unverändert',
-    from: 'von {value}',
-    afterBuyout:
-      'Nach einem Freikauf wird die Aufgabe erneut angeboten. Wer sie dann freiwillig übernimmt, erhält {newValue} Punkte.',
-    noPointsForRandom:
-      'Diese Aufgabe wurde dir zugelost. Für zugeloste Aufgaben gibt es keine Punkte.',
-    why: 'Warum wurde mir das zugewiesen?',
-    updated: 'Die Werte wurden gerade aktualisiert.',
-    gone: 'Diese Aufgabe ist nicht mehr dir zugewiesen.',
-    close: 'Schließen',
-  },
   confirm: {
     acceptTitle: 'Aufgabe übernehmen',
     buyoutTitle: 'Freikauf bestätigen',
