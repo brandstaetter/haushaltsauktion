@@ -131,6 +131,17 @@ export const de = {
     noTasks: 'Gerade nichts offen.',
     noAssigned: 'Dir ist gerade nichts zugewiesen.',
     noHeld: 'Du hast gerade keine Aufgabe übernommen.',
+    adminUnassign: {
+      trigger: 'Zuweisung aufheben',
+      title: 'Zuweisung aufheben',
+      intro: 'Die Zuweisung von „{task}“ an {member} wird aufgehoben. Die Aufgabe wird danach wieder freiwillig verfügbar.',
+      reason: 'Grund (optional)',
+      confirm: 'Aufheben bestätigen',
+      errors: {
+        alreadyHandled: 'Diese Zuweisung wurde bereits bearbeitet.',
+        generic: 'Das hat nicht funktioniert.',
+      },
+    },
   },
   decision: {
     title: 'Du wurdest ausgewählt',
@@ -194,6 +205,7 @@ export const de = {
       POINTS_AWARDED: '{member} erhält {points} Punkte für {task}',
       VALUE_RESET: 'Aufgabenwert von {task} auf {to} zurückgesetzt',
       RELEASED: '{member} hat {task} zurückgegeben',
+      REVOKED: 'Zuweisung von {task} an {member} wurde aufgehoben',
       EXPIRED: 'Angebot für {task} abgelaufen',
       CONFIG_CHANGED: '{member} hat eine Regel geändert: {key}',
       CREATED: '{task} angelegt — Wert {value}',

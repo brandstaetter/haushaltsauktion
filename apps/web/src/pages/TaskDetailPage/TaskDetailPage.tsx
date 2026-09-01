@@ -9,15 +9,77 @@ import {
   useAcceptAssignment,
   useAssignmentQuote,
   useMemberMe,
+  useRevokeAssignment,
 } from '../../api/hooks';
+import { ApiError } from '../../api/client';
 import { useStrings } from '../../context/StringsContext';
+import type { Strings } from '../../strings/de';
 import { Button } from '../../components/Button/Button';
+import { Sheet } from '../../components/Sheet/Sheet';
 import { BuyoutDisclosure } from '../../components/BuyoutDisclosure/BuyoutDisclosure';
 import { AssignmentExplanation } from '../../components/AssignmentExplanation/AssignmentExplanation';
 import { ValueChip } from '../../components/ValueChip/ValueChip';
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge';
-import { formatDate } from '../../utils/format';
+import { formatDate, interpolate } from '../../utils/format';
 import styles from './TaskDetailPage.module.css';
+
+function unassignErrorMessage(err: unknown, de: Strings): string {
+  const apiErr = err as { code?: string };
+  if (apiErr.code === 'ASSIGNMENT_CLOSED') return de.task.adminUnassign.errors.alreadyHandled;
+  if (err instanceof ApiError && err.message) return err.message;
+  return de.task.adminUnassign.errors.generic;
+}
+
+function UnassignForm({
+  instanceId,
+  taskTitle,
+  assigneeLabel,
+  onClose,
+}: {
+  instanceId: string;
+  taskTitle: string;
+  assigneeLabel: string;
+  onClose: () => void;
+}) {
+  const { de } = useStrings();
+  const revoke = useRevokeAssignment();
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = () => {
+    setError(null);
+    revoke.mutate(
+      { instanceId, reason: reason.trim() === '' ? null : reason.trim() },
+      {
+        onSuccess: onClose,
+        onError: (err) => setError(unassignErrorMessage(err, de)),
+      },
+    );
+  };
+
+  return (
+    <div className={styles.unassignForm}>
+      {error && (
+        <div className={styles.message} role="alert">
+          {error}
+        </div>
+      )}
+      <p>{interpolate(de.task.adminUnassign.intro, { task: taskTitle, member: assigneeLabel })}</p>
+      <label className={styles.field}>
+        <span>{de.task.adminUnassign.reason}</span>
+        <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
+      </label>
+      <div className={styles.actions}>
+        <Button variant="danger" onClick={handleSubmit} loading={revoke.isPending}>
+          {de.task.adminUnassign.confirm}
+        </Button>
+        <Button variant="ghost" onClick={onClose}>
+          {de.action.cancel}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +94,7 @@ export function TaskDetailPage() {
   const { data: me } = useMemberMe();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [unassignOpen, setUnassignOpen] = useState(false);
 
   const assignmentId = task?.activeAssignment?.id;
   const { data: quote } = useAssignmentQuote(assignmentId);
@@ -103,6 +166,11 @@ export function TaskDetailPage() {
           </p>
           {task.activeAssignment.kind === 'RANDOM' && (
             <AssignmentExplanation assignmentId={task.activeAssignment.id} />
+          )}
+          {me?.role === 'ADMIN' && (
+            <button className={styles.adminAction} onClick={() => setUnassignOpen(true)}>
+              {de.task.adminUnassign.trigger}
+            </button>
           )}
         </section>
       )}
@@ -213,6 +281,21 @@ export function TaskDetailPage() {
       </div>
 
       {quote && <BuyoutDisclosure quote={quote} />}
+
+      {task.activeAssignment && (
+        <Sheet
+          open={unassignOpen}
+          onOpenChange={setUnassignOpen}
+          title={de.task.adminUnassign.title}
+        >
+          <UnassignForm
+            instanceId={id}
+            taskTitle={task.title}
+            assigneeLabel={isAssignedToMe ? 'dir' : 'einer anderen Person'}
+            onClose={() => setUnassignOpen(false)}
+          />
+        </Sheet>
+      )}
     </div>
   );
 }

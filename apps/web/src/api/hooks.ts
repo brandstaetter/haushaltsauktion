@@ -26,6 +26,7 @@ import type {
   PublicConfigDto,
   RejectCompletionOutcome,
   RejectCompletionResultDto,
+  RevokeAssignmentResultDto,
   SessionDto,
   TaskDefinitionSummaryDto,
   TaskDefinitionWriteBody,
@@ -333,6 +334,24 @@ export function useRejectCompletion() {
       void qc.invalidateQueries({ queryKey: ['members'] });
       void qc.invalidateQueries({ queryKey: ['history'] });
       void qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+/** Admin-only: force-unassign a random or voluntary assignment (§26 revoke path). Free, unlike a member's own buyout. */
+export function useRevokeAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ instanceId, reason }: { instanceId: string; reason: string | null }) =>
+      api<RevokeAssignmentResultDto>(`/admin/instances/${instanceId}/revoke-assignment`, {
+        method: 'POST',
+        body: { reason },
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: dashboardQueryKey });
+      void qc.invalidateQueries({ queryKey: ['tasks'] });
+      void qc.invalidateQueries({ queryKey: ['members'] });
+      void qc.invalidateQueries({ queryKey: ['history'] });
     },
   });
 }
