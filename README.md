@@ -97,7 +97,7 @@ nicht gesetzt, existiert die Route serverseitig gar nicht — `POST
 /api/register` antwortet mit einem echten 404, nicht mit einer sichtbaren,
 aber deaktivierten Route. Der Token ist absichtlich **kein** offenes
 Self-Service-Signup: er gilt nur für die Erstanlage; alle weiteren
-Mitglieder fügt ein Admin danach über `/verwaltung` hinzu (§17).
+Mitglieder fügt ein Admin danach über `/verwaltung/benutzer` hinzu (§17).
 
 **Weg 2 — CLI-Fallback** (`apps/api/prisma/create-admin.ts`, per `npm run
 create-admin`). Bleibt bewusst erhalten für den Fall, dass der Setup-Token
@@ -139,14 +139,15 @@ wäre (siehe Entscheidungslog der Kampagne).
 ## Konfiguration
 
 Alle Spielregeln sind pro Haushalt konfigurierbar, versioniert und über die
-Admin-Oberfläche (`/verwaltung`, nur für Mitglieder mit Rolle `ADMIN`)
-änderbar — kein Redeploy nötig. Dieselbe Seite verwaltet auch die Mitglieder
-(anlegen, Rolle/Aktivstatus, Teilnahmebeschränkungen: ausgeschlossene
-Kategorien/Aufgaben, Abwesenheiten) und die Aufgaben selbst (Aufgaben
-anlegen/bearbeiten/archivieren inkl. Wiederholungsregel und
-Berechtigungen, Kategorien verwalten) — beides ruft ausschließlich bereits
-bestehende, serverseitig validierte Endpunkte auf, nichts davon rechnet
-etwas Verbindliches im Client. Das Konfigurationsschema lebt in
+Admin-Oberfläche (nur für Mitglieder mit Rolle `ADMIN`) änderbar — kein
+Redeploy nötig. Die Verwaltung ist auf vier eigene Seiten aufgeteilt:
+`/verwaltung/einstellungen` (Regeln & Werte), `/verwaltung/benutzer`
+(Mitglieder anlegen, Rolle/Aktivstatus, Teilnahmebeschränkungen:
+ausgeschlossene Kategorien/Aufgaben, Abwesenheiten), `/verwaltung/aufgaben`
+(Aufgaben anlegen/bearbeiten/archivieren inkl. Wiederholungsregel und
+Berechtigungen) sowie `/verwaltung/kategorien` — alle rufen ausschließlich
+bereits bestehende, serverseitig validierte Endpunkte auf, nichts davon
+rechnet etwas Verbindliches im Client. Das Konfigurationsschema lebt in
 [`packages/shared/src/config/`](./packages/shared/src/config/)
 (`HouseholdConfigSchema`), die Defaults in `defaults.ts` spiegeln CLAUDE.md
 §39 wörtlich. Wichtigste Defaults:

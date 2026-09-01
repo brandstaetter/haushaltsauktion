@@ -10,8 +10,10 @@ import { TaskDetailPage } from './pages/TaskDetailPage/TaskDetailPage';
 import { HistoryPage } from './pages/HistoryPage/HistoryPage';
 import { AccountPage } from './pages/AccountPage/AccountPage';
 import { LedgerPage } from './pages/LedgerPage/LedgerPage';
-import { AdminPage } from './pages/AdminPage/AdminPage';
 import { AdminSettingsPage } from './pages/AdminPage/AdminSettingsPage';
+import { AdminMembersPage } from './pages/AdminPage/AdminMembersPage';
+import { AdminTasksPage } from './pages/AdminPage/AdminTasksPage';
+import { AdminCategoriesPage } from './pages/AdminPage/AdminCategoriesPage';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { data: session, isLoading } = useSession();
@@ -92,7 +94,7 @@ export const router = createBrowserRouter([
             path: 'verwaltung',
             element: (
               <AdminRoute>
-                <AdminPage />
+                <Navigate to="/verwaltung/einstellungen" replace />
               </AdminRoute>
             ),
           },
@@ -101,6 +103,30 @@ export const router = createBrowserRouter([
             element: (
               <AdminRoute>
                 <AdminSettingsPage />
+              </AdminRoute>
+            ),
+          },
+          {
+            path: 'verwaltung/benutzer',
+            element: (
+              <AdminRoute>
+                <AdminMembersPage />
+              </AdminRoute>
+            ),
+          },
+          {
+            path: 'verwaltung/aufgaben',
+            element: (
+              <AdminRoute>
+                <AdminTasksPage />
+              </AdminRoute>
+            ),
+          },
+          {
+            path: 'verwaltung/kategorien',
+            element: (
+              <AdminRoute>
+                <AdminCategoriesPage />
               </AdminRoute>
             ),
           },

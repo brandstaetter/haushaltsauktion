@@ -7,10 +7,9 @@
  * force a deterministic random assignment") — kein Ersatz für den Fluss
  * selbst, nur für das Warten auf den Timer.
  *
- * Eine Einschränkung der aktuellen Verwaltungsoberfläche: sie hat keinen
- * Bereich, um einer Person manuell Punkte gutzuschreiben (§17 nennt
- * "Benutzer" als Verwaltungsbereich, `AdminPage.tsx` hat aber nur
- * Zuweisung/Freiwillige-Übernahme/Freikauf/Wertsteigerung/Aufgaben-Sektionen).
+ * Eine Einschränkung der aktuellen Verwaltungsoberfläche: die Benutzer-Seite
+ * (`/verwaltung/benutzer`, §17) hat keine Möglichkeit, einer Person manuell
+ * Punkte gutzuschreiben.
  * Wen der gewichtete Zufall trifft, steht vorher nicht fest — trifft er eine
  * Person mit 0 Punkten, wäre ein Freikauf nach den Standardregeln
  * (`allowNegativeBalance: false`) gar nicht möglich, unabhängig vom eigentlich
@@ -79,7 +78,7 @@ test('Zufallszuweisung → Freikauf → Wertsteigerung → erneutes Angebot', as
     const adminPage = await adminCtx.newPage();
     const csrfToken = await csrfTokenFor(adminPage);
 
-    await adminPage.goto('/verwaltung');
+    await adminPage.goto('/verwaltung/aufgaben');
     await adminPage.getByRole('button', { name: 'Zufallszuweisung jetzt ausführen' }).click();
     const sweepStatus = adminPage.getByRole('status');
     await expect(sweepStatus).toContainText('Ergebnis:');

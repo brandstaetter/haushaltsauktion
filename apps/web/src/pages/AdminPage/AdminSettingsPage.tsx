@@ -301,7 +301,7 @@ export function AdminSettingsPage() {
         <Button onClick={handleSave} loading={save.isPending}>
           {de.admin.save}
         </Button>
-        <Button variant="ghost" onClick={() => navigate('/verwaltung')}>
+        <Button variant="ghost" onClick={() => navigate('/ich')}>
           {de.action.back}
         </Button>
       </div>

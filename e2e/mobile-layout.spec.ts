@@ -48,7 +48,9 @@ test.describe('Mobile Darstellung (390×844)', () => {
     });
 
     test('Aufgabenliste scrollt nicht seitlich', async ({ page }) => {
-      await page.getByRole('link', { name: 'Aufgaben' }).click();
+      // Die Aufgabenliste hat keinen eigenen Navigationspunkt mehr — erreichbar
+      // über den "Alle"-Link im Dashboard-Abschnitt "Meine Aufgaben".
+      await page.getByRole('button', { name: 'Alle' }).click();
       await expect(page).toHaveURL(/\/aufgaben$/);
       await expect(page.getByRole('tablist')).toBeVisible();
 
@@ -72,8 +74,9 @@ test.describe('Mobile Darstellung (390×844)', () => {
       const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
 
       await expect(nav).toBeVisible();
-      // Start, Aufgaben, Verlauf, Ich — plus Verwaltung für Elke (ADMIN).
-      await expect(nav.getByRole('link')).toHaveCount(5);
+      // Start, Verlauf, Ich — plus Einstellungen, Benutzer, Aufgaben,
+      // Kategorien für Elke (ADMIN).
+      await expect(nav.getByRole('link')).toHaveCount(7);
     });
   });
 });
