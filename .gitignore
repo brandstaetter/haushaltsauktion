@@ -9,6 +9,7 @@ build/
 .next/
 out/
 *.tsbuildinfo
+.planning/cache/
 
 # Environment
 .env
@@ -38,6 +39,9 @@ Thumbs.db
 .claude/circuit-breaker-state.json
 .claude/compact-state.json
 .claude/agent-context/
+# harness.json mixes real config with a per-machine session counter that
+# bumps almost every session — untracked to avoid permanent diff noise.
+.claude/harness.json
 .planning/telemetry/
 .planning/screenshots/
 
