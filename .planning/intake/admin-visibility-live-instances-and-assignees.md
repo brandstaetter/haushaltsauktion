@@ -1,6 +1,6 @@
 ---
 title: "Task maintenance should show live instances and who they're assigned to"
-status: in-progress
+status: completed
 priority: normal
 target: apps/api/src/infra/http/routes/admin.ts, apps/web/src/pages/AdminPage/TaskDefinitionsSection.tsx
 campaign: task-maintenance-should-show-live-instances-and-who-they-re-assigned-to

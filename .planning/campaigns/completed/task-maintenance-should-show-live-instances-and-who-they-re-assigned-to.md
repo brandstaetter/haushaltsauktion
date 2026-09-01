@@ -1,7 +1,7 @@
 ---
 version: 1
 id: "5d4e634b-4aa5-46b9-bbc7-3f42235081e5"
-status: active
+status: completed
 started: "2026-09-01T04:39:18.263Z"
 completed_at: null
 direction: "Task maintenance should show live instances and who they're assigned to"
@@ -13,7 +13,7 @@ worktree_status: null
 
 # Campaign: Task maintenance should show live instances and who they're assigned to
 
-Status: active
+Status: completed
 Started: 2026-09-01T04:39:18.263Z
 Direction: Task maintenance should show live instances and who they're assigned to
 
@@ -54,7 +54,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
 | 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
 | 3 | complete | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 4 |  complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
@@ -62,7 +62,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 |---|---|---|---|---|---|---|---|
 | phase:2 | implementation-diff | file_diff | yes | git diff --stat — 10 files changed, 359 insertions(+), 5 deletions(-) | pass | 2 | — |
 | phase:3 | verification-command | test_result | yes | `npm run typecheck` clean; `npm run lint` clean; `npm run test --workspaces` — shared (128/128), api (244/244, incl. new admin-task-definitions integration test against local Postgres), web (73/73, incl. new instance-list test) all passed | pass | 2 | — |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/task-maintenance-should-show-live-instances-and-who-they-re-assigned-to.md | pending | 2 | package delivery for review |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/10 | resolved | 2 | review pull request |
 
 ## Decision Log
 
@@ -81,3 +81,10 @@ Phase: 4
 Sub-step: implementation and verification done, packaging next
 Files modified: apps/api/src/infra/http/routes/admin.ts, apps/api/test/integration/admin-task-definitions.test.ts, apps/web/src/api/hooks.ts, apps/web/src/api/types.ts, apps/web/src/pages/AdminPage/AdminPage.module.css, apps/web/src/pages/AdminPage/TaskDefinitionsSection.tsx, apps/web/src/pages/AdminPage/TaskDefinitionsSection.test.tsx, apps/web/src/strings/de.ts
 Blocking: none
+
+## Completion Record
+
+- Completed At: 2026-09-01T04:47:32.064Z
+- Outcome: shipped-pr
+- PR: https://github.com/brandstaetter/haushaltsauktion/pull/10
+- Verification: npm run typecheck, npm run lint, npm run test --workspaces all pass
