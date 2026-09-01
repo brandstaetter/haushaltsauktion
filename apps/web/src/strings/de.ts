@@ -492,6 +492,8 @@ export const de = {
       rewardTiming: 'Belohnungszeitpunkt',
       allowRelease: 'Zurückgeben erlauben',
       todoistEnabled: 'Todoist-Integration für diesen Haushalt erlauben',
+      todoistUnavailable:
+        'Dieser Server ist für Todoist nicht eingerichtet (fehlender Schlüssel). Solange das so ist, kann sich kein Mitglied verbinden — die Integration lässt sich hier nicht aktivieren.',
       todoistEnabledHint:
         'Jedes Mitglied verbindet danach sein eigenes Todoist-Konto unter „Ich“. Wird die Integration wieder ausgeschaltet, werden offene Todoist-Aufgaben des Haushalts geschlossen; beim erneuten Einschalten werden sie neu angelegt.',
       enabled: 'Aktiviert',

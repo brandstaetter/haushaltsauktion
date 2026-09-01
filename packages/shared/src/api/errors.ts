@@ -50,6 +50,14 @@ export const ErrorCode = Object.freeze({
   INTEGRATION_DISABLED: 'INTEGRATION_DISABLED',
   INTEGRATION_UNAUTHORIZED: 'INTEGRATION_UNAUTHORIZED',
   INTEGRATION_UNAVAILABLE: 'INTEGRATION_UNAVAILABLE',
+  /**
+   * Admin-facing, config-write time: distinct from `INTEGRATION_DISABLED`
+   * (a member hitting the household switch being off). This is the admin
+   * trying to turn that switch *on* when the server process itself has no
+   * integration ports configured (`INTEGRATION_ENCRYPTION_KEY` unset) — a
+   * setting no member could ever use.
+   */
+  INTEGRATION_NOT_CONFIGURED: 'INTEGRATION_NOT_CONFIGURED',
 
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const);

@@ -102,6 +102,8 @@ export interface AdminConfigDto {
   defaults: HouseholdConfig;
   updatedAt: string | null;
   updatedBy: { id: string; displayName: string } | null;
+  /** Whether the server process itself supports each integration, independent of the household switch. */
+  integrationsAvailable: { todoist: boolean };
 }
 
 /**

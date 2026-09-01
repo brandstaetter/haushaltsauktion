@@ -177,10 +177,16 @@ export function AdminSettingsPage() {
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{de.todoist.title}</h2>
+        {!config.integrationsAvailable.todoist && (
+          <p className={styles.message} role="alert">
+            {de.admin.fields.todoistUnavailable}
+          </p>
+        )}
         <label className={styles.checkbox}>
           <input
             type="checkbox"
             checked={draft.integrations.todoist.enabled}
+            disabled={!config.integrationsAvailable.todoist && !draft.integrations.todoist.enabled}
             onChange={(e) =>
               update('integrations', { todoist: { enabled: e.target.checked } })
             }

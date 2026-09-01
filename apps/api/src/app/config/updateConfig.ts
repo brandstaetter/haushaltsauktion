@@ -81,6 +81,19 @@ export async function updateConfig(
   }
   const next = validation.config;
 
+  // The household switch and the server's integration ports (Deps.todoist /
+  // Deps.secrets, gated on INTEGRATION_ENCRYPTION_KEY in main.ts) are
+  // independent knobs. Without this, an admin can flip the switch on in a
+  // deployment that never had the key configured — the config write
+  // "succeeds", but every member's connect attempt then fails with
+  // INTEGRATION_DISABLED, and nothing at save time told the admin why.
+  if (next.integrations.todoist.enabled && (deps.todoist === undefined || deps.secrets === undefined)) {
+    throw new ConflictError(
+      'INTEGRATION_NOT_CONFIGURED',
+      'Todoist ist auf diesem Server nicht eingerichtet (INTEGRATION_ENCRYPTION_KEY fehlt). Die Integration kann nicht aktiviert werden.',
+    );
+  }
+
   return withTransaction(deps, async (tx) => {
     const current = await loadCurrentConfig(tx, input.householdId);
     if (current.version !== input.expectedVersion) {
@@ -130,6 +143,15 @@ export async function rollbackConfig(
 ): Promise<UpdateConfigResult> {
   return withTransaction(deps, async (tx) => {
     const target = await loadConfigVersion(tx, input.householdId, input.toVersion);
+    // Same guard as updateConfig(): a rollback is a config write too, and
+    // could just as easily reintroduce a `todoist.enabled: true` this server
+    // has no ports for (e.g. rolling back to before someone disabled it).
+    if (target.integrations.todoist.enabled && (deps.todoist === undefined || deps.secrets === undefined)) {
+      throw new ConflictError(
+        'INTEGRATION_NOT_CONFIGURED',
+        'Todoist ist auf diesem Server nicht eingerichtet (INTEGRATION_ENCRYPTION_KEY fehlt). Diese Version kann nicht wiederhergestellt werden.',
+      );
+    }
     const current = await loadCurrentConfig(tx, input.householdId);
     const version = current.version + 1;
     const changeSummary = diffConfig(current.config, target);
