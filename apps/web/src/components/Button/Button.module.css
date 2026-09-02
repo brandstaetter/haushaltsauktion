@@ -56,6 +56,16 @@
   padding: 0 var(--s-3);
 }
 
+/* For dense rows of several buttons side by side (e.g. a card's action
+   row) where `.md`'s `--t-h3` label size doesn't leave room for more than
+   one or two buttons per line. */
+.sm {
+  min-height: 40px;
+  padding: 0 var(--s-2);
+  font: var(--t-body-sm);
+  gap: var(--s-1);
+}
+
 .fullWidth {
   width: 100%;
 }

@@ -1,12 +1,15 @@
 import cn from 'classnames';
+import type { LucideIcon } from 'lucide-react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import styles from './Button.module.css';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  size?: 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   fullWidth?: boolean;
+  /** Rendered before the label, e.g. `icon={Save}` from `lucide-react`. */
+  icon?: LucideIcon;
   children: ReactNode;
 }
 
@@ -15,6 +18,7 @@ export function Button({
   size = 'lg',
   loading,
   fullWidth,
+  icon: Icon,
   children,
   disabled,
   className,
@@ -34,6 +38,7 @@ export function Button({
       {...props}
     >
       {loading && <span className={styles.spinner} aria-hidden="true" />}
+      {!loading && Icon && <Icon size={18} strokeWidth={1.75} aria-hidden="true" />}
       {children}
     </button>
   );
