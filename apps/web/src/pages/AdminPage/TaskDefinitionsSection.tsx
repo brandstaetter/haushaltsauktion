@@ -638,7 +638,7 @@ function DefinitionRow({
         <Button variant="secondary" onClick={onEligibility}>
           {de.admin.taskDefinitions.eligibilityButton}
         </Button>
-        {!archived && definition.recurrenceType === 'MANUAL' && (
+        {!archived && (
           <Button variant="secondary" onClick={onMaterialize} loading={materializing}>
             {de.admin.taskDefinitions.materializeButton}
           </Button>

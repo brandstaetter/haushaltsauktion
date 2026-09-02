@@ -184,6 +184,34 @@ describe('TaskDefinitionsSection', () => {
     );
   });
 
+  it('zeigt den "Jetzt anbieten"-Button auch für eine automatisch geplante (WEEKLY) Aufgabe', async () => {
+    const user = userEvent.setup();
+    const definition = definitionFixture(); // default fixture: recurrenceType 'WEEKLY'
+
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string }) => {
+      const method = options?.method ?? 'GET';
+      if (path === '/admin/task-definitions' && method === 'GET') {
+        return { items: [definition] };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/members') return { items: [] };
+      if (path === `/admin/task-definitions/${definition.id}/materialize` && method === 'POST') {
+        return { instance: { id: 'inst-new', status: 'AVAILABLE', currentValue: definition.baseValue } };
+      }
+      throw new Error(`unerwarteter Aufruf: ${path} ${method}`);
+    });
+
+    renderSection();
+
+    expect(await screen.findByText('Bad putzen')).toBeInTheDocument();
+    const materializeButton = screen.getByRole('button', {
+      name: de.admin.taskDefinitions.materializeButton,
+    });
+    await user.click(materializeButton);
+
+    expect(await screen.findByText(de.admin.taskDefinitions.materializedSuccess)).toBeInTheDocument();
+  });
+
   it('filtert die Liste nach Titel und zeigt einen Hinweis, wenn nichts passt', async () => {
     const user = userEvent.setup();
 
