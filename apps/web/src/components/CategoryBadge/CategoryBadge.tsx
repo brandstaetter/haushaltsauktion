@@ -7,14 +7,15 @@ interface CategoryBadgeProps {
 }
 
 export function CategoryBadge({ name, colorHex }: CategoryBadgeProps) {
+  const textColor = readableTextColor(colorHex);
   return (
     <span
       className={styles.badge}
       style={
-        colorHex
+        colorHex && textColor
           ? {
               background: colorHex,
-              color: readableTextColor(colorHex) ?? undefined,
+              color: textColor,
             }
           : undefined
       }
