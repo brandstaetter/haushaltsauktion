@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { useRunSweep } from '../../api/hooks';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../../components/Button/Button';
+import { Toast } from '../../components/Toast/Toast';
 import { TaskDefinitionsSection } from './TaskDefinitionsSection';
 import styles from './AdminPage.module.css';
 
@@ -35,11 +36,7 @@ export function AdminTasksPage() {
     <div className={styles.page}>
       <h1 className={styles.title}>{de.nav.adminTasks}</h1>
 
-      {message && (
-        <div className={styles.message} role="status">
-          {message}
-        </div>
-      )}
+      <Toast message={message} onDismiss={() => setMessage(null)} />
 
       <TaskDefinitionsSection />
 

@@ -316,6 +316,7 @@ export const de = {
       days: 'Tage',
     },
     timezoneNote: 'Zeiten gelten in: {timezone}',
+    dismiss: 'Schließen',
   },
   admin: {
     title: 'Verwaltung',
@@ -412,6 +413,9 @@ export const de = {
       edit: 'Bearbeiten',
       archive: 'Archivieren',
       empty: 'Noch keine Aufgaben.',
+      filterLabel: 'Aufgaben filtern',
+      filterPlaceholder: 'Aufgaben durchsuchen…',
+      filterEmpty: 'Keine Aufgaben gefunden.',
       includeArchived: 'Archivierte einschließen',
       archivedBadge: 'archiviert',
       createSuccess: 'Aufgabe wurde angelegt.',

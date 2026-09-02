@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { Plus } from 'lucide-react';
 import { RecurrenceType } from '@haushaltsauktion/shared';
 import {
   useAdminCategories,
@@ -27,6 +28,7 @@ import { Button } from '../../components/Button/Button';
 import { DurationInput } from '../../components/DurationInput/DurationInput';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { TimeOfDayInput } from '../../components/TimeOfDayInput/TimeOfDayInput';
+import { Toast } from '../../components/Toast/Toast';
 import { formatNumber, interpolate } from '../../utils/format';
 import styles from './AdminPage.module.css';
 
@@ -669,12 +671,23 @@ export function TaskDefinitionsSection() {
   const [message, setMessage] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [materializingId, setMaterializingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
 
   const definitions = data?.items ?? [];
   const categories = categoriesData?.items ?? [];
   const members = (membersData?.items ?? []).filter((m) => m.isActive);
   const editing = definitions.find((d) => d.id === editingId) ?? null;
   const eligibilityFor = definitions.find((d) => d.id === eligibilityForId) ?? null;
+
+  const query = filter.trim().toLowerCase();
+  const filteredDefinitions =
+    query === ''
+      ? definitions
+      : definitions.filter(
+          (definition) =>
+            definition.title.toLowerCase().includes(query) ||
+            (definition.category?.name.toLowerCase().includes(query) ?? false),
+        );
 
   const openCreate = () => {
     setEditingId(null);
@@ -726,11 +739,17 @@ export function TaskDefinitionsSection() {
     <section className={styles.section}>
       <h2 className={styles.sectionTitle}>{de.admin.sections.taskDefinitions}</h2>
 
-      {message && (
-        <div className={styles.message} role="status">
-          {message}
-        </div>
-      )}
+      <Toast message={message} onDismiss={() => setMessage(null)} />
+
+      <label className={styles.field}>
+        <span className="visually-hidden">{de.admin.taskDefinitions.filterLabel}</span>
+        <input
+          type="search"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder={de.admin.taskDefinitions.filterPlaceholder}
+        />
+      </label>
 
       <label className={styles.checkbox}>
         <input
@@ -745,9 +764,11 @@ export function TaskDefinitionsSection() {
         <div className={styles.spinner} aria-label="Wird geladen" />
       ) : definitions.length === 0 ? (
         <p className={styles.hint}>{de.admin.taskDefinitions.empty}</p>
+      ) : filteredDefinitions.length === 0 ? (
+        <p className={styles.hint}>{de.admin.taskDefinitions.filterEmpty}</p>
       ) : (
         <ul className={styles.list}>
-          {definitions.map((definition) => (
+          {filteredDefinitions.map((definition) => (
             <DefinitionRow
               key={definition.id}
               definition={definition}
@@ -763,9 +784,14 @@ export function TaskDefinitionsSection() {
         </ul>
       )}
 
-      <Button variant="secondary" onClick={openCreate}>
-        {de.admin.taskDefinitions.addButton}
-      </Button>
+      <button
+        type="button"
+        className={styles.fab}
+        onClick={openCreate}
+        aria-label={de.admin.taskDefinitions.addButton}
+      >
+        <Plus size={24} strokeWidth={2} aria-hidden="true" />
+      </button>
 
       <Sheet
         open={formOpen}

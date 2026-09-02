@@ -216,6 +216,35 @@
   text-decoration: underline;
 }
 
+.fab {
+  position: fixed;
+  right: var(--s-4);
+  bottom: calc(var(--s-10) + var(--s-4));
+  z-index: 25;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  transition: transform 90ms ease;
+}
+
+.fab:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+@media (min-width: 900px) {
+  .fab {
+    right: var(--s-6);
+    bottom: var(--s-6);
+  }
+}
+
 .temporaryPassword {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 1.1rem;
