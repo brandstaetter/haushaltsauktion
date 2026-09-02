@@ -26,6 +26,8 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16-alpine
@@ -58,6 +60,8 @@ jobs:
   e2e:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.0.0
@@ -168,6 +172,8 @@ jobs:
     needs: [build-and-push, e2e]
     runs-on: ubuntu-latest
     environment: production # optionally require manual approval in repo settings
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Sync compose file and Caddyfile to the instance
