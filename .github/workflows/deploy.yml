@@ -55,6 +55,11 @@ jobs:
       - run: npm run db:migrate
       - run: npm run typecheck
       - run: npm run lint
+      # Root eslint.config.js excludes apps/web (its own architecture rules
+      # don't apply to React/Vite code) — apps/web has its own eslint.config.js
+      # and lint script, but nothing else in CI ran it, so a lint error there
+      # never failed a run.
+      - run: npm run lint -w apps/web
       - run: npm run test
 
   e2e:

@@ -1,8 +1,9 @@
 ---
 title: "apps/web ist von ESLint ausgenommen und wird in CI nicht gelintet"
-status: pending
+status: completed
 priority: normal
 target: eslint.config.js, .github/workflows/deploy.yml, apps/web/vitest.config.ts
+campaign: apps-web-ist-von-eslint-ausgenommen-und-wird-in-ci-nicht-gelintet
 ---
 
 ## Description
