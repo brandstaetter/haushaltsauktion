@@ -1,6 +1,6 @@
 ---
 title: "Mitglieder-Karte (MemberRow) neu gestalten: konsistentes Layout, Buttons horizontal mit Icons"
-status: in-progress
+status: completed
 priority: normal
 target: apps/web/src/pages/AdminPage/MembersSection.tsx, apps/web/src/pages/AdminPage/AdminPage.module.css, apps/web/src/components/Button/
 campaign: mitglieder-karte-memberrow-neu-gestalten-konsistentes-layout-buttons-horizontal-

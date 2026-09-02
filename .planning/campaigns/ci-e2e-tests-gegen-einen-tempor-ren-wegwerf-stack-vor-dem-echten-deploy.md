@@ -1,9 +1,9 @@
 ---
 version: 1
 id: "2e0e72d4-1304-4a2a-8567-92250fa010a1"
-status: active
+status: completed
 started: "2026-09-01T18:21:33.547Z"
-completed_at: null
+completed_at: "2026-09-02T03:45:50Z"
 direction: "CI: E2E-Tests gegen einen temporären Wegwerf-Stack vor dem echten Deploy"
 phase_count: 4
 current_phase: 4
@@ -13,7 +13,7 @@ worktree_status: null
 
 # Campaign: CI: E2E-Tests gegen einen temporären Wegwerf-Stack vor dem echten Deploy
 
-Status: active
+Status: completed
 Started: 2026-09-01T18:21:33.547Z
 Direction: CI: E2E-Tests gegen einen temporären Wegwerf-Stack vor dem echten Deploy
 
@@ -149,3 +149,5 @@ Blocking: none — awaiting PR review/merge (human decision)
 <!-- session-end: 2026-09-02T05:13:20.899Z -->
 
 <!-- session-end: 2026-09-02T05:30:44.990Z -->
+
+<!-- autopilot: reconciled 2026-09-02 — PR #31 merged 2026-09-02T03:45:50Z, campaign marked completed -->

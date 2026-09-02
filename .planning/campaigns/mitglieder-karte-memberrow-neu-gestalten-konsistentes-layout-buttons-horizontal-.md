@@ -1,9 +1,9 @@
 ---
 version: 1
 id: "e4c8acfc-ea48-46fa-bf65-746ccee3b331"
-status: active
+status: completed
 started: "2026-09-01T18:59:12.241Z"
-completed_at: null
+completed_at: "2026-09-02T04:12:58Z"
 direction: "Mitglieder-Karte (MemberRow) neu gestalten: konsistentes Layout, Buttons horizontal mit Icons"
 phase_count: 4
 current_phase: 4
@@ -13,7 +13,7 @@ worktree_status: null
 
 # Campaign: Mitglieder-Karte (MemberRow) neu gestalten: konsistentes Layout, Buttons horizontal mit Icons
 
-Status: active
+Status: completed
 Started: 2026-09-01T18:59:12.241Z
 Direction: Mitglieder-Karte (MemberRow) neu gestalten: konsistentes Layout, Buttons horizontal mit Icons
 
@@ -127,3 +127,5 @@ Files modified: apps/web/src/components/Button/Button.tsx,
   apps/web/src/pages/AdminPage/MembersSection.tsx,
   apps/web/src/pages/AdminPage/AdminPage.module.css
 Blocking: none — awaiting PR review/merge (human decision)
+
+<!-- autopilot: reconciled 2026-09-02 — PR #32 merged 2026-09-02T04:12:58Z, campaign marked completed -->
