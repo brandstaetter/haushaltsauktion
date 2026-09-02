@@ -21,9 +21,12 @@
 }
 
 .category {
+  display: inline-block;
   font: var(--t-label);
   color: var(--ink-3);
   white-space: nowrap;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
 }
 
 .meta {

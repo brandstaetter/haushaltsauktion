@@ -1,6 +1,7 @@
 import type { AvailableTaskDto } from '@haushaltsauktion/shared';
 import { Clock } from 'lucide-react';
 import { useStrings } from '../../context/StringsContext';
+import { readableTextColor } from '../../utils/color';
 import { formatShortDate } from '../../utils/format';
 import { Button } from '../Button/Button';
 import { StatusBadge } from '../StatusBadge/StatusBadge';
@@ -35,7 +36,21 @@ export function TaskCard({ task, onAction, actionLabel }: TaskCardProps) {
         <h3 id={`task-${task.id}-title`} className={styles.title}>
           {task.title}
         </h3>
-        {task.category && <span className={styles.category}>{task.category.name}</span>}
+        {task.category && (
+          <span
+            className={styles.category}
+            style={
+              task.category.colorHex
+                ? {
+                    background: task.category.colorHex,
+                    color: readableTextColor(task.category.colorHex) ?? undefined,
+                  }
+                : undefined
+            }
+          >
+            {task.category.name}
+          </span>
+        )}
       </div>
       {task.status !== 'AVAILABLE' && <StatusBadge status={task.status} />}
       {meta.length > 0 && (
