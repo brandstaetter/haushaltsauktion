@@ -122,8 +122,8 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 
 | Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
 |---|---|---|---|---|---|---|---|
-| phase:2 | implementation-diff | file_diff | yes | git diff --stat: Button.module.css +5, TaskCard.module.css +4, TaskCard.tsx size md→sm, e2e/helpers.ts +45 (expectNoMidWordWrap), e2e/mobile-layout.spec.ts +23 (new test) | verified | 2 | none |
-| phase:3 | verification-command | test_result | yes | npm run typecheck: clean. npm run lint: clean. npm run test: 480/480 unit tests pass (shared 128, api 249, web 103). npx playwright test e2e/mobile-layout.spec.ts: 12/12 pass (2 consecutive clean runs against isolated local Postgres on port 5433). Full e2e suite: 24/24 pass on a freshly reset DB (one earlier run had 1 unrelated pre-existing flaky failure on the login page, not reproduced on rerun). | verified | 2 | none |
+| phase:2 | implementation-diff | file_diff | yes | git diff --stat: Button.module.css +5, TaskCard.module.css +4, TaskCard.tsx size md→sm, e2e/helpers.ts +45 (expectNoMidWordWrap), e2e/mobile-layout.spec.ts +23 (new test) | pass | 2 | none |
+| phase:3 | verification-command | test_result | yes | npm run typecheck: clean. npm run lint: clean. npm run test: 480/480 unit tests pass (shared 128, api 249, web 103). npx playwright test e2e/mobile-layout.spec.ts: 12/12 pass (2 consecutive clean runs against isolated local Postgres on port 5433). Full e2e suite: 24/24 pass on a freshly reset DB (one earlier run had 1 unrelated pre-existing flaky failure on the login page, not reproduced on rerun). | pass | 2 | none |
 | phase:4 | review-package | review_package | yes | .planning/review-packages/aktions-button-auf-der-aufgaben-card-bricht-auf-schmalen-handybildschirmen-mitte.md | resolved | 2 | review local handoff package |
 
 ## Decision Log
