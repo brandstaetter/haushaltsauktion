@@ -1,8 +1,10 @@
 /**
- * `POST /api/admin/task-definitions/:id/materialize` — the `MANUAL`
- * recurrence path of §18: a definition with no automatic schedule
- * (`nextOccurrence()` returns `null` for it) only ever gets a new
- * `TaskInstance` when an admin asks for one explicitly.
+ * `POST /api/admin/task-definitions/:id/materialize` — §18 on-demand
+ * materialization. Originally the only path for a `MANUAL` definition
+ * (`nextOccurrence()` returns `null` for it, so it never gets a new
+ * `TaskInstance` on its own), but works for any recurrence type: an
+ * auto-scheduled definition can also be materialized ahead of its next
+ * scheduled occurrence.
  *
  * Requires a live Postgres, same as the rest of `test/integration/` —
  * `docker compose up -d db && npm run db:migrate`.
@@ -76,6 +78,34 @@ test('admin materializes a MANUAL definition into a published, available instanc
 
   // Clean up so later tests in this file see zero open instances again.
   await db.taskInstance.delete({ where: { id: body.instance.id } });
+});
+
+test('admin materializes an auto-scheduled (WEEKLY) definition on demand, not just MANUAL', async () => {
+  const weeklyDefId = ids.definitionId('badputzen');
+  await db.taskDefinition.create({
+    data: {
+      id: weeklyDefId,
+      householdId: ids.householdId,
+      title: 'Bad putzen',
+      baseValue: 6,
+      recurrenceType: 'WEEKLY',
+      recurrenceWeekdays: [6],
+    },
+  });
+
+  const response = await app.inject({
+    method: 'POST',
+    url: `/api/admin/task-definitions/${weeklyDefId}/materialize`,
+    headers: authHeaders(admin),
+    payload: {},
+  });
+  expect(response.statusCode).toBe(201);
+  const body = response.json() as { instance: { id: string; status: string; currentValue: number } };
+  expect(body.instance.status).toBe('AVAILABLE');
+  expect(body.instance.currentValue).toBe(6);
+
+  await db.taskInstance.delete({ where: { id: body.instance.id } });
+  await db.taskDefinition.delete({ where: { id: weeklyDefId } });
 });
 
 test('publishImmediately: false materializes a draft instance with no OFFERED event', async () => {

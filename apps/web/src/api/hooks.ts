@@ -517,7 +517,11 @@ export function useUpdateTaskEligibility() {
   });
 }
 
-/** The `MANUAL` recurrence path of §18 — an admin materializes the next instance on demand. */
+/**
+ * §18 on-demand materialization — an admin creates the next instance right
+ * now instead of waiting for its schedule. Works for any recurrence type,
+ * not just `MANUAL`.
+ */
 export function useMaterializeTaskDefinition() {
   const qc = useQueryClient();
   return useMutation({

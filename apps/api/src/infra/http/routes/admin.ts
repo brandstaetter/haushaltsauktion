@@ -460,7 +460,12 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
     return { id: params.id };
   });
 
-  /** T1 (+ optionally T2) on demand — the `MANUAL` recurrence path of §18. */
+  /**
+   * T1 (+ optionally T2) on demand (§18) — usable for any recurrence type,
+   * not just `MANUAL`: an auto-scheduled definition can also be materialized
+   * ahead of its next scheduled occurrence. Still subject to the open-instance
+   * cap below, so it can't be used to bypass `maxOpenInstancesPerDefinition`.
+   */
   app.post('/admin/task-definitions/:id/materialize', async (request, reply) => {
     const ctx = requireAdmin(request, reply);
     const params = parse(IdParam, request.params);
