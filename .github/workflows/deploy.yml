@@ -3,12 +3,19 @@
 # Gitleaks (.github/workflows/gitleaks.yml) is a separate, required status
 # check enforced via branch protection on `main` — it gates the merge that
 # triggers this workflow, not a job inside it (see hosting-plan.md §9).
+#
+# `pull_request` is included so the `test` and `e2e` jobs run as PR checks —
+# `build-and-push` and `deploy` stay guarded to `push` only (see their `if:`
+# below): a PR never pushes images to ECR or touches the production
+# instance, it only proves the branch builds and passes E2E against the
+# actual built images (hosting-plan.md §3, §10).
 
 name: Deploy
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 env:
@@ -48,8 +55,73 @@ jobs:
       - run: npm run lint
       - run: npm run test
 
+  e2e:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Write throwaway .env for seeding
+        # Only `DATABASE_URL` matters here: `e2e/global-setup.ts` and the
+        # webServer-less Playwright run below read it via `tsx --env-file=.env`
+        # / process env respectively. Values match docker-compose.yml's
+        # defaults (never overridden by this workflow), and the whole file
+        # dies with the runner — it is not the instance `.env` from the
+        # `deploy` job below, and `.env` is gitignored so nothing here is
+        # ever committed.
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://haushalt:haushalt@localhost:5432/haushaltsauktion
+          SESSION_SECRET=ci-only-not-a-real-secret
+          EOF
+      - name: Build and start the throwaway stack
+        # Own compose project name so this never collides with a dev stack
+        # on the same runner; images are built from this checkout, never
+        # pulled from ECR — a PR from a fork has no AWS credentials and none
+        # are needed here. `--wait` blocks until db/api/web all report
+        # healthy (deploy/docker-compose.e2e.yml adds the web healthcheck)
+        # instead of racing the containers' startup.
+        run: |
+          docker compose -f docker-compose.yml -f deploy/docker-compose.e2e.yml \
+            -p haushaltsauktion-e2e up -d --build --wait --wait-timeout 180
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E suite against the throwaway stack
+        # E2E_EXTERNAL_SERVERS tells playwright.config.ts not to spawn its
+        # own tsx/Vite-dev-server webServer entries — API_PORT/WEB_PORT stay
+        # at their defaults (3000/8080), matching the ports docker-compose.yml
+        # publishes for `api`/`web`.
+        run: E2E_EXTERNAL_SERVERS=true npm run e2e
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker-compose.yml -f deploy/docker-compose.e2e.yml \
+            -p haushaltsauktion-e2e logs --tail=200
+      - name: Tear down the throwaway stack
+        if: always()
+        run: |
+          docker compose -f docker-compose.yml -f deploy/docker-compose.e2e.yml \
+            -p haushaltsauktion-e2e down -v
+
   build-and-push:
     needs: test
+    # Never on `pull_request` — a PR has no business pushing images to ECR.
+    # `workflow_dispatch` stays allowed for a manual re-run of the full
+    # build→push→deploy path.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       id-token: write # OIDC — no long-lived AWS keys stored as secrets
@@ -93,7 +165,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=web
 
   deploy:
-    needs: build-and-push
+    needs: [build-and-push, e2e]
     runs-on: ubuntu-latest
     environment: production # optionally require manual approval in repo settings
     steps:

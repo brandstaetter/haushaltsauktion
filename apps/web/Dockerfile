@@ -28,7 +28,16 @@ RUN npm run build -w @haushaltsauktion/shared
 # Vite's production mode (set by `vite build`) is what keeps LoginPage's
 # `import.meta.env.DEV`-gated demo-login row out of this bundle — see the
 # campaign decision log: "a demo login that survives into production is a
-# credential bypass."
+# credential bypass." `VITE_DEMO_LOGIN` is the one deliberate escape hatch
+# (LoginPage.tsx: `showDemo = import.meta.env.DEV || import.meta.env.VITE_DEMO_LOGIN
+# === 'true'`) — it defaults to unset/false here, so a normal build (and the
+# real deploy in .github/workflows/deploy.yml's build-and-push job) is
+# unaffected. Only the throwaway E2E stack sets it, via
+# `deploy/docker-compose.e2e.yml`'s build arg, because the E2E suite drives
+# login through that same quick-select row and the suite must run against
+# the actual built image, not the dev server.
+ARG VITE_DEMO_LOGIN=false
+ENV VITE_DEMO_LOGIN=$VITE_DEMO_LOGIN
 RUN npm run build -w @haushaltsauktion/web
 
 FROM nginx:1.27-alpine AS runtime

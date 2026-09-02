@@ -25,9 +25,13 @@ export function AdminSettingsPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    // Deliberately does *not* also `setMessage(null)`: `useSaveConfig`'s
+    // `onSuccess` invalidates this same query, so a successful save
+    // triggers a refetch that lands here — resetting the message on every
+    // `config` change would wipe the "gespeichert"-confirmation the moment
+    // it appears, before anyone (or a test) could ever see it.
     if (config) {
       setDraft(clone(config.values));
-      setMessage(null);
     }
   }, [config]);
 

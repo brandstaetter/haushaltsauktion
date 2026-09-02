@@ -66,14 +66,17 @@ Empfehlung: **`small_3_0`**. Beim tatsächlichen Provisioning (§10) stellte sic
 Um mit der kleinen Instanz auszukommen und Ausfallzeiten beim Deploy zu vermeiden:
 
 0. **Gitleaks-Secret-Scan als Pflicht-Gate vor jedem Deploy.** Der Workflow `.github/workflows/gitleaks.yml` (bereits im Repo, läuft ab sofort bei jedem Push/PR auf `main`) scannt den vollen Verlauf des Diffs mit [gitleaks](https://github.com/gitleaks/gitleaks) gegen bekannte Secret-Muster (AWS-Keys, private Keys, generische High-Entropy-Tokens usw.). Konfiguration in `.gitleaks.toml` (erweitert die Standardregeln, allowlisted nur generierte Artefakte wie `package-lock.json`-Integritätshashes und `dist/`-Ordner — keine echten Ausnahmen für Secret-Muster). Der Deploy-Workflow (Schritt 1) muss von diesem Job abhängen (`needs: gitleaks` bzw. als Required-Check im Branch-Protection-Regelwerk für `main`), damit ein Fund den Weg in Richtung Hosting-Instanz blockiert, bevor irgendein Image gebaut oder gepusht wird.
-1. GitHub Actions baut bei Push auf `main` beide Images (`apps/api/Dockerfile`, `apps/web/Dockerfile`) und pusht sie nach **Amazon ECR** (Kosten: < 1 GB Images, Free-Tier-Rahmen bzw. Cent-Beträge/Monat).
-2. Ein kleines Deploy-Skript verbindet sich per SSH (oder `aws ssm` falls auf EC2 statt Lightsail migriert wird) zur Instanz und führt aus:
+1. GitHub Actions baut bei Push auf `main` beide Images (`apps/api/Dockerfile`, `apps/web/Dockerfile`) und pusht sie nach **Amazon ECR** (Kosten: < 1 GB Images, Free-Tier-Rahmen bzw. Cent-Beträge/Monat) — Job `build-and-push`.
+2. Parallel dazu (beide hängen nur von `test` ab, nicht voneinander) baut der Job `e2e` dieselben Images noch einmal lokal auf dem Runner (kein ECR-Push) und startet sie zusammen mit einer eigenen Wegwerf-Postgres-Instanz als isolierten Stack (`docker compose -f docker-compose.yml -f deploy/docker-compose.e2e.yml -p haushaltsauktion-e2e`). Die bestehende Playwright-E2E-Suite (`e2e/*.spec.ts`) läuft gegen diesen Stack — also gegen die tatsächlich gebauten Container, nicht gegen `tsx`/Vite-Dev-Server wie bei einem lokalen Lauf. Der Stack wird danach unabhängig vom Ausgang abgebaut (`down -v`). Dieser Job läuft auch als PR-Check (`pull_request`-Trigger), damit fachliche Regressionen schon vor dem Merge auffallen, nicht erst beim Deploy von `main`; `build-and-push` und `deploy` bleiben dabei auf `push`/`workflow_dispatch` beschränkt und laufen auf einer PR nicht mit. `deploy` hängt von `build-and-push` **und** `e2e` ab — ein Fehlschlag der E2E-Suite stoppt den Weg zur Produktionsinstanz.
+3. Ein kleines Deploy-Skript verbindet sich per SSH (oder `aws ssm` falls auf EC2 statt Lightsail migriert wird) zur Instanz und führt aus:
    ```
    docker compose pull && docker compose up -d
    ```
-3. `prisma migrate deploy` läuft automatisch beim API-Container-Start (siehe Dockerfile-Kommentar) — kein separater Migrationsschritt im Deploy nötig.
+4. `prisma migrate deploy` läuft automatisch beim API-Container-Start (siehe Dockerfile-Kommentar) — kein separater Migrationsschritt im Deploy nötig.
 
 Damit findet auf der Produktionsinstanz nie ein `npm ci`/`tsc`/`vite build` statt — das entschärft die RAM-Grenze zusätzlich zum Instanz-Upgrade.
+
+Der Wegwerf-Stack in Schritt 2 braucht die Demo-Anmeldung, über die `e2e/helpers.ts`s `loginAsDemoUser` sich anmeldet — die ist per `import.meta.env.DEV` normalerweise aus dem Produktions-Bundle entfernt ("ein Demo-Login, der es in Produktion schafft, ist eine Credential-Bypass"). `apps/web/Dockerfile` akzeptiert dafür einen Build-Arg `VITE_DEMO_LOGIN`, den ausschließlich `deploy/docker-compose.e2e.yml` auf `"true"` setzt; das reguläre Production-Image aus `build-and-push` bleibt unverändert ohne Demo-Login.
 
 ### 3.1 Post-Deploy Health Check
 
@@ -83,7 +86,7 @@ Der Deploy-Job (`.github/workflows/deploy.yml`) pollt seither nach `docker compo
 
 Damit das auch einen kaputten `web`-Container (falsches `nginx.conf`, abgestürztes nginx) erkennt, hat `web` in `deploy/docker-compose.prod.yml` inzwischen einen eigenen Healthcheck (`curl -f http://localhost/`) — vorher hatten nur `db` und `api` einen, sodass ein rein am Reverse-Proxy hängender Fehler nie zum Poll-Fehlschlag geführt hätte, egal wie lange gewartet wird. `curl` wird dafür in `apps/web/Dockerfile` explizit per `apk add` installiert, statt sich auf `wget` zu verlassen: das offizielle `nginx:alpine`-Image bringt keins von beidem standardmäßig mit — der erste Versuch mit `wget --spider` scheiterte deshalb live im Deploy-Workflow (`web-1` blieb dauerhaft `unhealthy`, obwohl nginx selbst fehlerfrei lief) und wurde durch genau diesen Health-Check aufgedeckt, bevor er unbemerkt blieb.
 
-Was der Check **bewusst nicht** prüft: fachliche Korrektheit (Login funktioniert, Aufgaben laden, Punkte stimmen) oder öffentliche Erreichbarkeit über `aufgaben.brandstaetters.net` von außen (DNS, Caddy-TLS, Firewall) — das deckt die E2E-Suite bzw. der externe Uptime-Check (§8) ab, nicht der Deploy-Health-Check. Er bestätigt ausschließlich: alle vier Container sind gestartet und haben ihren jeweiligen Docker-Healthcheck bestanden.
+Was der Check **bewusst nicht** prüft: fachliche Korrektheit (Login funktioniert, Aufgaben laden, Punkte stimmen) oder öffentliche Erreichbarkeit über `aufgaben.brandstaetters.net` von außen (DNS, Caddy-TLS, Firewall) — das deckt die E2E-Suite bzw. der externe Uptime-Check (§8) ab, nicht der Deploy-Health-Check. Er bestätigt ausschließlich: alle vier Container sind gestartet und haben ihren jeweiligen Docker-Healthcheck bestanden. Die E2E-Suite selbst läuft dabei nie gegen die Produktionsinstanz — sie ist der `e2e`-Job in `deploy.yml` (§3 Schritt 2), der vor `deploy` gegen einen eigenen Wegwerf-Stack läuft, nicht als Teil dieses Post-Deploy-Checks.
 
 Ein zweiter, unabhängiger Check läuft vor `docker compose pull` und prüft, ob
 `INTEGRATION_ENCRYPTION_KEY`(S) in der Instanz-`.env` gesetzt ist. Anders als
@@ -184,7 +187,8 @@ Im Repo bereits vorhanden (Code, kein Provisioning):
 | Datei | Zweck |
 |---|---|
 | `.github/workflows/gitleaks.yml` + `.gitleaks.toml` | Secret-Scan, Pflicht-Gate vor Build/Deploy (§3 Schritt 0) |
-| `.github/workflows/deploy.yml` | Test (`typecheck`/`lint`/`test` inkl. Integrationstests gegen Postgres-Service-Container) → Build+Push beider Images nach ECR (OIDC) → SSH-Deploy auf die Instanz → Post-Deploy Health Check (§3.1) |
+| `.github/workflows/deploy.yml` | Test (`typecheck`/`lint`/`test` inkl. Integrationstests gegen Postgres-Service-Container) → parallel dazu: Build+Push beider Images nach ECR (OIDC, nur `push`/`workflow_dispatch`) und E2E gegen einen Wegwerf-Stack aus den tatsächlich gebauten Images (`e2e`-Job, auch als PR-Check via `pull_request`) → SSH-Deploy auf die Instanz (hängt von beidem ab) → Post-Deploy Health Check (§3.1) |
+| `deploy/docker-compose.e2e.yml` | Compose-Overlay für den `e2e`-Job: baut `web` mit `VITE_DEMO_LOGIN=true`, ergänzt einen Healthcheck für `web`, deaktiviert den Sweep-Worker — nur für CI, nie für lokale Entwicklung oder Produktion |
 | `.github/workflows/restore-drill.yml` | Wöchentlicher automatisierter Restore-Test (§7 Stufe 1) |
 | `apps/api/prisma/verify-restore.ts` (`npm run verify-restore -w apps/api`) | Sanity-Checks nach einem Restore: Kern-Tabellen, Ledger-Konsistenz, Hash-Chain |
 | `deploy/backup-db.sh`, `deploy/backup-db.service`, `deploy/backup-db.timer` | Nächtliches `pg_dump` → S3 auf der Instanz (§6 Ebene B) |
