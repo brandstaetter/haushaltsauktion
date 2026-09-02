@@ -574,6 +574,43 @@ export function useDeleteCategory() {
   });
 }
 
+/**
+ * Persists a drag-and-drop reorder of the category list. There is no
+ * dedicated bulk-reorder endpoint (§17 doesn't require one at this scale) —
+ * `changed` is only the categories whose `sortOrder` actually moved, each
+ * written through the existing `PUT /admin/categories/:id`. `full` (the
+ * complete reordered list) drives an optimistic cache write so the list
+ * doesn't wait for those round-trips to settle visually; a failure rolls the
+ * cache back to what it held before the drag.
+ */
+export function useReorderCategories() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ changed }: { full: CategoryDto[]; changed: CategoryDto[] }) =>
+      Promise.all(
+        changed.map((c) =>
+          api<{ id: string }>(`/admin/categories/${c.id}`, {
+            method: 'PUT',
+            body: { name: c.name, colorHex: c.colorHex, sortOrder: c.sortOrder } satisfies CategoryWriteBody,
+          }),
+        ),
+      ),
+    onMutate: async ({ full }) => {
+      await qc.cancelQueries({ queryKey: adminCategoriesQueryKey });
+      const previous = qc.getQueryData<{ items: CategoryDto[] }>(adminCategoriesQueryKey);
+      qc.setQueryData<{ items: CategoryDto[] }>(adminCategoriesQueryKey, { items: full });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(adminCategoriesQueryKey, context.previous);
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: adminCategoriesQueryKey });
+      void qc.invalidateQueries({ queryKey: adminTaskDefinitionsQueryKey });
+    },
+  });
+}
+
 export function useCreateMember() {
   const qc = useQueryClient();
   return useMutation({

@@ -197,4 +197,34 @@ describe('MembersSection', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(de.admin.members.errors.lastAdmin);
   });
+
+  it('filtert die Mitgliederliste nach Anzeigename oder E-Mail und zeigt einen eigenen Leerzustand', async () => {
+    const user = userEvent.setup();
+    const anna = memberFixture({ id: 'member-1', displayName: 'Anna', user: { email: 'anna@demo.local', isActive: true } });
+    const paul = memberFixture({ id: 'member-2', displayName: 'Paul', user: { email: 'paul@example.org', isActive: true } });
+
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string }) => {
+      if (path === '/admin/members' && (options?.method ?? 'GET') === 'GET') {
+        return { items: [anna, paul] };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/task-definitions') return { items: [] };
+      throw new Error(`unerwarteter Aufruf: ${path} ${options?.method ?? 'GET'}`);
+    });
+
+    renderSection();
+
+    expect(await screen.findByText('Anna')).toBeInTheDocument();
+    expect(screen.getByText('Paul')).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText(de.admin.members.filterPlaceholder), 'example.org');
+
+    expect(screen.queryByText('Anna')).toBeNull();
+    expect(screen.getByText('Paul')).toBeInTheDocument();
+
+    await user.clear(screen.getByPlaceholderText(de.admin.members.filterPlaceholder));
+    await user.type(screen.getByPlaceholderText(de.admin.members.filterPlaceholder), 'nichts passt');
+
+    expect(await screen.findByText(de.admin.members.filterEmpty)).toBeInTheDocument();
+  });
 });

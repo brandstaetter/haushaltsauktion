@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import cn from 'classnames';
-import { Ban, KeyRound, Save } from 'lucide-react';
+import { Ban, KeyRound, Plus, Save } from 'lucide-react';
 import type { MemberRole } from '@haushaltsauktion/shared';
 import {
   useAdminCategories,
@@ -17,6 +17,7 @@ import { useStrings } from '../../context/StringsContext';
 import type { Strings } from '../../strings/de';
 import { Button } from '../../components/Button/Button';
 import { Sheet } from '../../components/Sheet/Sheet';
+import { Toast } from '../../components/Toast/Toast';
 import { formatNumber, interpolate } from '../../utils/format';
 import styles from './AdminPage.module.css';
 
@@ -539,12 +540,23 @@ export function MembersSection() {
   const [drafts, setDrafts] = useState<Record<string, MemberDraft>>({});
   const [rowErrors, setRowErrors] = useState<Record<string, string | null>>({});
   const [message, setMessage] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
 
   const members = data?.items ?? [];
   const categories = categoriesData?.items ?? [];
   const taskLabels = taskLabelsData?.items ?? [];
   const restrictionsFor = members.find((m) => m.id === restrictionsForId) ?? null;
   const resetPasswordFor = members.find((m) => m.id === resetPasswordForId) ?? null;
+
+  const query = filter.trim().toLowerCase();
+  const filteredMembers =
+    query === ''
+      ? members
+      : members.filter(
+          (member) =>
+            member.displayName.toLowerCase().includes(query) ||
+            member.user.email.toLowerCase().includes(query),
+        );
 
   const draftFor = (member: AdminMemberDto): MemberDraft => drafts[member.id] ?? draftFromRow(member);
 
@@ -575,19 +587,27 @@ export function MembersSection() {
     <section className={styles.section}>
       <h2 className={styles.sectionTitle}>{de.admin.sections.members}</h2>
 
-      {message && (
-        <div className={styles.message} role="status">
-          {message}
-        </div>
-      )}
+      <Toast message={message} onDismiss={() => setMessage(null)} />
+
+      <label className={styles.field}>
+        <span className="visually-hidden">{de.admin.members.filterLabel}</span>
+        <input
+          type="search"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder={de.admin.members.filterPlaceholder}
+        />
+      </label>
 
       {isLoading ? (
         <div className={styles.spinner} aria-label="Wird geladen" />
       ) : members.length === 0 ? (
         <p className={styles.hint}>{de.admin.members.empty}</p>
+      ) : filteredMembers.length === 0 ? (
+        <p className={styles.hint}>{de.admin.members.filterEmpty}</p>
       ) : (
         <ul className={styles.list}>
-          {members.map((member) => (
+          {filteredMembers.map((member) => (
             <MemberRow
               key={member.id}
               member={member}
@@ -603,9 +623,14 @@ export function MembersSection() {
         </ul>
       )}
 
-      <Button variant="secondary" onClick={() => setAddOpen(true)}>
-        {de.admin.members.addButton}
-      </Button>
+      <button
+        type="button"
+        className={styles.fab}
+        onClick={() => setAddOpen(true)}
+        aria-label={de.admin.members.addButton}
+      >
+        <Plus size={24} strokeWidth={2} aria-hidden="true" />
+      </button>
 
       <Sheet open={addOpen} onOpenChange={setAddOpen} title={de.admin.members.addTitle}>
         <AddMemberForm

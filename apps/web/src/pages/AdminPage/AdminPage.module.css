@@ -127,6 +127,46 @@
   gap: var(--s-3);
 }
 
+.categoryRowHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.categoryRowHeader .memberFields {
+  flex: 1 1 auto;
+}
+
+/* 44px touch target (§31 mobile-first) and `touch-action: none` so a
+   dnd-kit `PointerSensor` drag on a touch screen isn't fought by the
+   browser's own scroll gesture on this handle. */
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink-3);
+  cursor: grab;
+  touch-action: none;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+/* While a filter narrows the list, a drag would reorder within a subset
+   dnd-kit never sees as the real index range — disabled rather than made to
+   lie about the resulting order. */
+.dragHandle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Gives the "Aktiv"-checkbox and the read-only balance cell the same
    bordered-box weight as the role `<select>`/number `<input>` cells next to
    them in `.memberFields` — without those, a bare checkbox and a plain text
