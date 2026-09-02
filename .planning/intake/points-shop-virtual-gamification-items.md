@@ -1,0 +1,81 @@
+---
+title: "Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)"
+status: pending
+priority: normal
+target: apps/api/prisma/schema.prisma, apps/api/src/app/rewards/, apps/api/src/app/assignment/candidates.ts, apps/api/src/domain/assignment/eligibility.ts, apps/api/src/app/tasks/completeTask.ts, apps/api/src/domain/points/ledger-math.ts, packages/shared/src/config/schema.ts
+---
+
+## Description
+
+**Depends on** `.planning/intake/points-shop-real-life-rewards.md` — this
+item extends that points shop (same purchase-and-ledger-debit mechanism,
+same admin catalog) with a second
+category of item: **virtual gamification items** whose "fulfillment" is not
+an admin action but an automatic, time-boxed gameplay effect applied to the
+buyer. Two concrete examples given:
+
+- **Aufgaben-Immunitätstrank**: for 24h after purchase, the member is
+  excluded from random assignment (never receives an `ASSIGNED` task by
+  draw during that window). Voluntary participation is unaffected.
+- **Belohnungs-Multiplikatortrank**: the next 3 voluntary task completions
+  within 5 hours of purchase earn 1.5× their normal reward.
+
+**Where this hooks into the existing engine, concretely:**
+
+- Random-assignment eligibility is already a checklist of predicates
+  computed per member in `loadCandidates()`
+  (`apps/api/src/app/assignment/candidates.ts:124-164` — `isAbsent`,
+  `excludedFromTask`, `categoryExcluded`, etc.), consumed by the domain
+  eligibility rules referenced there as "the seven predicates of §6.9"
+  (`apps/api/src/domain/assignment/eligibility.ts`). Immunity is naturally
+  an eighth predicate (e.g. `hasActiveImmunity`), sourced the same way
+  `isAbsent` is sourced from `memberAbsence` — a new table of active,
+  expiring per-member effects.
+- Voluntary reward amount is computed by `voluntaryReward()`
+  (`apps/api/src/domain/points/ledger-math.ts`, called from
+  `completeTask.ts:109-113`) against a config **pinned at assignment time**
+  (§5.5 — `configFor(..., ConfigDecision.VOLUNTARY_REWARD, ...)`,
+  `completeTask.ts:101-106`). A per-member, time-and-count-limited
+  multiplier is a different kind of thing than the household-wide
+  `voluntary.rewardMultiplier` config value it currently reads — it needs
+  its own resolution step (consult + decrement the member's active
+  multiplier effect) layered on top of, not merged into, the pinned
+  household config. Needs a design decision: does buying the potion
+  consume a multiplier "charge" atomically with each qualifying
+  completion (race-safe under the same concurrency rules as
+  `postTransaction.ts`), and what happens to unused charges/time if the
+  member disconnects or the household resets?
+
+Both examples share one substrate: **a generic "active member effect"
+entity** — item kind, target member, params (e.g. multiplier value,
+remaining charges), `expiresAt`, `consumedAt`. Design that substrate once;
+don't hand-roll two ad hoc mechanisms for what is the same shape of state.
+
+## Acceptance Criteria
+
+- Reward-catalog entries can be of kind `VIRTUAL_EFFECT` (vs. the
+  real-life `MANUAL_FULFILLMENT` kind from the parent intake item), each
+  naming an effect type and its parameters (duration, charge count,
+  multiplier value) — configurable per item, not hardcoded to exactly
+  these two potions, so a third potion later doesn't require new code
+  paths, only new config.
+- Buying a virtual item debits points through the existing ledger (same
+  invariant as the parent item: no bare balance writes) and creates an
+  active effect row for that member; no admin fulfillment step — the
+  effect just becomes active immediately.
+- Immunity effect: `loadCandidates()` gains an eighth eligibility
+  predicate sourced from active, unexpired immunity effects; a member
+  under immunity is never selected by `runAssignmentSweep`, but can still
+  volunteer.
+- Multiplier effect: an active, unexpired, non-exhausted multiplier effect
+  on the completing member increases the awarded amount by its factor for
+  up to its configured charge count, decrementing exactly once per
+  qualifying voluntary completion — race-safe (two completions racing to
+  consume the last charge must not both succeed).
+- Both effect types show their remaining time/charges somewhere the
+  member can see before acting (§31 — state consequences up front), e.g.
+  on the dashboard or account page.
+- Regression tests: immunity excludes a member from a random-assignment
+  sweep during its window and stops excluding them after expiry; a
+  multiplier is applied to exactly 3 completions and not a 4th, and stops
+  applying after 5 hours even if charges remain.
