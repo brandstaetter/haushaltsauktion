@@ -1,6 +1,6 @@
 ---
 title: "CI: E2E-Tests gegen einen temporären Wegwerf-Stack vor dem echten Deploy"
-status: in-progress
+status: completed
 priority: normal
 target: .github/workflows/deploy.yml, docker-compose.yml, e2e/, playwright.config.ts, docs/hosting-plan.md
 campaign: ci-e2e-tests-gegen-einen-tempor-ren-wegwerf-stack-vor-dem-echten-deploy

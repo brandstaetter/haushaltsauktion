@@ -149,3 +149,5 @@ Phase: 4
 Sub-step: ready to package for review
 Files modified: apps/web/src/components/Button/Button.module.css, apps/web/src/components/TaskCard/TaskCard.module.css, apps/web/src/components/TaskCard/TaskCard.tsx, e2e/helpers.ts, e2e/mobile-layout.spec.ts
 Blocking: none
+
+<!-- session-end: 2026-09-02T10:29:01.819Z -->
