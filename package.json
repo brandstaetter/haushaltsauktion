@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Haushaltsauktion — faire, spielerische Verteilung von Haushaltsaufgaben",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "workspaces": [
     "packages/*",
