@@ -1,9 +1,9 @@
 ---
 version: 1
 id: "a7564e74-a721-43ed-ae00-44133c2cea9d"
-status: active
+status: completed
 started: "2026-09-02T06:21:49.716Z"
-completed_at: null
+completed_at: "2026-09-02T09:15:19.000Z"
 direction: "Aktions-Button auf der Aufgaben-Card bricht auf schmalen Handybildschirmen mitten im Wort um"
 phase_count: 4
 current_phase: 4
@@ -13,7 +13,7 @@ worktree_status: null
 
 # Campaign: Aktions-Button auf der Aufgaben-Card bricht auf schmalen Handybildschirmen mitten im Wort um
 
-Status: active
+Status: completed
 Started: 2026-09-02T06:21:49.716Z
 Direction: Aktions-Button auf der Aufgaben-Card bricht auf schmalen Handybildschirmen mitten im Wort um
 
@@ -116,15 +116,15 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
 | 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
 | 3 | complete | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 4 |  complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
 | Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
 |---|---|---|---|---|---|---|---|
-| phase:2 | implementation-diff | file_diff | yes | git diff --stat: Button.module.css +5, TaskCard.module.css +4, TaskCard.tsx size md→sm, e2e/helpers.ts +45 (expectNoMidWordWrap), e2e/mobile-layout.spec.ts +23 (new test) | done | 2 | none |
-| phase:3 | verification-command | test_result | yes | npm run typecheck: clean. npm run lint: clean. npm run test: 480/480 unit tests pass (shared 128, api 249, web 103). npx playwright test e2e/mobile-layout.spec.ts: 12/12 pass (2 consecutive clean runs against isolated local Postgres on port 5433). Full e2e suite: 24/24 pass on a freshly reset DB (one earlier run had 1 unrelated pre-existing flaky failure on the login page, not reproduced on rerun). | done | 2 | none |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/aktions-button-auf-der-aufgaben-card-bricht-auf-schmalen-handybildschirmen-mitte.md | pending | 2 | package delivery for review |
+| phase:2 | implementation-diff | file_diff | yes | git diff --stat: Button.module.css +5, TaskCard.module.css +4, TaskCard.tsx size md→sm, e2e/helpers.ts +45 (expectNoMidWordWrap), e2e/mobile-layout.spec.ts +23 (new test) | pass | 2 | none |
+| phase:3 | verification-command | test_result | yes | npm run typecheck: clean. npm run lint: clean. npm run test: 480/480 unit tests pass (shared 128, api 249, web 103). npx playwright test e2e/mobile-layout.spec.ts: 12/12 pass (2 consecutive clean runs against isolated local Postgres on port 5433). Full e2e suite: 24/24 pass on a freshly reset DB (one earlier run had 1 unrelated pre-existing flaky failure on the login page, not reproduced on rerun). | pass | 2 | none |
+| phase:4 | review-package | review_package | yes | .planning/review-packages/aktions-button-auf-der-aufgaben-card-bricht-auf-schmalen-handybildschirmen-mitte.md | resolved | 2 | review local handoff package |
 
 ## Decision Log
 
@@ -141,7 +141,9 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 
 ## Active Context
 
-Implementation, verification, and local e2e verification complete. Next action: package for review (Phase 4).
+Delivered and merged as PR #38 (commit bc2fa34, merge 6b77dd1) — commit message and
+file list match this campaign's implementation record exactly. Campaign was left in
+`active` state after the merge instead of being marked complete; corrected here.
 
 ## Continuation State
 
@@ -151,3 +153,5 @@ Files modified: apps/web/src/components/Button/Button.module.css, apps/web/src/c
 Blocking: none
 
 <!-- session-end: 2026-09-02T10:29:01.819Z -->
+
+<!-- session-end: 2026-09-02T18:38:20.361Z -->
