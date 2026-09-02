@@ -25,6 +25,7 @@ import type {
 import { useStrings } from '../../context/StringsContext';
 import type { Strings } from '../../strings/de';
 import { Button } from '../../components/Button/Button';
+import { CategoryBadge } from '../../components/CategoryBadge/CategoryBadge';
 import { DurationInput } from '../../components/DurationInput/DurationInput';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { TimeOfDayInput } from '../../components/TimeOfDayInput/TimeOfDayInput';
@@ -605,7 +606,11 @@ function DefinitionRow({
       <div className={styles.memberHeader}>
         <span className={styles.memberName}>{definition.title}</span>
         <span className={styles.hint}>
-          {definition.category?.name ?? de.admin.taskDefinitions.noCategory}
+          {definition.category ? (
+            <CategoryBadge name={definition.category.name} colorHex={definition.category.colorHex} />
+          ) : (
+            de.admin.taskDefinitions.noCategory
+          )}
           {archived && ` · ${de.admin.taskDefinitions.archivedBadge}`}
         </span>
       </div>
