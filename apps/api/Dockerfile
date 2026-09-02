@@ -10,7 +10,7 @@
 # against — apps/web's *source* is never copied into this image, only its
 # package.json, since this build never needs to compile it.
 
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /repo
 
 COPY package.json package-lock.json tsconfig.base.json tsconfig.json ./
@@ -32,7 +32,7 @@ COPY apps/api apps/api
 RUN npm run build -w @haushaltsauktion/shared
 RUN npm run build -w @haushaltsauktion/api
 
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /repo
 
