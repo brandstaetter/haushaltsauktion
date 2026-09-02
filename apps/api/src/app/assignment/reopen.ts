@@ -168,7 +168,7 @@ export async function releaseOrRevokeAssignment(
           reason: input.reason ?? null,
         },
       },
-      ...(reversed
+      ...(reversed?.reward
         ? [
             {
               householdId: input.householdId,
@@ -178,8 +178,8 @@ export async function releaseOrRevokeAssignment(
               type: 'POINTS_CLAWED_BACK',
               payload: {
                 memberId: assignment.memberId,
-                amount: reversed.amount,
-                transactionId: reversed.transactionId,
+                amount: reversed.reward.amount,
+                transactionId: reversed.reward.transactionId,
               },
             },
           ]
@@ -200,7 +200,7 @@ export async function releaseOrRevokeAssignment(
         action: 'ASSIGNMENT_REVOKED',
         entityType: 'TaskAssignment',
         entityId: assignment.id,
-        payload: { reason: input.reason ?? null, clawedBack: reversed?.amount ?? 0 },
+        payload: { reason: input.reason ?? null, clawedBack: reversed?.reward?.amount ?? 0 },
       });
     }
 
@@ -208,7 +208,7 @@ export async function releaseOrRevokeAssignment(
       instanceId: instance.id,
       status: 'AVAILABLE',
       currentValue: instance.currentValue,
-      clawedBack: reversed?.amount ?? 0,
+      clawedBack: reversed?.reward?.amount ?? 0,
     };
   });
 }

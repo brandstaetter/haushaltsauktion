@@ -91,6 +91,35 @@ export function daysBetween(earlier: Date, later: Date): number {
   return Math.floor((later.getTime() - earlier.getTime()) / 86_400_000);
 }
 
+/**
+ * The stable "YYYY-MM-DD" key for a civil date — used to persist per-household-
+ * day state (the completion streak's `lastActiveDate` / `bonusPaidDate`)
+ * without re-deriving it from a stored `DateTime` and a timezone that could
+ * later change (§16).
+ */
+export function civilDateKey(date: CivilDate): string {
+  return `${String(date.year).padStart(4, '0')}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+}
+
+/** The "YYYY-MM-DD" key for the calendar day `instant` falls on, in `timeZone`. */
+export function dayKey(instant: Date, timeZone: string): string {
+  return civilDateKey(civilDateIn(instant, timeZone));
+}
+
+/** Parses a `civilDateKey` back into its parts. Throws on anything malformed. */
+export function parseCivilDateKey(key: string): CivilDate {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!match) throw new Error(`Ungültiger Datumsschlüssel: ${key}`);
+  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+}
+
+/** Whole calendar days between two civil dates (`b - a`), DST- and month-safe. */
+export function civilDaysBetween(a: CivilDate, b: CivilDate): number {
+  const utcA = Date.UTC(a.year, a.month - 1, a.day);
+  const utcB = Date.UTC(b.year, b.month - 1, b.day);
+  return Math.round((utcB - utcA) / 86_400_000);
+}
+
 // ───────────── civil-date arithmetic for the recurrence rules (§1.4) ─────────────
 
 const MS_PER_DAY = 86_400_000;

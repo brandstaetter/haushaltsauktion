@@ -141,6 +141,15 @@ const PointsSchema = z
   })
   .default(DEFAULT_CONFIG.points);
 
+const StreakSchema = z
+  .strictObject({
+    enabled: z.boolean().default(DEFAULT_CONFIG.streak.enabled),
+    // dailyBonus = floor(baseRate * currentStreakLength) — 0 is a legitimate
+    // rate (the mechanism switched off in effect without disabling `enabled`).
+    baseRate: z.number().min(0).max(100).default(DEFAULT_CONFIG.streak.baseRate),
+  })
+  .default(DEFAULT_CONFIG.streak);
+
 const FairnessSchema = z
   .strictObject({
     randomAssignmentWeight: z
@@ -193,6 +202,7 @@ const HouseholdConfigShape = z
     valueIncrease: ValueIncreaseSchema,
     completion: CompletionSchema,
     points: PointsSchema,
+    streak: StreakSchema,
     fairness: FairnessSchema,
     notifications: NotificationsSchema,
     integrations: IntegrationsSchema,

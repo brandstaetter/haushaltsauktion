@@ -13,18 +13,19 @@
  */
 
 import type { CompletionResultDto } from '@haushaltsauktion/shared';
-import { RewardTiming } from '@haushaltsauktion/shared';
+import { dayKey, RewardTiming } from '@haushaltsauktion/shared';
 
 import { ConflictError, ForbiddenError, NotFoundError } from '../../domain/errors.js';
 import { nextOccurrence } from '../../domain/recurrence/next-occurrence.js';
 import { resolve, TaskEvent } from '../../domain/task/state-machine.js';
 import { carriedValueAfterCompletion, resetValue, voluntaryReward } from '../../domain/task/value.js';
+import { applyCompletionToStreak } from '../../domain/streak/streak.js';
 import { ConfigDecision, configFor } from '../config/load.js';
 import type { Deps } from '../deps.js';
 import { writeAudit, writeHistory } from '../events.js';
 import { postTransaction } from '../points/postTransaction.js';
 import { buildInstanceDetail, findInstance } from '../queries/taskDto.js';
-import { lockAssignment, lockInstance, withTransaction } from '../tx.js';
+import { lockAssignment, lockInstance, lockMember, withTransaction } from '../tx.js';
 
 export interface CompleteInput {
   householdId: string;
@@ -92,10 +93,10 @@ export async function completeTask(
     });
     if (definition === null) throw new NotFoundError('Aufgabendefinition nicht gefunden.');
 
-    const assignee = await tx.householdMember.findFirst({
-      where: { id: assignment.memberId, householdId: input.householdId },
-      select: { displayName: true, pointsCache: true },
-    });
+    // Locked (level 3, §4.2): the streak fields below are read-then-written in
+    // this same transaction, so a second concurrent completion by this member
+    // (a different assignment) must not race past this read.
+    const assignee = await lockMember(tx, input.householdId, assignment.memberId);
     if (assignee === null) throw new NotFoundError('Mitglied nicht gefunden.');
 
     // §5.5 — pinned to the assignment: the reward multiplier, the timing and
@@ -111,6 +112,21 @@ export async function completeTask(
       currentValue: instance.currentValue,
       timing: RewardTiming.ON_COMPLETE,
     });
+
+    // Daily completion streak (intake "daily-completion-streak-bonus"). ANY
+    // kind extends/keeps the streak alive for today; only a VOLUNTARY
+    // completion can trigger a payment, computed from the length AFTER this
+    // extension (§7/§44: `applyCompletionToStreak` tests the kind itself).
+    const today = dayKey(now, input.timezone);
+    const streakOutcome = applyCompletionToStreak(
+      pinned.config,
+      {
+        length: assignee.streakLength,
+        lastActiveDate: assignee.streakLastActiveDate,
+        bonusPaidDate: assignee.streakBonusPaidDate,
+      },
+      { kind: assignment.kind as never, today },
+    );
 
     const closed = await tx.taskAssignment.updateMany({
       where: { id: assignment.id, householdId: input.householdId, status: 'ACTIVE' },
@@ -153,6 +169,49 @@ export async function completeTask(
         type: credit.type,
         createdAt: credit.createdAt.toISOString(),
       };
+    }
+
+    let streakTransaction: CompletionResultDto['transaction'] = null;
+    if (streakOutcome.bonusAmount > 0) {
+      const streakCredit = await postTransaction(tx, {
+        householdId: input.householdId,
+        memberId: assignment.memberId,
+        amount: streakOutcome.bonusAmount,
+        type: 'STREAK_BONUS',
+        taskInstanceId: instance.id,
+        taskAssignmentId: assignment.id,
+        assignmentKind: assignment.kind,
+        initiatorMemberId: input.actorMemberId,
+        initiatorType: input.actorIsAdmin ? 'ADMIN' : 'MEMBER',
+        // Same pattern as `reward:<assignmentId>` — a retried request cannot
+        // double-pay this day's streak bonus.
+        idempotencyKey: `streak:${assignment.id}`,
+        description: `Serie: ${streakOutcome.nextState.length} Tage in Folge`,
+      });
+      balanceAfter = streakCredit.balanceAfter;
+      streakTransaction = {
+        id: streakCredit.id,
+        amount: streakCredit.amount,
+        balanceBefore: streakCredit.balanceBefore,
+        balanceAfter: streakCredit.balanceAfter,
+        type: streakCredit.type,
+        createdAt: streakCredit.createdAt.toISOString(),
+      };
+    }
+
+    // The streak's state columns are ordinary member fields, not ledger rows
+    // (§14 governs the *points*, not the day-count) — but they still only ever
+    // move here, under the level-3 lock taken above. Skipped while the
+    // mechanism is off so a disabled household's `updatedAt` does not churn.
+    if (pinned.config.streak.enabled) {
+      await tx.householdMember.updateMany({
+        where: { id: assignment.memberId, householdId: input.householdId },
+        data: {
+          streakLength: streakOutcome.nextState.length,
+          streakLastActiveDate: streakOutcome.nextState.lastActiveDate,
+          streakBonusPaidDate: streakOutcome.nextState.bonusPaidDate,
+        },
+      });
     }
 
     // §11 — the reset. Default `BASE_VALUE`, which is what makes the escalation
@@ -236,6 +295,23 @@ export async function completeTask(
             },
           ]
         : []),
+      ...(streakTransaction
+        ? [
+            {
+              householdId: input.householdId,
+              taskInstanceId: instance.id,
+              assignmentId: assignment.id,
+              memberId: assignment.memberId,
+              type: 'STREAK_BONUS_AWARDED',
+              payload: {
+                memberId: assignment.memberId,
+                amount: streakOutcome.bonusAmount,
+                transactionId: streakTransaction.id,
+                streakLength: streakOutcome.nextState.length,
+              },
+            },
+          ]
+        : []),
       {
         householdId: input.householdId,
         taskInstanceId: instance.id,
@@ -259,6 +335,8 @@ export async function completeTask(
         assignmentId: assignment.id,
         kind: assignment.kind,
         pointsAwarded: award,
+        streakBonusAwarded: streakOutcome.bonusAmount,
+        streakLength: streakOutcome.nextState.length,
         valueResetFrom: instance.currentValue,
         valueResetTo: resetTo,
         configVersion: pinned.version,

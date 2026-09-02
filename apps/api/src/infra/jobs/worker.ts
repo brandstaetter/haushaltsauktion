@@ -13,6 +13,7 @@
 
 import { runAssignmentSweep } from '../../app/assignment/runAssignmentSweep.js';
 import type { Deps } from '../../app/deps.js';
+import { runStreakSweep } from '../../app/streak/runStreakSweep.js';
 
 export interface SweepWorker {
   stop(): void;
@@ -39,6 +40,15 @@ export function startSweepWorker(deps: Deps, intervalSeconds: number): SweepWork
           // One household's failure must not stop the others: a broken config
           // in one family should not freeze assignment for everyone.
           deps.logger.error({ err: error, householdId: household.id }, 'sweep failed');
+        }
+        try {
+          // Daily completion streak (intake "daily-completion-streak-bonus"):
+          // there is no event for "a day ended with zero completions", so the
+          // idle-day break is detected here, on the same interval as the
+          // assignment sweep rather than a separate schedule.
+          await runStreakSweep(deps, { householdId: household.id });
+        } catch (error) {
+          deps.logger.error({ err: error, householdId: household.id }, 'streak sweep failed');
         }
       }
     } catch (error) {

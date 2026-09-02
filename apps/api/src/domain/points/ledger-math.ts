@@ -70,8 +70,10 @@ export type LedgerViolation =
   | { kind: 'SIGN_VIOLATION'; transactionId: string; type: PointTransactionType; amount: number }
   | { kind: 'ZERO_AMOUNT'; transactionId: string }
   | { kind: 'REWARD_ON_RANDOM'; transactionId: string; assignmentId: string }
+  | { kind: 'STREAK_BONUS_ON_RANDOM'; transactionId: string; assignmentId: string }
   | { kind: 'DUPLICATE_REWARD'; assignmentId: string; transactionIds: string[] }
   | { kind: 'DUPLICATE_BUYOUT'; assignmentId: string; transactionIds: string[] }
+  | { kind: 'DUPLICATE_STREAK_BONUS'; assignmentId: string; transactionIds: string[] }
   | { kind: 'ORPHAN_WORK_TX'; transactionId: string; type: PointTransactionType }
   | {
       kind: 'BALANCE_BELOW_MINIMUM';
@@ -122,6 +124,7 @@ export interface Posting {
 export function signRuleViolated(type: PointTransactionType, amount: number): boolean {
   if (type === PointTransactionType.BUYOUT) return !(amount < 0);
   if (type === PointTransactionType.VOLUNTARY_TASK_REWARD) return !(amount > 0);
+  if (type === PointTransactionType.STREAK_BONUS) return !(amount > 0);
   if (type === PointTransactionType.DECAY) return !(amount <= 0);
   return false;
 }
@@ -149,9 +152,12 @@ export function computePosting(input: PostingInput): Posting {
       `Betrag ${input.amount} verletzt die Vorzeichenregel für ${input.type}.`,
     );
   }
-  // §44: a reward can only ever attach to a voluntary assignment.
+  // §44: a reward — ordinary or streak — can only ever attach to a voluntary
+  // assignment. Same discipline as `voluntaryReward`/`applyCompletionToStreak`:
+  // no configuration can make a RANDOM completion pay.
   if (
-    input.type === PointTransactionType.VOLUNTARY_TASK_REWARD &&
+    (input.type === PointTransactionType.VOLUNTARY_TASK_REWARD ||
+      input.type === PointTransactionType.STREAK_BONUS) &&
     input.assignmentKind !== AssignmentKind.VOLUNTARY
   ) {
     throw new ConflictError(
@@ -161,7 +167,8 @@ export function computePosting(input: PostingInput): Posting {
   }
   if (
     (input.type === PointTransactionType.VOLUNTARY_TASK_REWARD ||
-      input.type === PointTransactionType.BUYOUT) &&
+      input.type === PointTransactionType.BUYOUT ||
+      input.type === PointTransactionType.STREAK_BONUS) &&
     !input.taskAssignmentId
   ) {
     throw new ConflictError(
@@ -219,6 +226,7 @@ export function verifyLedgerIntegrity(snapshot: LedgerSnapshot): LedgerIntegrity
   // Per-assignment duplicate detection spans members, so it is collected first.
   const rewardsByAssignment = new Map<string, string[]>();
   const buyoutsByAssignment = new Map<string, string[]>();
+  const streakBonusesByAssignment = new Map<string, string[]>();
 
   for (const entry of snapshot.entries) {
     if (entry.amount === 0) violations.push({ kind: 'ZERO_AMOUNT', transactionId: entry.id });
@@ -244,19 +252,31 @@ export function verifyLedgerIntegrity(snapshot: LedgerSnapshot): LedgerIntegrity
 
     const isWorkTx =
       entry.type === PointTransactionType.VOLUNTARY_TASK_REWARD ||
-      entry.type === PointTransactionType.BUYOUT;
+      entry.type === PointTransactionType.BUYOUT ||
+      entry.type === PointTransactionType.STREAK_BONUS;
 
     if (isWorkTx && entry.taskAssignmentId === null) {
       violations.push({ kind: 'ORPHAN_WORK_TX', transactionId: entry.id, type: entry.type });
     }
 
-    // §44's headline invariant, checked from the data rather than trusted.
+    // §44's headline invariant, checked from the data rather than trusted —
+    // for the streak bonus exactly as much as for the ordinary reward.
     if (
       entry.type === PointTransactionType.VOLUNTARY_TASK_REWARD &&
       entry.assignmentKind !== AssignmentKind.VOLUNTARY
     ) {
       violations.push({
         kind: 'REWARD_ON_RANDOM',
+        transactionId: entry.id,
+        assignmentId: entry.taskAssignmentId ?? '(none)',
+      });
+    }
+    if (
+      entry.type === PointTransactionType.STREAK_BONUS &&
+      entry.assignmentKind !== AssignmentKind.VOLUNTARY
+    ) {
+      violations.push({
+        kind: 'STREAK_BONUS_ON_RANDOM',
         transactionId: entry.id,
         assignmentId: entry.taskAssignmentId ?? '(none)',
       });
@@ -268,7 +288,9 @@ export function verifyLedgerIntegrity(snapshot: LedgerSnapshot): LedgerIntegrity
           ? rewardsByAssignment
           : entry.type === PointTransactionType.BUYOUT
             ? buyoutsByAssignment
-            : null;
+            : entry.type === PointTransactionType.STREAK_BONUS
+              ? streakBonusesByAssignment
+              : null;
       if (bucket) {
         const ids = bucket.get(entry.taskAssignmentId);
         if (ids) ids.push(entry.id);
@@ -285,6 +307,11 @@ export function verifyLedgerIntegrity(snapshot: LedgerSnapshot): LedgerIntegrity
   for (const [assignmentId, transactionIds] of buyoutsByAssignment) {
     if (transactionIds.length > 1) {
       violations.push({ kind: 'DUPLICATE_BUYOUT', assignmentId, transactionIds });
+    }
+  }
+  for (const [assignmentId, transactionIds] of streakBonusesByAssignment) {
+    if (transactionIds.length > 1) {
+      violations.push({ kind: 'DUPLICATE_STREAK_BONUS', assignmentId, transactionIds });
     }
   }
 

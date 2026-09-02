@@ -85,6 +85,9 @@ enum PointTransactionType {
   BONUS
   PENALTY
   CORRECTION
+  /// Tages-Streak-Bonus (intake "daily-completion-streak-bonus"). Sign wie
+  /// VOLUNTARY_TASK_REWARD: amount > 0 (ledger-math.ts signRuleViolated).
+  STREAK_BONUS
 }
 
 enum HistoryEventType {
@@ -111,6 +114,7 @@ enum HistoryEventType {
   RESUMED
   COMPLETION_REJECTED
   REOPENED_TO_ASSIGNEE
+  STREAK_BONUS_AWARDED
 }
 
 enum NotificationType {
@@ -253,6 +257,18 @@ model HouseholdMember {
 
   /// §3.1 Teilnahmebeschränkung: Obergrenze zufälliger Zuweisungen pro Woche (§5.6).
   maxRandomAssignmentsPerWeek Int? @map("max_random_assignments_per_week")
+
+  /// Tages-Streak (intake "daily-completion-streak-bonus"): Länge der
+  /// laufenden Serie und der letzte Tag (Haushaltszeitzone, "YYYY-MM-DD",
+  /// week.ts civilDateKey), an dem mindestens eine Erledigung zählte.
+  /// bonusPaidDate hält fest, für welchen Tag bereits ein STREAK_BONUS
+  /// gebucht wurde — höchstens einer pro Tag. NULL = keine aktive Serie /
+  /// noch keine Buchung. Wird NIE außerhalb von completeTask / clawback /
+  /// runStreakSweep geschrieben; jede Punktewirkung läuft weiterhin über das
+  /// Ledger (§14, §44) — dies sind reine Zustandsfelder, keine Salden.
+  streakLength          Int     @default(0) @map("streak_length")
+  streakLastActiveDate  String? @map("streak_last_active_date")
+  streakBonusPaidDate   String? @map("streak_bonus_paid_date")
 
   joinedAt  DateTime @default(now()) @map("joined_at")
   updatedAt DateTime @updatedAt @map("updated_at")
