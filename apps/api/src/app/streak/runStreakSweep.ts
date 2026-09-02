@@ -20,6 +20,7 @@
 import { dayKey } from '@haushaltsauktion/shared';
 
 import { isStreakStale } from '../../domain/streak/streak.js';
+import { loadCurrentConfig } from '../config/load.js';
 import type { Deps } from '../deps.js';
 import { lockMember, withTransaction } from '../tx.js';
 
@@ -44,6 +45,13 @@ export async function runStreakSweep(
     select: { timezone: true },
   });
   if (household === null) return report;
+
+  // `applyCompletionToStreak()`'s documented semantics: state neither
+  // advances nor breaks while the mechanism is off. Checked once, up front,
+  // rather than per candidate, matching "the whole mechanism is off".
+  const { config } = await withTransaction(deps, (tx) => loadCurrentConfig(tx, input.householdId));
+  if (!config.streak.enabled) return report;
+
   const today = dayKey(now, household.timezone);
 
   // An unlocked scan for *candidates* only — never the decision itself. Every

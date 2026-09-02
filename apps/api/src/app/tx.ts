@@ -154,7 +154,8 @@ export async function lockActiveAssignmentOfInstance(
            status::text        AS "status",
            response::text      AS "response",
            value_at_assignment AS "valueAtAssignment",
-           config_version      AS "configVersion"
+           config_version      AS "configVersion",
+           completed_at        AS "completedAt"
       FROM task_assignments
      WHERE household_id = ${householdId}
        AND task_instance_id = ${instanceId}

@@ -18,6 +18,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
+import type { HouseholdConfig } from '@haushaltsauktion/shared';
 import { runStreakSweep } from '../../src/app/streak/runStreakSweep.js';
 import type { Clock, Deps } from '../../src/app/deps.js';
 import { verifyLedgerIntegrity } from '../../src/app/points/verifyLedgerIntegrity.js';
@@ -58,6 +59,26 @@ let streakDeps: Deps;
 let elke: Session; // ADMIN
 let paul: Session; // MEMBER
 let maria: Session; // MEMBER
+let hannes: Session; // MEMBER — kept isolated from paul/maria's story arcs above
+
+async function setStreakEnabled(enabled: boolean): Promise<void> {
+  const current = await app.inject({
+    method: 'GET',
+    url: '/api/admin/config',
+    headers: authHeaders(elke),
+  });
+  const body = current.json() as { version: number; values: HouseholdConfig };
+  const res = await app.inject({
+    method: 'PUT',
+    url: '/api/admin/config',
+    headers: authHeaders(elke),
+    payload: {
+      expectedVersion: body.version,
+      values: { ...body.values, streak: { ...body.values.streak, enabled } },
+    },
+  });
+  expect(res.statusCode).toBe(200);
+}
 
 async function volunteerAndComplete(
   session: Session,
@@ -128,6 +149,7 @@ beforeAll(async () => {
       { key: 'elke', displayName: 'Elke', role: 'ADMIN' },
       { key: 'paul', displayName: 'Paul', role: 'MEMBER' },
       { key: 'maria', displayName: 'Maria', role: 'MEMBER' },
+      { key: 'hannes', displayName: 'Hannes', role: 'MEMBER' },
     ],
     definitions: [{ key: 'chore', title: 'Geschirrspüler ausräumen', baseValue: BASE_VALUE }],
   });
@@ -140,6 +162,7 @@ beforeAll(async () => {
   elke = await login(app, ids, 'elke');
   paul = await login(app, ids, 'paul');
   maria = await login(app, ids, 'maria');
+  hannes = await login(app, ids, 'hannes');
 }, 60_000);
 
 afterAll(async () => {
@@ -320,5 +343,41 @@ describe('the idle sweep breaks a streak only after a full idle day', () => {
     expect(row.streakLength).toBe(0);
     expect(row.streakLastActiveDate).toBeNull();
     expect(row.streakBonusPaidDate).toBeNull();
+  });
+});
+
+describe('the idle sweep respects the household streak switch', () => {
+  test('does nothing while streak.enabled is false, resumes once turned back on', async () => {
+    clock.set('2026-09-10T10:00:00Z');
+    await volunteerAndComplete(hannes, 'chore', BASE_VALUE); // day 1, length 1
+
+    clock.set('2026-09-11T10:00:00Z');
+    await volunteerAndComplete(hannes, 'chore', BASE_VALUE); // day 2, length 2, bonus 1
+
+    const rowBeforeDisable = await streakRowOf('hannes');
+    expect(rowBeforeDisable.streakLength).toBe(2);
+    expect(rowBeforeDisable.streakLastActiveDate).toBe('2026-09-11');
+
+    await setStreakEnabled(false);
+    try {
+      // Two full idle days pass — enough to be well past the stale threshold.
+      clock.set('2026-09-13T10:00:00Z');
+      await runStreakSweep(streakDeps, { householdId: ids.householdId });
+
+      // `applyCompletionToStreak()`'s documented semantics — state neither
+      // advances nor breaks while the mechanism is off — must also hold for
+      // the sweep, not just for completions.
+      const rowWhileDisabled = await streakRowOf('hannes');
+      expect(rowWhileDisabled.streakLength).toBe(2);
+      expect(rowWhileDisabled.streakLastActiveDate).toBe('2026-09-11');
+    } finally {
+      await setStreakEnabled(true);
+    }
+
+    // Re-enabled: the same stale state is now acted on normally.
+    await runStreakSweep(streakDeps, { householdId: ids.householdId });
+    const rowAfterReenable = await streakRowOf('hannes');
+    expect(rowAfterReenable.streakLength).toBe(0);
+    expect(rowAfterReenable.streakLastActiveDate).toBeNull();
   });
 });

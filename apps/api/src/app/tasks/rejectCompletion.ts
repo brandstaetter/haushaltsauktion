@@ -151,7 +151,17 @@ export async function rejectCompletion(
       bonusPaidDate: memberLock.streakBonusPaidDate,
     };
     if (reversed.streak !== null) {
-      const completionDay = dayKey(assignment.completedAt ?? now, input.timezone);
+      // `assignment.status === 'COMPLETED'` was just checked above, and
+      // `completeTask.ts` always sets `completedAt` in the same update that
+      // sets that status — so a null here is a corrupted row, not an
+      // expected case. Surface it instead of silently guessing `now`, which
+      // could clear the wrong day's `bonusPaidDate`.
+      if (assignment.completedAt === null) {
+        throw new Error(
+          `Invariante verletzt: Zuweisung ${assignment.id} ist COMPLETED, hat aber kein completedAt.`,
+        );
+      }
+      const completionDay = dayKey(assignment.completedAt, input.timezone);
       nextStreak = clearBonusForDay(nextStreak, completionDay);
     }
     if (input.outcome === 'REOFFER_MARKET') {
