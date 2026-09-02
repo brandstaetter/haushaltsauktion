@@ -12,11 +12,15 @@ import { describe, expect, it } from 'vitest';
 import {
   addCivilDays,
   civilDateIn,
+  civilDateKey,
+  civilDaysBetween,
   civilToInstant,
+  dayKey,
   daysBetween,
   isSameWeek,
   isoWeekOf,
   isoWeekday,
+  parseCivilDateKey,
   parseTimeOfDay,
   timeZoneOffsetMs,
   weekKey,
@@ -119,6 +123,48 @@ describe('civil-day arithmetic', () => {
 
   it('counts whole days between instants', () => {
     expect(daysBetween(new Date('2026-08-01T00:00:00Z'), new Date('2026-08-29T00:00:00Z'))).toBe(28);
+  });
+});
+
+describe('civilDateKey / dayKey — the streak\'s day representation', () => {
+  it('formats a zero-padded, sortable "YYYY-MM-DD" key', () => {
+    expect(civilDateKey({ year: 2026, month: 1, day: 5 })).toBe('2026-01-05');
+  });
+
+  it('rolls to the next day for a late-evening UTC instant in Berlin, same as civilDateIn', () => {
+    const instant = new Date('2026-08-30T23:30:00Z');
+    expect(dayKey(instant, BERLIN)).toBe('2026-08-31');
+    expect(dayKey(instant, UTC)).toBe('2026-08-30');
+  });
+});
+
+describe('parseCivilDateKey / civilDaysBetween — the idle-sweep arithmetic', () => {
+  it('round-trips civilDateKey', () => {
+    const date = { year: 2026, month: 9, day: 2 };
+    expect(parseCivilDateKey(civilDateKey(date))).toEqual(date);
+  });
+
+  it('rejects a malformed key', () => {
+    expect(() => parseCivilDateKey('not-a-date')).toThrow();
+    expect(() => parseCivilDateKey('2026-9-2')).toThrow();
+  });
+
+  it('counts zero for the same day, one for the day after', () => {
+    expect(civilDaysBetween({ year: 2026, month: 9, day: 1 }, { year: 2026, month: 9, day: 1 })).toBe(
+      0,
+    );
+    expect(civilDaysBetween({ year: 2026, month: 9, day: 1 }, { year: 2026, month: 9, day: 2 })).toBe(
+      1,
+    );
+  });
+
+  it('is month- and year-boundary safe', () => {
+    expect(
+      civilDaysBetween({ year: 2026, month: 8, day: 31 }, { year: 2026, month: 9, day: 2 }),
+    ).toBe(2);
+    expect(
+      civilDaysBetween({ year: 2026, month: 12, day: 31 }, { year: 2027, month: 1, day: 1 }),
+    ).toBe(1);
   });
 });
 

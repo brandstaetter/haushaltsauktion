@@ -82,6 +82,8 @@ export const PointTransactionType = asEnum({
   BONUS: 'BONUS',
   PENALTY: 'PENALTY',
   CORRECTION: 'CORRECTION',
+  /** Daily completion streak (CLAUDE.md §16, intake "daily-completion-streak-bonus"). */
+  STREAK_BONUS: 'STREAK_BONUS',
 });
 export type PointTransactionType =
   (typeof PointTransactionType)[keyof typeof PointTransactionType];
@@ -111,6 +113,8 @@ export const HistoryEventType = asEnum({
   COMPLETION_REJECTED: 'COMPLETION_REJECTED',
   /** A rejected completion, reopened directly to the member who did it. */
   REOPENED_TO_ASSIGNEE: 'REOPENED_TO_ASSIGNEE',
+  /** A day's streak bonus was posted (daily-completion-streak-bonus). */
+  STREAK_BONUS_AWARDED: 'STREAK_BONUS_AWARDED',
 });
 export type HistoryEventType = (typeof HistoryEventType)[keyof typeof HistoryEventType];
 

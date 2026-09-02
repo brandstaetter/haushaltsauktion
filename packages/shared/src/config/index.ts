@@ -9,6 +9,7 @@ export type {
   CompletionConfig,
   PointsConfig,
   PointDecayConfig,
+  StreakConfig,
   FairnessConfig,
   NotificationsConfig,
 } from './types.js';

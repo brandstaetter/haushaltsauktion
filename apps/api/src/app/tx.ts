@@ -113,6 +113,8 @@ export interface AssignmentLockRow {
   response: string;
   valueAtAssignment: number;
   configVersion: number;
+  /** When this assignment's completion happened, or `null` if it never did. */
+  completedAt: Date | null;
 }
 
 export async function lockAssignment(
@@ -129,7 +131,8 @@ export async function lockAssignment(
            status::text        AS "status",
            response::text      AS "response",
            value_at_assignment AS "valueAtAssignment",
-           config_version      AS "configVersion"
+           config_version      AS "configVersion",
+           completed_at        AS "completedAt"
       FROM task_assignments
      WHERE id = ${assignmentId} AND household_id = ${householdId}
        FOR UPDATE`;
@@ -169,12 +172,22 @@ export interface MemberLockRow {
   isActive: boolean;
   role: string;
   displayName: string;
+  /** Daily completion streak (intake "daily-completion-streak-bonus"). */
+  streakLength: number;
+  streakLastActiveDate: string | null;
+  streakBonusPaidDate: string | null;
 }
 
 /**
  * The only lock a ledger write takes (§8.2 step 2). Ledger-only operations —
  * manual adjustment, decay, bonus — enter here and take nothing above, so they
  * can never be the waiting half of a cycle.
+ *
+ * Also the lock a completion's streak update takes (`completeTask.ts`): the
+ * streak fields are ordinary member columns, not ledger rows, but they are
+ * read-then-written across the same transaction a ledger write happens in, so
+ * they need the same row lock a concurrent second completion by this member
+ * would otherwise race past.
  */
 export async function lockMember(
   tx: PrismaTx,
@@ -183,11 +196,14 @@ export async function lockMember(
 ): Promise<MemberLockRow | null> {
   const rows = await tx.$queryRaw<MemberLockRow[]>`
     SELECT id,
-           household_id  AS "householdId",
-           points_cache  AS "pointsCache",
-           is_active     AS "isActive",
-           role::text    AS "role",
-           display_name  AS "displayName"
+           household_id             AS "householdId",
+           points_cache             AS "pointsCache",
+           is_active                AS "isActive",
+           role::text               AS "role",
+           display_name             AS "displayName",
+           streak_length            AS "streakLength",
+           streak_last_active_date  AS "streakLastActiveDate",
+           streak_bonus_paid_date   AS "streakBonusPaidDate"
       FROM household_members
      WHERE id = ${memberId} AND household_id = ${householdId}
        FOR UPDATE`;

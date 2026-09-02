@@ -31,22 +31,43 @@
  * (`maxOpenInstancesPerDefinition`, default 1) already refuses to
  * materialize a second occurrence while this one is still open, so nothing
  * needs to be reverted there to avoid a double-booking.
+ *
+ * **The streak (intake "daily-completion-streak-bonus") is clawed back the
+ * same way, but its *state* rolls back asymmetrically per outcome:**
+ *
+ *   - `REOFFER_MARKET` breaks the streak immediately and unconditionally —
+ *     the chore goes back to the open market, someone else entirely might do
+ *     it, so this member's claim on the day is void regardless of what else
+ *     they did that day.
+ *   - `REASSIGN_TO_MEMBER` never touches the streak's length or last-active
+ *     day here at all. Either the redo lands later (same day or a following
+ *     one) and the streak simply continues through the normal `completeTask`
+ *     path, or it never does — in which case `runStreakSweep.ts`'s idle-day
+ *     check eventually notices the day went stale and breaks it then. This
+ *     is what makes "reject, then successfully redo the same day" a no-op
+ *     for the streak: there is nothing to undo because nothing was undone.
+ *
+ * Either way, a reversed `STREAK_BONUS` clears `bonusPaidDate` for exactly
+ * the day it was posted for — never for a different, more recent day a later
+ * completion may have already paid — so a same-day redo can pay again.
  */
 
-import { AssignmentKind } from '@haushaltsauktion/shared';
+import { AssignmentKind, dayKey } from '@haushaltsauktion/shared';
 
 import { ConflictError, NotFoundError } from '../../domain/errors.js';
+import { clearBonusForDay, ZERO_STREAK, type StreakState } from '../../domain/streak/streak.js';
 import { resolve, TaskEvent } from '../../domain/task/state-machine.js';
 import { ConfigDecision, configFor } from '../config/load.js';
 import type { Deps } from '../deps.js';
 import { writeAudit, writeHistory, type HistoryDraft } from '../events.js';
 import { clawback } from '../points/clawback.js';
-import { lockAssignment, lockInstance, withTransaction } from '../tx.js';
+import { lockAssignment, lockInstance, lockMember, withTransaction } from '../tx.js';
 
 export type RejectCompletionOutcome = 'REASSIGN_TO_MEMBER' | 'REOFFER_MARKET';
 
 export interface RejectCompletionInput {
   householdId: string;
+  timezone: string;
   actorMemberId: string;
   instanceId: string;
   assignmentId: string;
@@ -105,6 +126,12 @@ export async function rejectCompletion(
     }
 
     // ── level 3, only when there is something to reverse ────────────────
+    // Locked before `clawback()` (which re-locks the same row internally,
+    // idempotently) so the streak fields read below are consistent with the
+    // reversal that is about to happen in the same transaction.
+    const memberLock = await lockMember(tx, input.householdId, assignment.memberId);
+    if (memberLock === null) throw new NotFoundError('Mitglied nicht gefunden.');
+
     const reversed = await clawback(tx, {
       householdId: input.householdId,
       assignmentId: assignment.id,
@@ -115,6 +142,35 @@ export async function rejectCompletion(
       actorIsAdmin: true,
       description: 'Rücknahme der Belohnung: Erledigung abgelehnt',
     });
+
+    // Streak state rollback — see the module docstring for the REOFFER_MARKET
+    // vs REASSIGN_TO_MEMBER asymmetry this implements.
+    let nextStreak: StreakState = {
+      length: memberLock.streakLength,
+      lastActiveDate: memberLock.streakLastActiveDate,
+      bonusPaidDate: memberLock.streakBonusPaidDate,
+    };
+    if (reversed.streak !== null) {
+      const completionDay = dayKey(assignment.completedAt ?? now, input.timezone);
+      nextStreak = clearBonusForDay(nextStreak, completionDay);
+    }
+    if (input.outcome === 'REOFFER_MARKET') {
+      nextStreak = ZERO_STREAK;
+    }
+    const streakChanged =
+      nextStreak.length !== memberLock.streakLength ||
+      nextStreak.lastActiveDate !== memberLock.streakLastActiveDate ||
+      nextStreak.bonusPaidDate !== memberLock.streakBonusPaidDate;
+    if (streakChanged) {
+      await tx.householdMember.updateMany({
+        where: { id: assignment.memberId, householdId: input.householdId },
+        data: {
+          streakLength: nextStreak.length,
+          streakLastActiveDate: nextStreak.lastActiveDate,
+          streakBonusPaidDate: nextStreak.bonusPaidDate,
+        },
+      });
+    }
 
     const closedRejected = await tx.taskAssignment.updateMany({
       where: { id: assignment.id, householdId: input.householdId, status: 'COMPLETED' },
@@ -146,7 +202,7 @@ export async function rejectCompletion(
           reason: input.reason,
         },
       },
-      ...(reversed
+      ...(reversed.reward
         ? [
             {
               householdId: input.householdId,
@@ -156,8 +212,24 @@ export async function rejectCompletion(
               type: 'POINTS_CLAWED_BACK',
               payload: {
                 memberId: assignment.memberId,
-                amount: reversed.amount,
-                transactionId: reversed.transactionId,
+                amount: reversed.reward.amount,
+                transactionId: reversed.reward.transactionId,
+              },
+            },
+          ]
+        : []),
+      ...(reversed.streak
+        ? [
+            {
+              householdId: input.householdId,
+              taskInstanceId: instance.id,
+              assignmentId: assignment.id,
+              memberId: assignment.memberId,
+              type: 'POINTS_CLAWED_BACK',
+              payload: {
+                memberId: assignment.memberId,
+                amount: reversed.streak.amount,
+                transactionId: reversed.streak.transactionId,
               },
             },
           ]
@@ -264,6 +336,8 @@ export async function rejectCompletion(
 
     await writeHistory(tx, history);
 
+    const totalClawedBack = (reversed.reward?.amount ?? 0) + (reversed.streak?.amount ?? 0);
+
     await writeAudit(tx, {
       householdId: input.householdId,
       actorType: 'ADMIN',
@@ -275,7 +349,9 @@ export async function rejectCompletion(
         assignmentId: assignment.id,
         memberId: assignment.memberId,
         reason: input.reason,
-        clawedBack: reversed?.amount ?? 0,
+        clawedBack: totalClawedBack,
+        streakClawedBack: reversed.streak?.amount ?? 0,
+        streakBroken: input.outcome === 'REOFFER_MARKET',
         outcome: input.outcome,
         newAssignmentId,
       },
@@ -285,7 +361,7 @@ export async function rejectCompletion(
       instanceId: instance.id,
       assignmentId: assignment.id,
       memberId: assignment.memberId,
-      clawedBack: reversed?.amount ?? 0,
+      clawedBack: totalClawedBack,
       outcome: input.outcome,
       status: nextStatus,
       newAssignmentId,

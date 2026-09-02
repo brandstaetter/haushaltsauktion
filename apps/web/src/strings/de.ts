@@ -306,6 +306,7 @@ export const de = {
       BONUS: 'Bonus',
       PENALTY: 'Strafe',
       CORRECTION: 'Korrektur',
+      STREAK_BONUS: 'Serien-Bonus',
     },
   },
   components: {

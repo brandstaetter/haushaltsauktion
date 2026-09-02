@@ -1052,6 +1052,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
 
     return rejectCompletion(deps, {
       householdId: ctx.householdId,
+      timezone: ctx.householdTimezone,
       actorMemberId: ctx.memberId,
       instanceId: params.id,
       assignmentId: completed.id,

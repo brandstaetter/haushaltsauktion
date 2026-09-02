@@ -105,6 +105,20 @@ export interface PointsConfig {
   decay: PointDecayConfig;
 }
 
+/**
+ * Daily completion streak (intake "daily-completion-streak-bonus").
+ *
+ * `dailyBonus = floor(baseRate * currentStreakLength)`, paid once per
+ * household-local calendar day that has at least one `VOLUNTARY` completion —
+ * never for a day covered only by `RANDOM` completions (§7/§44). Floored by
+ * construction, so it always posts as a whole-number ledger entry.
+ */
+export interface StreakConfig {
+  enabled: boolean;
+  /** >= 0. Day 1 of any streak pays `floor(baseRate * 1)`, which is 0 at the default. */
+  baseRate: number;
+}
+
 export interface FairnessConfig {
   randomAssignmentWeight: number;
   voluntaryWorkWeight: number;
@@ -144,6 +158,7 @@ export interface HouseholdConfig {
   valueIncrease: ValueIncreaseConfig;
   completion: CompletionConfig;
   points: PointsConfig;
+  streak: StreakConfig;
   fairness: FairnessConfig;
   notifications: NotificationsConfig;
   integrations: IntegrationsConfig;
@@ -164,6 +179,7 @@ export interface PublicHouseholdConfig {
   valueIncrease: Pick<ValueIncreaseConfig, 'strategy' | 'minimumIncrease' | 'maximumValue'>;
   completion: Pick<CompletionConfig, 'resetStrategy'>;
   pointDecayEnabled: boolean;
+  streak: Pick<StreakConfig, 'enabled' | 'baseRate'>;
   /**
    * Just the switch. The web app needs it to decide whether to render the
    * Todoist section on a member's account page at all — and nothing else from

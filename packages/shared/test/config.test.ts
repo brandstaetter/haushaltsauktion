@@ -48,6 +48,11 @@ describe('DEFAULT_CONFIG matches CLAUDE.md §39 verbatim', () => {
     expect(DEFAULT_CONFIG.points.decay.enabled).toBe(false);
   });
 
+  it('sets the streak defaults (intake "daily-completion-streak-bonus")', () => {
+    expect(DEFAULT_CONFIG.streak.enabled).toBe(true);
+    expect(DEFAULT_CONFIG.streak.baseRate).toBe(0.5);
+  });
+
   it('carries the four keys the reconciliation added', () => {
     expect(DEFAULT_CONFIG.fairness.windowDays).toBe(28); // OQ-7
     // OQ-4, reworked: auto-assignment now only triggers within this many
@@ -120,6 +125,22 @@ describe('the §44 invariants cannot be switched off by configuration (§5.4)', 
     const keys = Object.keys(DEFAULT_CONFIG.voluntary);
     expect(keys).not.toContain('randomRewardEnabled');
     expect(JSON.stringify(DEFAULT_CONFIG)).not.toMatch(/random.*reward/i);
+  });
+});
+
+describe('streak configuration (§16)', () => {
+  it('accepts a custom base rate', () => {
+    const cfg = parseConfig({ streak: { baseRate: 1 } });
+    expect(cfg.streak.baseRate).toBe(1);
+    expect(cfg.streak.enabled).toBe(true);
+  });
+
+  it('accepts the mechanism switched off', () => {
+    expect(parseConfig({ streak: { enabled: false } }).streak.enabled).toBe(false);
+  });
+
+  it('rejects a negative base rate', () => {
+    expect(pathsOf(patch((c) => (c.streak.baseRate = -1)))).toContain('streak.baseRate');
   });
 });
 
@@ -254,6 +275,7 @@ describe('the public projection (Reconciliation §1.3)', () => {
     // whether/when they might be randomly assigned a due-dated task.
     expect(publicConfig.assignment.leadMinutesBeforeDue).toBe(1440);
     expect(publicConfig.pointDecayEnabled).toBe(false);
+    expect(publicConfig.streak).toEqual({ enabled: true, baseRate: 0.5 });
   });
 
   it('leaks no admin-only field', () => {

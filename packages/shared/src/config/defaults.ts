@@ -80,6 +80,11 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
     }),
   }),
 
+  streak: Object.freeze({
+    enabled: true,
+    baseRate: 0.5, // intake "daily-completion-streak-bonus": floor(0.5 * length)
+  }),
+
   fairness: Object.freeze({
     randomAssignmentWeight: 1, // §16
     voluntaryWorkWeight: 0, // §16
@@ -147,6 +152,7 @@ export function toPublicConfig(cfg: HouseholdConfig): PublicHouseholdConfig {
       resetStrategy: cfg.completion.resetStrategy,
     },
     pointDecayEnabled: cfg.points.decay.enabled,
+    streak: { enabled: cfg.streak.enabled, baseRate: cfg.streak.baseRate },
     // The switch only. A member's token, project and triggers are personal and
     // never travel through the household projection.
     integrations: { todoist: { enabled: cfg.integrations.todoist.enabled } },
