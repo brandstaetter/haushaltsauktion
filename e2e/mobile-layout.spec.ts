@@ -11,7 +11,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { expectNoHorizontalScroll, NO_SESSION, storageStatePath } from './helpers';
+import { expectNoHorizontalScroll, expectNoMidWordWrap, NO_SESSION, storageStatePath } from './helpers';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -55,6 +55,27 @@ test.describe('Mobile Darstellung (390×844)', () => {
       await expect(page.getByRole('tablist')).toBeVisible();
 
       await expectNoHorizontalScroll(page);
+    });
+
+    test('Aktions-Button auf der Aufgaben-Card bricht nicht mitten im Wort um', async ({ page }) => {
+      // Die Aufgabenliste hat keinen eigenen Navigationspunkt mehr — erreichbar
+      // über den "Alle"-Link im Dashboard-Abschnitt "Meine Aufgaben".
+      await page.getByRole('button', { name: 'Alle' }).click();
+      await expect(page).toHaveURL(/\/aufgaben$/);
+      await expect(page.getByRole('tablist')).toBeVisible();
+
+      const buttons = page
+        .getByRole('article')
+        .getByRole('button', { name: /Freiwillig übernehmen|Als erledigt markieren/ });
+      // `count()` reads the DOM at this exact instant and does not wait —
+      // the list is still loading right after navigation, so the first
+      // button becoming visible is what actually waits out that race.
+      await expect(buttons.first()).toBeVisible();
+      const count = await buttons.count();
+
+      for (let i = 0; i < count; i += 1) {
+        await expectNoMidWordWrap(buttons.nth(i));
+      }
     });
 
     test('Verlauf scrollt nicht seitlich', async ({ page }) => {

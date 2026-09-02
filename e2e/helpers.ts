@@ -11,7 +11,7 @@
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /** Aus `apps/api/prisma/seed.ts` (§38). */
 export const DEMO_PASSWORD = 'demo1234';
@@ -217,4 +217,47 @@ export async function expectNoHorizontalScroll(page: Page): Promise<void> {
     `Dokument ist ${metrics.scrollWidth}px breit, sichtbar sind ${metrics.clientWidth}px ` +
       `(body: ${metrics.bodyScrollWidth}px) — die Seite scrollt horizontal.`,
   ).toBeLessThanOrEqual(metrics.clientWidth);
+}
+
+/**
+ * Prüft, dass ein Element seinen Text nur an Wortgrenzen umbricht, nie
+ * mitten im Wort (§31 — hier für den Aktions-Button auf der `TaskCard`).
+ *
+ * Liest die tatsächlich gerenderten Zeilenumbrüche über
+ * `Range.getClientRects()` aus (jede Zeichenposition bekommt ihr eigenes
+ * Rect, ein Sprung in der vertikalen Position markiert einen Zeilenumbruch),
+ * statt nur die berechneten CSS-Eigenschaften zu prüfen — das erfasst auch,
+ * ob der verfügbare Platz überhaupt für einen sauberen Umbruch reicht.
+ */
+export async function expectNoMidWordWrap(locator: Locator): Promise<void> {
+  const result = await locator.evaluate((el) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const textNode = walker.nextNode() as Text | null;
+    if (!textNode) return { breaks: [] as number[], text: '' };
+
+    const text = textNode.textContent ?? '';
+    const range = document.createRange();
+    const breaks: number[] = [];
+    let lastTop: number | null = null;
+    for (let i = 0; i < text.length; i += 1) {
+      range.setStart(textNode, i);
+      range.setEnd(textNode, i + 1);
+      const rect = range.getClientRects()[0];
+      if (!rect) continue;
+      if (lastTop !== null && Math.abs(rect.top - lastTop) > 1) {
+        breaks.push(i);
+      }
+      lastTop = rect.top;
+    }
+    return { breaks, text };
+  });
+
+  for (const index of result.breaks) {
+    const before = result.text[index - 1];
+    const after = result.text[index];
+    expect(
+      before === ' ' || after === ' ',
+      `Zeilenumbruch mitten im Wort in "${result.text}" bei Position ${index}.`,
+    ).toBe(true);
+  }
 }
