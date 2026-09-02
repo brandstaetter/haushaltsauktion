@@ -54,7 +54,7 @@ export function TaskCard({ task, onAction, actionLabel }: TaskCardProps) {
         {onAction && (
           <Button
             variant="primary"
-            size="md"
+            size="sm"
             onClick={() =>
               onAction(isHeld ? 'complete' : 'volunteer', task)
             }
