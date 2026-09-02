@@ -184,6 +184,42 @@ describe('TaskDefinitionsSection', () => {
     );
   });
 
+  it('filtert die Liste nach Titel und zeigt einen Hinweis, wenn nichts passt', async () => {
+    const user = userEvent.setup();
+
+    mockedApi.mockImplementation(async (path: string) => {
+      if (path === '/admin/task-definitions') {
+        return { items: [definitionFixture({ title: 'Bad putzen' }), definitionFixture({ id: 'def-2', title: 'Müll hinausbringen' })] };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/members') return { items: [] };
+      throw new Error(`unerwarteter Aufruf: ${path}`);
+    });
+
+    renderSection();
+
+    expect(await screen.findByText('Bad putzen')).toBeInTheDocument();
+    expect(screen.getByText('Müll hinausbringen')).toBeInTheDocument();
+
+    await user.type(
+      screen.getByPlaceholderText(de.admin.taskDefinitions.filterPlaceholder),
+      'müll',
+    );
+
+    expect(screen.queryByText('Bad putzen')).toBeNull();
+    expect(screen.getByText('Müll hinausbringen')).toBeInTheDocument();
+
+    await user.clear(screen.getByPlaceholderText(de.admin.taskDefinitions.filterPlaceholder));
+    await user.type(
+      screen.getByPlaceholderText(de.admin.taskDefinitions.filterPlaceholder),
+      'staubsaugen',
+    );
+
+    expect(screen.queryByText('Bad putzen')).toBeNull();
+    expect(screen.queryByText('Müll hinausbringen')).toBeNull();
+    expect(screen.getByText(de.admin.taskDefinitions.filterEmpty)).toBeInTheDocument();
+  });
+
   it('zeigt die laufenden Instanzen mit Zuweisung, wenn eine Aufgabe bearbeitet wird', async () => {
     const user = userEvent.setup();
     const definition = definitionFixture();
