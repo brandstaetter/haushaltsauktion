@@ -74,14 +74,20 @@ export function TaskMaintenanceCard({
   return (
     <li className={styles.card}>
       <div className={styles.header}>
-        <span className={styles.name}>{definition.title}</span>
+        <div className={styles.titleGroup}>
+          <span className={archived ? `${styles.name} ${styles.nameArchived}` : styles.name}>
+            {definition.title}
+          </span>
+          {archived && (
+            <span className={styles.archivedBadge}>{de.admin.taskDefinitions.archivedBadge}</span>
+          )}
+        </div>
         <span className={styles.hint}>
           {definition.category ? (
             <CategoryBadge name={definition.category.name} colorHex={definition.category.colorHex} />
           ) : (
             de.admin.taskDefinitions.noCategory
           )}
-          {archived && ` · ${de.admin.taskDefinitions.archivedBadge}`}
         </span>
       </div>
 

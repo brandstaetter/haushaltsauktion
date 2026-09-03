@@ -16,8 +16,30 @@
   flex-wrap: wrap;
 }
 
+.titleGroup {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-1);
+  flex-wrap: wrap;
+}
+
 .name {
   font: var(--t-h3);
+}
+
+/* Same muted tone as `.hint` -- reads as inactive, next to the archived
+   badge instead of the normal ink color. */
+.nameArchived {
+  color: var(--ink-3);
+}
+
+.archivedBadge {
+  display: inline-block;
+  font: var(--t-label);
+  color: var(--ink-2);
+  background: var(--accent-soft);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
 }
 
 .hint {
