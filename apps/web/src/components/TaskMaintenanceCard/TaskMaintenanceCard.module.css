@@ -67,18 +67,16 @@
   text-align: right;
 }
 
-/* Roughly equal-width buttons that share one row when there's room, and
-   wrap as whole buttons onto a second row when there isn't -- rather than
-   each button shrinking below its own label and wrapping that label's text
-   internally (uneven heights, words split mid-phrase). */
+/* Grid, not flex-wrap: auto-fit sizes every column to the same width, so
+   when the row wraps the buttons line up in a real 2-column (or N-column)
+   grid instead of each row growing its own two buttons to independently
+   different widths. Columns collapse (not just shrink) when there's room
+   for all four across, so a 2-button row (e.g. archived) still spans full
+   width evenly rather than sitting in half-empty grid tracks. */
 .actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: var(--s-2);
-}
-
-.actions > * {
-  flex: 1 1 auto;
 }
 
 .actions button {
