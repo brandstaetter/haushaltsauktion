@@ -1,0 +1,88 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--ground);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.name {
+  font: var(--t-h3);
+}
+
+.hint {
+  color: var(--ink-3);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--s-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font: var(--t-body-sm);
+}
+
+.field input,
+.field select {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: var(--t-body);
+}
+
+/* Gives the "Aktiv"-checkbox and the read-only balance cell the same
+   bordered-box weight as the role `<select>`/number `<input>` cells next to
+   them in `.fields` — without those, a bare checkbox and a plain text span
+   read as much lighter/smaller than their boxed siblings even though all
+   four are equally important fields. */
+.fieldBox {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: var(--t-body);
+}
+
+.activeBox {
+  justify-content: center;
+}
+
+.activeBox input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Three roughly equal-width buttons in one row instead of stacking
+   full-width underneath each other. */
+.actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import cn from 'classnames';
-import { Ban, KeyRound, Plus, Save } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { MemberRole } from '@haushaltsauktion/shared';
 import {
   useAdminCategories,
@@ -18,7 +17,8 @@ import type { Strings } from '../../strings/de';
 import { Button } from '../../components/Button/Button';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { Toast } from '../../components/Toast/Toast';
-import { formatNumber, interpolate } from '../../utils/format';
+import { UserMaintenanceCard, draftFromMember as draftFromMemberRow, type UserDraft } from '../../components/UserMaintenanceCard/UserMaintenanceCard';
+import { interpolate } from '../../utils/format';
 import styles from './AdminPage.module.css';
 
 /**
@@ -319,122 +319,6 @@ function ResetPasswordForm({
   );
 }
 
-// ───────────────────────── member row ─────────────────────────
-
-interface MemberDraft {
-  role: MemberRole;
-  isActive: boolean;
-  maxRandomAssignmentsPerWeek: number | null;
-}
-
-function draftFromRow(member: AdminMemberDto): MemberDraft {
-  return {
-    role: member.role,
-    isActive: member.isActive,
-    maxRandomAssignmentsPerWeek: member.maxRandomAssignmentsPerWeek,
-  };
-}
-
-function sameDraft(a: MemberDraft, b: MemberDraft): boolean {
-  return (
-    a.role === b.role &&
-    a.isActive === b.isActive &&
-    a.maxRandomAssignmentsPerWeek === b.maxRandomAssignmentsPerWeek
-  );
-}
-
-function MemberRow({
-  member,
-  draft,
-  error,
-  saving,
-  onChange,
-  onSave,
-  onOpenRestrictions,
-  onOpenResetPassword,
-}: {
-  member: AdminMemberDto;
-  draft: MemberDraft;
-  error: string | null;
-  saving: boolean;
-  onChange: (patch: Partial<MemberDraft>) => void;
-  onSave: () => void;
-  onOpenRestrictions: () => void;
-  onOpenResetPassword: () => void;
-}) {
-  const { de } = useStrings();
-  const dirty = !sameDraft(draft, draftFromRow(member));
-
-  return (
-    <li className={styles.memberRow}>
-      <div className={styles.memberHeader}>
-        <span className={styles.memberName}>{member.displayName}</span>
-        <span className={styles.hint}>{member.user.email}</span>
-      </div>
-
-      {error && (
-        <div className={styles.message} role="alert">
-          {error}
-        </div>
-      )}
-
-      <div className={styles.memberFields}>
-        <label className={styles.field}>
-          <span>{de.admin.members.role}</span>
-          <select
-            value={draft.role}
-            onChange={(e) => onChange({ role: e.target.value as MemberRole })}
-          >
-            <option value="MEMBER">{de.admin.members.roleValues.MEMBER}</option>
-            <option value="ADMIN">{de.admin.members.roleValues.ADMIN}</option>
-          </select>
-        </label>
-        <label className={styles.field}>
-          <span>{de.admin.members.active}</span>
-          <span className={cn(styles.memberFieldBox, styles.memberActiveBox)}>
-            <input
-              type="checkbox"
-              checked={draft.isActive}
-              onChange={(e) => onChange({ isActive: e.target.checked })}
-            />
-          </span>
-        </label>
-        <label className={styles.field}>
-          <span>{de.admin.members.maxRandomAssignmentsPerWeek}</span>
-          <input
-            type="number"
-            min={0}
-            value={draft.maxRandomAssignmentsPerWeek ?? ''}
-            placeholder="∞"
-            onChange={(e) =>
-              onChange({
-                maxRandomAssignmentsPerWeek:
-                  e.target.value === '' ? null : parseInt(e.target.value, 10) || 0,
-              })
-            }
-          />
-        </label>
-        <div className={styles.field}>
-          <span>{de.admin.members.balance}</span>
-          <span className={styles.memberFieldBox}>{formatNumber(member.pointsCache)}</span>
-        </div>
-      </div>
-
-      <div className={styles.rowActions}>
-        <Button size="sm" icon={Save} onClick={onSave} loading={saving} disabled={!dirty}>
-          {de.admin.members.save}
-        </Button>
-        <Button size="sm" icon={Ban} variant="secondary" onClick={onOpenRestrictions}>
-          {de.admin.members.restrictionsButton}
-        </Button>
-        <Button size="sm" icon={KeyRound} variant="secondary" onClick={onOpenResetPassword}>
-          {de.admin.members.resetPasswordButton}
-        </Button>
-      </div>
-    </li>
-  );
-}
-
 // ───────────────────────── add-member sheet ─────────────────────────
 
 function AddMemberForm({
@@ -537,7 +421,7 @@ export function MembersSection() {
   const [restrictionsForId, setRestrictionsForId] = useState<string | null>(null);
   const [resetPasswordForId, setResetPasswordForId] = useState<string | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, MemberDraft>>({});
+  const [drafts, setDrafts] = useState<Record<string, UserDraft>>({});
   const [rowErrors, setRowErrors] = useState<Record<string, string | null>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
@@ -558,9 +442,10 @@ export function MembersSection() {
             member.user.email.toLowerCase().includes(query),
         );
 
-  const draftFor = (member: AdminMemberDto): MemberDraft => drafts[member.id] ?? draftFromRow(member);
+  const draftFor = (member: AdminMemberDto): UserDraft =>
+    drafts[member.id] ?? draftFromMemberRow(member);
 
-  const handleChange = (member: AdminMemberDto, patch: Partial<MemberDraft>) => {
+  const handleChange = (member: AdminMemberDto, patch: Partial<UserDraft>) => {
     setDrafts((prev) => ({ ...prev, [member.id]: { ...draftFor(member), ...patch } }));
   };
 
@@ -608,7 +493,7 @@ export function MembersSection() {
       ) : (
         <ul className={styles.list}>
           {filteredMembers.map((member) => (
-            <MemberRow
+            <UserMaintenanceCard
               key={member.id}
               member={member}
               draft={draftFor(member)}
