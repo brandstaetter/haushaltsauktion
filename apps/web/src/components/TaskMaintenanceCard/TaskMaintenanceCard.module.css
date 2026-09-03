@@ -45,6 +45,13 @@
   font: var(--t-body-sm);
 }
 
+/* Pushes the buyout-allowed label/value to the right edge of the fields
+   row, instead of sitting left-justified in the middle of its grid cell. */
+.buyoutField {
+  align-items: flex-end;
+  text-align: right;
+}
+
 /* Roughly equal-width buttons in one row instead of stacking full-width
    underneath each other. */
 .actions {

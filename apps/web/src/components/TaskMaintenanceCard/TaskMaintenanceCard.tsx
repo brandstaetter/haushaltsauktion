@@ -98,7 +98,7 @@ export function TaskMaintenanceCard({
           <span>{de.admin.taskDefinitions.recurrence.title}</span>
           <span>{recurrenceSummary(definition, de)}</span>
         </div>
-        <div className={styles.field}>
+        <div className={`${styles.field} ${styles.buyoutField}`}>
           <span>{de.admin.taskDefinitions.buyoutEnabled}</span>
           <span>{definition.buyoutEnabled ? '✓' : '–'}</span>
         </div>
