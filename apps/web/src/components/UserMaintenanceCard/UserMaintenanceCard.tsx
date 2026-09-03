@@ -1,4 +1,3 @@
-import { Ban, KeyRound, Save } from 'lucide-react';
 import type { MemberRole } from '@haushaltsauktion/shared';
 import type { AdminMemberDto } from '../../api/types';
 import { useStrings } from '../../context/StringsContext';
@@ -111,13 +110,13 @@ export function UserMaintenanceCard({
       </div>
 
       <div className={styles.actions}>
-        <Button size="sm" icon={Save} onClick={onSave} loading={saving} disabled={!dirty}>
+        <Button size="sm" onClick={onSave} loading={saving} disabled={!dirty}>
           {de.admin.members.save}
         </Button>
-        <Button size="sm" icon={Ban} variant="secondary" onClick={onOpenRestrictions}>
+        <Button size="sm" variant="secondary" onClick={onOpenRestrictions}>
           {de.admin.members.restrictionsButton}
         </Button>
-        <Button size="sm" icon={KeyRound} variant="secondary" onClick={onOpenResetPassword}>
+        <Button size="sm" variant="secondary" onClick={onOpenResetPassword}>
           {de.admin.members.resetPasswordButton}
         </Button>
       </div>
