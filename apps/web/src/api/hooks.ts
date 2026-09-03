@@ -5,6 +5,7 @@ import type {
   BuyoutRequest,
   BuyoutResultDto,
   CompleteRequest,
+  HouseholdTaskDto,
   MemberDto,
   MemberRole,
   PointTransactionDto,
@@ -142,6 +143,20 @@ export function useAssignedTasks() {
   return useQuery({
     queryKey: ['tasks', 'assigned-to-me'],
     queryFn: () => api<{ items: AvailableTaskDto[] }>('/tasks/assigned-to-me'),
+  });
+}
+
+/**
+ * Household-wide "Alle Aufgaben" tab — `GET /tasks/all` (not scoped to the
+ * viewer). Heavier than the other two tabs' queries (household-wide, returns
+ * other members' assignments), so `enabled` gates it to only fire once that
+ * tab is actually selected rather than on every `/aufgaben` page load.
+ */
+export function useAllHouseholdTasks(enabled: boolean) {
+  return useQuery({
+    queryKey: ['tasks', 'all'],
+    queryFn: () => api<{ items: HouseholdTaskDto[] }>('/tasks/all'),
+    enabled,
   });
 }
 

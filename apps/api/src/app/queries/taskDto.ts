@@ -12,6 +12,7 @@ import type {
   AssignedTaskDto,
   AssignmentSummaryDto,
   AvailableTaskDto,
+  HouseholdTaskDto,
   MemberRefDto,
   TaskInstanceDetailDto,
 } from '@haushaltsauktion/shared';
@@ -55,6 +56,11 @@ const INSTANCE_INCLUDE = {
       valueAtAssignment: true,
       configVersion: true,
       memberId: true,
+      // Additive: `toAssignmentSummary` still reads `memberId` only. Joined
+      // here (same shape as admin.ts's `/admin/task-definitions/:id` instance
+      // list) so the household-wide view can show a name without a second
+      // per-instance member lookup.
+      member: { select: { id: true, displayName: true, avatarUrl: true } },
     },
   },
 } as const;
@@ -310,6 +316,70 @@ export async function listAssignedToMe(
       ...base,
       assignment: await toAssignmentSummary(tx, ctx, instance, active, viewerBalance),
     });
+  }
+  return dtos;
+}
+
+/**
+ * Household-wide row (new tab, "Alle Aufgaben"): the `AvailableTaskDto` base
+ * plus who — if anyone — currently holds it. Deliberately lighter than
+ * `AssignmentSummaryDto`: this view is read-only for every task that isn't
+ * the viewer's own, so it carries no `rewardOnCompletion`/`buyoutQuote` (those
+ * are meaningless, and `buyoutQuote` would otherwise need computing per row
+ * for members who can never act on it).
+ */
+async function toHouseholdTaskDto(
+  tx: PrismaTx,
+  ctx: ViewerContext,
+  instance: LoadedInstance,
+  cfg: HouseholdConfig,
+): Promise<HouseholdTaskDto> {
+  // This roster is read-only (no volunteer CTA, see TaskListPage.tsx) and
+  // never renders `canVolunteer`/`ineligibleReason` — so skip the real
+  // eligibility pass (`viewerEligibility()` -> `loadCandidates()`, a
+  // household-wide query) per row, rather than paying its cost for a value
+  // nothing consumes.
+  const base = await toAvailableDto(tx, ctx, instance, cfg, {
+    eligibility: { canVolunteer: false, reason: null },
+  });
+  const active = instance.assignments[0] ?? null;
+  return {
+    ...base,
+    assignee:
+      active === null
+        ? null
+        : {
+            id: active.member.id,
+            displayName: active.member.displayName,
+            avatarUrl: active.member.avatarUrl,
+            kind: active.kind,
+          },
+  };
+}
+
+/**
+ * `GET /api/tasks/all` — the household-wide "Alle Aufgaben" view: every
+ * currently open (`AVAILABLE` or `ASSIGNED`) instance, not scoped to the
+ * viewer, with the assignee named for `ASSIGNED` rows (§20, §32-adjacent —
+ * "wer hat was", not "warum wurde mir das zugewiesen").
+ */
+export async function listAllOpenTasks(
+  tx: PrismaTx,
+  ctx: ViewerContext,
+): Promise<HouseholdTaskDto[]> {
+  const { config } = await loadCurrentConfig(tx, ctx.householdId);
+  const instances = await tx.taskInstance.findMany({
+    where: {
+      householdId: ctx.householdId,
+      status: { in: ['AVAILABLE', 'ASSIGNED'] },
+    },
+    include: INSTANCE_INCLUDE,
+    orderBy: [{ dueAt: 'asc' }, { currentValue: 'desc' }],
+  });
+
+  const dtos: HouseholdTaskDto[] = [];
+  for (const instance of instances) {
+    dtos.push(await toHouseholdTaskDto(tx, ctx, instance, config));
   }
   return dtos;
 }

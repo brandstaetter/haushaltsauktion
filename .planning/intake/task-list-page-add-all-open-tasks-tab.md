@@ -1,8 +1,9 @@
 ---
 title: "Aufgaben-Seite: dritter Tab \"Alle\" mit sämtlichen offenen Aufgaben und ihren Zuweisungen"
-status: pending
+status: completed
 priority: normal
 target: apps/web/src/pages/TaskListPage/TaskListPage.tsx, apps/web/src/api/hooks.ts, apps/web/src/components/TaskCard/TaskCard.tsx, apps/api/src/infra/http/routes/tasks.ts, apps/api/src/app/queries/taskDto.ts, packages/shared/src/api/tasks.ts
+campaign: aufgaben-seite-dritter-tab-alle-mit-s-mtlichen-offenen-aufgaben-und-ihren-zuweis
 ---
 
 ## Description

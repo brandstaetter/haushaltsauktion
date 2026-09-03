@@ -1,7 +1,7 @@
-import type { AvailableTaskDto } from '@haushaltsauktion/shared';
+import type { AvailableTaskDto, HouseholdTaskAssigneeDto } from '@haushaltsauktion/shared';
 import { Clock } from 'lucide-react';
 import { useStrings } from '../../context/StringsContext';
-import { formatShortDate } from '../../utils/format';
+import { formatShortDate, interpolate } from '../../utils/format';
 import { Button } from '../Button/Button';
 import { CategoryBadge } from '../CategoryBadge/CategoryBadge';
 import { StatusBadge } from '../StatusBadge/StatusBadge';
@@ -12,9 +12,16 @@ interface TaskCardProps {
   task: AvailableTaskDto;
   onAction?: (action: 'volunteer' | 'complete', task: AvailableTaskDto) => void;
   actionLabel?: string;
+  /**
+   * Who currently holds the task — additive/opt-in only (the household-wide
+   * "Alle Aufgaben" tab passes it; every other caller omits it, so this
+   * component's default rendering is unchanged). `null` for an `AVAILABLE`
+   * task (nothing to show), an object for `ASSIGNED`.
+   */
+  assignee?: HouseholdTaskAssigneeDto | null;
 }
 
-export function TaskCard({ task, onAction, actionLabel }: TaskCardProps) {
+export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProps) {
   const { de } = useStrings();
 
   const meta: string[] = [];
@@ -41,6 +48,13 @@ export function TaskCard({ task, onAction, actionLabel }: TaskCardProps) {
         )}
       </div>
       {task.status !== 'AVAILABLE' && <StatusBadge status={task.status} />}
+      {assignee && (
+        <p className={styles.assignee}>
+          {interpolate(de.task.assignedTo, { name: assignee.displayName })}
+          {' · '}
+          {de.task.assignmentKind[assignee.kind]}
+        </p>
+      )}
       {meta.length > 0 && (
         <p className={styles.meta}>
           <Clock size={14} strokeWidth={1.75} aria-hidden="true" />

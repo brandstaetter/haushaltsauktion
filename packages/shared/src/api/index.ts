@@ -10,6 +10,8 @@ export type {
   CategoryRefDto,
   CompleteRequest,
   CompletionResultDto,
+  HouseholdTaskAssigneeDto,
+  HouseholdTaskDto,
   MemberRefDto,
   PointTransactionRefDto,
   TaskInstanceDetailDto,
