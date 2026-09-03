@@ -10,6 +10,7 @@ build/
 out/
 *.tsbuildinfo
 .planning/cache/
+storybook-static/
 
 # Environment
 .env
