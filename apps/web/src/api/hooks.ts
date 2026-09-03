@@ -526,6 +526,15 @@ export function useArchiveTaskDefinition() {
   });
 }
 
+export function useReactivateTaskDefinition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<{ id: string }>(`/admin/task-definitions/${id}/reactivate`, { method: 'POST' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: adminTaskDefinitionsQueryKey }),
+  });
+}
+
 export function useUpdateTaskEligibility() {
   const qc = useQueryClient();
   return useMutation({

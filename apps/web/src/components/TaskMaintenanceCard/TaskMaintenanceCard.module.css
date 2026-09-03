@@ -1,0 +1,98 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--ground);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-1);
+  flex-wrap: wrap;
+}
+
+.name {
+  font: var(--t-h3);
+}
+
+/* Same muted tone as `.hint` -- reads as inactive, next to the archived
+   badge instead of the normal ink color. */
+.nameArchived {
+  color: var(--ink-3);
+}
+
+.archivedBadge {
+  display: inline-block;
+  font: var(--t-label);
+  color: var(--ink-2);
+  background: var(--accent-soft);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
+}
+
+.hint {
+  color: var(--ink-3);
+}
+
+/* Flex, not grid: a grid's `auto-fit` columns break at fixed thresholds —
+   on a narrow phone that dropped the 3rd field to its own full-width row
+   instead of shrinking all three together. Flex lets each field give up
+   width gracefully (wrapping its own label) so all three always share one
+   row, at any card width. */
+.fields {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font: var(--t-body-sm);
+  flex: 1 1 90px;
+  min-width: 0;
+}
+
+/* The ValueChip is naturally compact (inline-flex) — `flex: 0 0 auto` keeps
+   it at that natural width instead of growing/shrinking like the two text
+   fields it sits next to. */
+.baseValueCell {
+  display: flex;
+  align-items: flex-start;
+  flex: 0 0 auto;
+}
+
+/* Pushes the buyout-allowed label/value to the right edge of the fields
+   row, instead of sitting left-justified in the middle of its grid cell. */
+.buyoutField {
+  align-items: flex-end;
+  text-align: right;
+}
+
+/* Grid, not flex-wrap: auto-fit sizes every column to the same width, so
+   when the row wraps the buttons line up in a real 2-column (or N-column)
+   grid instead of each row growing its own two buttons to independently
+   different widths. Columns collapse (not just shrink) when there's room
+   for all four across, so a 2-button row (e.g. archived) still spans full
+   width evenly rather than sitting in half-empty grid tracks. */
+.actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--s-2);
+}
+
+.actions button {
+  white-space: nowrap;
+}

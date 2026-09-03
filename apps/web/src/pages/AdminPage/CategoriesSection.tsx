@@ -12,11 +12,9 @@ import {
   SortableContext,
   arrayMove,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   useAdminCategories,
   useCreateCategory,
@@ -29,6 +27,7 @@ import type { CategoryDto } from '../../api/types';
 import { useStrings } from '../../context/StringsContext';
 import type { Strings } from '../../strings/de';
 import { Button } from '../../components/Button/Button';
+import { CategoryCard, draftFromCategory, type CategoryDraft } from '../../components/CategoryCard/CategoryCard';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { Toast } from '../../components/Toast/Toast';
 import { interpolate } from '../../utils/format';
@@ -129,106 +128,6 @@ function AddCategoryForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-// ───────────────────────── category row ─────────────────────────
-
-interface CategoryDraft {
-  name: string;
-  colorHex: string;
-}
-
-function draftFromCategory(category: CategoryDto): CategoryDraft {
-  return {
-    name: category.name,
-    colorHex: category.colorHex ?? '#888888',
-  };
-}
-
-function sameDraft(a: CategoryDraft, b: CategoryDraft): boolean {
-  return a.name === b.name && a.colorHex === b.colorHex;
-}
-
-function CategoryRow({
-  category,
-  draft,
-  error,
-  saving,
-  deleting,
-  dragDisabled,
-  onChange,
-  onSave,
-  onDelete,
-}: {
-  category: CategoryDto;
-  draft: CategoryDraft;
-  error: string | null;
-  saving: boolean;
-  deleting: boolean;
-  dragDisabled: boolean;
-  onChange: (patch: Partial<CategoryDraft>) => void;
-  onSave: () => void;
-  onDelete: () => void;
-}) {
-  const { de } = useStrings();
-  const dirty = !sameDraft(draft, draftFromCategory(category));
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: category.id,
-    disabled: dragDisabled,
-  });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <li ref={setNodeRef} style={style} className={styles.memberRow}>
-      {error && (
-        <div className={styles.message} role="alert">
-          {error}
-        </div>
-      )}
-      <div className={styles.categoryRowHeader}>
-        <button
-          type="button"
-          className={styles.dragHandle}
-          aria-label={de.admin.categories.dragHandle}
-          disabled={dragDisabled}
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical size={20} aria-hidden="true" />
-        </button>
-        <div className={styles.memberFields}>
-          <label className={styles.field}>
-            <span>{de.admin.categories.name}</span>
-            <input
-              type="text"
-              value={draft.name}
-              onChange={(e) => onChange({ name: e.target.value })}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>{de.admin.categories.color}</span>
-            <input
-              type="color"
-              value={draft.colorHex}
-              onChange={(e) => onChange({ colorHex: e.target.value })}
-            />
-          </label>
-        </div>
-      </div>
-      <div className={styles.rowActions}>
-        <Button onClick={onSave} loading={saving} disabled={!dirty}>
-          {de.admin.categories.save}
-        </Button>
-        <Button variant="danger" onClick={onDelete} loading={deleting}>
-          {de.admin.categories.delete}
-        </Button>
-      </div>
-    </li>
   );
 }
 
@@ -359,7 +258,7 @@ export function CategoriesSection() {
           >
             <ul className={styles.list}>
               {filteredCategories.map((category) => (
-                <CategoryRow
+                <CategoryCard
                   key={category.id}
                   category={category}
                   draft={draftFor(category)}

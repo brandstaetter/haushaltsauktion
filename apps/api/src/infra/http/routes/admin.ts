@@ -425,6 +425,64 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
     return reply.status(204).send();
   });
 
+  app.post('/admin/task-definitions/:id/reactivate', async (request, reply) => {
+    const ctx = requireAdmin(request, reply);
+    const params = parse(IdParam, request.params);
+    const definition = await deps.db.taskDefinition.findFirst({
+      where: { id: params.id, householdId: ctx.householdId, archivedAt: { not: null } },
+      select: {
+        recurrenceType: true,
+        recurrenceInterval: true,
+        recurrenceWeekdays: true,
+        recurrenceDayOfMonth: true,
+        recurrenceTimeOfDay: true,
+        dueOffsetMinutes: true,
+      },
+    });
+    if (definition === null) throw new NotFoundError('Archivierte Aufgabendefinition nicht gefunden.');
+    // Mirrors `POST /admin/task-definitions`' initial `nextDueAt` — the sweep's
+    // `WHERE nextDueAt <= now` (runAssignmentSweep.ts) never matches a null
+    // value, so leaving it null here would silently strand the definition,
+    // never materializing again despite `isActive: true`.
+    //
+    // `archivedAt: { not: null }` here too (not just in the `findFirst`
+    // above) so a second concurrent reactivate — or an archive racing this
+    // one — can't win a stale 200 and its own bogus audit event once the
+    // row's already been touched between the lookup and this write.
+    const { count } = await deps.db.taskDefinition.updateMany({
+      where: { id: params.id, householdId: ctx.householdId, archivedAt: { not: null } },
+      data: {
+        archivedAt: null,
+        isActive: true,
+        nextDueAt: nextOccurrence(
+          {
+            type: definition.recurrenceType,
+            interval: definition.recurrenceInterval,
+            weekdays: definition.recurrenceWeekdays,
+            dayOfMonth: definition.recurrenceDayOfMonth,
+            timeOfDay: definition.recurrenceTimeOfDay,
+            dueOffsetMinutes: definition.dueOffsetMinutes,
+          },
+          deps.clock.now(),
+          ctx.householdTimezone,
+        ),
+      },
+    });
+    if (count === 0) throw new NotFoundError('Archivierte Aufgabendefinition nicht gefunden.');
+    await deps.db.auditEvent.create({
+      data: {
+        householdId: ctx.householdId,
+        actorType: 'ADMIN',
+        actorMemberId: ctx.memberId,
+        action: 'TASK_DEFINITION_REACTIVATED',
+        entityType: 'TaskDefinition',
+        entityId: params.id,
+        payload: {},
+      },
+    });
+    return { id: params.id };
+  });
+
   app.put('/admin/task-definitions/:id/eligibility', async (request, reply) => {
     const ctx = requireAdmin(request, reply);
     const params = parse(IdParam, request.params);

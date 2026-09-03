@@ -1,0 +1,111 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--ground);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.name {
+  font: var(--t-h3);
+}
+
+.hint {
+  color: var(--ink-3);
+}
+
+/* Flex-wrap, not grid: a grid's `auto-fit` columns break at fixed
+   thresholds, which on a narrow phone left a long label ("Max.
+   Zufallszuweisungen/Woche") wrapping across three lines inside a
+   too-narrow column. With four fields here (vs. three on
+   TaskMaintenanceCard), shrinking them all onto one row at any width
+   goes past a `<select>`/number input's usable minimum and the two
+   overlap instead -- so this wraps to a clean 2-up row when tight
+   instead of squeezing four onto one. */
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font: var(--t-body-sm);
+  flex: 1 1 100px;
+  min-width: 90px;
+}
+
+.field input,
+.field select {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: var(--t-body);
+}
+
+/* Gives the "Aktiv"-checkbox and the read-only balance cell the same
+   bordered-box weight as the role `<select>`/number `<input>` cells next to
+   them in `.fields` — without those, a bare checkbox and a plain text span
+   read as much lighter/smaller than their boxed siblings even though all
+   four are equally important fields. */
+.fieldBox {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: var(--t-body);
+}
+
+.activeBox {
+  justify-content: center;
+}
+
+/* Distinguishes the read-only points balance from the editable
+   select/input/checkbox cells it sits next to in `.fields` -- same box
+   weight (per the comment above), but a dashed border, muted background,
+   and muted text so it doesn't visually invite a click/edit. */
+.readonlyBox {
+  border-style: dashed;
+  background: var(--ground);
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.activeBox input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Grid, not flex-wrap: auto-fit sizes every column to the same width, so
+   when the row wraps the buttons line up in a real 2-column (or N-column)
+   grid instead of each row growing its own buttons to independently
+   different widths. */
+.actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--s-2);
+}
+
+.actions button {
+  white-space: nowrap;
+}

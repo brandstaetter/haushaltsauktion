@@ -1,0 +1,108 @@
+.card {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--ground);
+  overflow: hidden;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fields {
+  display: flex;
+  gap: var(--s-3);
+  justify-content: space-between;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font: var(--t-body-sm);
+}
+
+.nameField {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.colorField {
+  flex: 0 0 auto;
+}
+
+.field input {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: var(--t-body);
+}
+
+/* `<input type="color">` doesn't grow to fit author padding the way a text
+   input does — its native swatch box just gets squeezed inside whatever
+   height the padding leaves, so the shared rule above reduced the visible
+   swatch to a ~9px sliver. Give it its own box: minimal padding so the
+   swatch has room, an explicit height so it isn't left to the UA default. */
+.field input[type='color'] {
+  height: 40px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+/* Spans the full height of the card (rather than a fixed square) so the
+   whole left edge is grabbable, narrower than before but kept >=44px tall
+   as a touch target (§31 mobile-first). `touch-action: none` keeps a
+   dnd-kit `PointerSensor` drag on a touch screen from being fought by the
+   browser's own scroll gesture on this handle. */
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 32px;
+  min-height: 44px;
+  border: none;
+  border-right: 1px solid var(--hairline);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink-3);
+  cursor: grab;
+  touch-action: none;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+/* While a filter narrows the list, a drag would reorder within a subset
+   dnd-kit never sees as the real index range — disabled rather than made to
+   lie about the resulting order. */
+.dragHandle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Two roughly equal-width buttons in one row instead of stacking full-width
+   underneath each other. `margin-top` tops up `.content`'s gap (var(--s-3),
+   12px) to 18px between the fields row and the buttons — 50% more than the
+   other gaps in this column. */
+.actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: calc(var(--s-3) * 0.5);
+}
+
+.actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}

@@ -1,0 +1,10 @@
+/* Bootstrap-warning-style amber, reusing the theme's own tier-1 value-chip
+   tokens (already light-yellow-on-dark-brown / dark-mode-aware) rather than
+   inventing a one-off palette. */
+.banner {
+  padding: var(--s-3) var(--s-4);
+  background: var(--value-fill-1);
+  border: 1px solid var(--value-border-1);
+  border-radius: var(--r-md);
+  color: var(--value-ink-1);
+}
