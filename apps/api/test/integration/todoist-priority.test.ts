@@ -144,8 +144,17 @@ test('a household with a configured priority produces outbox payloads and item_a
 test('a household with no configured priority sends no priority argument at all (default preserved)', async () => {
   await setTodoistConfig(null);
 
-  // elke is already connected from the previous test — the priority behaviour
-  // being tested here has nothing to do with (re)connecting.
+  // Self-contained rather than relying on the previous test's connection:
+  // `connectTodoist`'s DB write is an upsert (connectTodoist.ts), so
+  // reconnecting the same member is safe and idempotent.
+  const connected = await app.inject({
+    method: 'PUT',
+    url: '/api/integrations/todoist',
+    headers: authHeaders(elke),
+    payload: { token: 'irrelevant-fake-token' },
+  });
+  expect(connected.statusCode, connected.body).toBe(200);
+
   const instanceId = await createAvailableInstance(db, ids, 'bad', VALUE);
   const volunteered = await app.inject({
     method: 'POST',
