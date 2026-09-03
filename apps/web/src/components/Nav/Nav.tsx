@@ -1,5 +1,16 @@
-import { Home, History, User, Settings, Users, ClipboardList, Folder, Gift } from 'lucide-react';
-import { NavLink } from 'react-router';
+import {
+  Home,
+  History,
+  User,
+  Settings,
+  Users,
+  ClipboardList,
+  Folder,
+  Gift,
+  Wrench,
+  ArrowLeft,
+} from 'lucide-react';
+import { NavLink, useLocation } from 'react-router';
 import { useStrings } from '../../context/StringsContext';
 import styles from './Nav.module.css';
 
@@ -7,35 +18,37 @@ interface NavProps {
   role: 'MEMBER' | 'ADMIN' | null;
 }
 
+const MAINTENANCE_PREFIX = '/verwaltung';
+
 export function Nav({ role }: NavProps) {
   const { de } = useStrings();
-  const items = [
+  const { pathname } = useLocation();
+  const inMaintenance = pathname.startsWith(MAINTENANCE_PREFIX);
+
+  const mainItems = [
     { to: '/', icon: Home, label: de.nav.start },
     { to: '/verlauf', icon: History, label: de.nav.history },
     { to: '/ich', icon: User, label: de.nav.account },
   ];
 
-  const adminItems = [
+  if (role === 'ADMIN') {
+    mainItems.push({ to: '/verwaltung/einstellungen', icon: Wrench, label: de.nav.maintenance });
+  }
+
+  const submenuItems = [
     { to: '/verwaltung/einstellungen', icon: Settings, label: de.nav.adminSettings },
     { to: '/verwaltung/benutzer', icon: Users, label: de.nav.adminMembers },
     { to: '/verwaltung/aufgaben', icon: ClipboardList, label: de.nav.adminTasks },
     { to: '/verwaltung/kategorien', icon: Folder, label: de.nav.adminCategories },
     { to: '/verwaltung/punkte-shop', icon: Gift, label: de.nav.adminRewards },
+    { to: '/', icon: ArrowLeft, label: de.nav.back },
   ];
 
-  const visibleItems = role === 'ADMIN' ? [...items, ...adminItems] : items;
-
-  // §31 — auf schmalen Handys reicht die Spaltenbreite ab einer gewissen
-  // Eintragsanzahl (typischerweise die Admin-Nav mit 7 Einträgen) nicht mehr
-  // für sichtbaren Text, egal wie kurz die Labels sind. Statt einzelne
-  // Labels umbrechen zu lassen, wird die ganze Leiste dann konsequent
-  // Icon-only (Text bleibt für Screenreader über den weiterhin im DOM
-  // vorhandenen `<span>` erhalten, siehe `.compact` in Nav.module.css).
-  const compact = visibleItems.length > 4;
+  const visibleItems = role === 'ADMIN' && inMaintenance ? submenuItems : mainItems;
 
   return (
     <nav className={styles.nav} aria-label="Hauptnavigation">
-      <ul className={compact ? `${styles.list} ${styles.compact}` : styles.list}>
+      <ul className={styles.list}>
         {visibleItems.map((item) => (
           <li key={item.to}>
             <NavLink to={item.to} className={styles.link} end={item.to === '/'}>
