@@ -228,7 +228,7 @@ eine `HouseholdMember`-Zeile auf) — für plattformweite Zahlen gibt es dort
 strukturell keinen Zugriffspfad, und das ist Absicht (CLAUDE.md §36: „kein
 Zugriff auf fremde Haushalte"). Ein `OperatorAccount` ist deshalb weder ein
 Flag auf `User` noch eine Erweiterung von `Session` — eigenes Modell, eigenes
-Cookie (`op_session`, getrennt von `hh_session`), eigene Login-Route. Ein
+Cookie (`operator_session`, getrennt von `hh_session`), eigene Login-Route. Ein
 Haushalts-Login gewährt nie Zugriff auf `/api/operator/*` und umgekehrt; das
 ist eigens regressionsgetestet (`apps/api/test/integration/
 operator-isolation.test.ts`), nicht nur implizit über die üblichen

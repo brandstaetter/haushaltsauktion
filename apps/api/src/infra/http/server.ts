@@ -59,9 +59,9 @@ export async function buildServer(options: ServerOptions): Promise<FastifyInstan
 
   app.addHook('preHandler', makeContextPreHandler(db, () => deps.clock.now()));
   // Independent of the household hook above: attaches `request.operatorCtx`
-  // from a *different* cookie (`operator_session`), never `request.ctx`. The
-  // two never interfere — a request can carry at most one of the two cookies
-  // in practice, and each hook only ever looks at its own.
+  // from a *different* cookie (`operator_session`), never `request.ctx`.
+  // The two never interfere: each hook only reads its own cookie key, so even
+  // if a client sends both cookies the auth planes stay isolated.
   app.addHook('preHandler', makeOperatorContextPreHandler(db, () => deps.clock.now()));
 
   // Health probes live outside `/api` and outside auth (§3.11).
