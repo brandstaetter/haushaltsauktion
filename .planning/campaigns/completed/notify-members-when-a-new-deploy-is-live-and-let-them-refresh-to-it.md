@@ -132,3 +132,5 @@ Blocking: none
 - Completed At: 2026-09-03T13:55:09.345Z
 - Outcome: review-package
 - Verification: npm run typecheck, npm run lint, npm run test (all workspaces green: shared 144, api 305, web 121)
+
+- 2026-09-03: Delivered as PR #53: https://github.com/brandstaetter/haushaltsauktion/pull/53 (branch feat/notify-deploy-and-todoist-docs, bundled with the other pending intake item).
