@@ -308,3 +308,26 @@ export async function expectNoLineWrap(locator: Locator): Promise<void> {
 
   expect(result.lines, `"${result.text}" bricht in ${result.lines} Zeilen um.`).toBeLessThanOrEqual(1);
 }
+
+/**
+ * Prüft, dass ein Element seinen Text vollständig zeigt statt ihn per
+ * `text-overflow: ellipsis` abzuschneiden (§31 — Nav-Labels dürfen wieder
+ * sichtbaren Text tragen; ein "…" ist genauso unlesbar wie ein Umbruch, nur
+ * dass `expectNoLineWrap` es nicht bemerkt, weil `white-space: nowrap` einen
+ * Umbruch ohnehin strukturell ausschließt — hier zählt stattdessen, ob der
+ * Inhalt breiter ist als die sichtbare Box).
+ */
+export async function expectNoTextTruncation(locator: Locator): Promise<void> {
+  const result = await locator.evaluate((el) => ({
+    scrollWidth: el.scrollWidth,
+    clientWidth: el.clientWidth,
+    text: el.textContent,
+  }));
+
+  // 1px Toleranz für Subpixel-Rundung beim Messen selbst, nicht als
+  // erlaubter Abschneide-Spielraum für echten Text.
+  expect(
+    result.scrollWidth,
+    `"${result.text}" ist auf ${result.clientWidth}px abgeschnitten (benötigt ${result.scrollWidth}px).`,
+  ).toBeLessThanOrEqual(result.clientWidth + 1);
+}

@@ -33,10 +33,17 @@
   color: var(--ink-3);
 }
 
+/*
+ * Kein hartkodiertes `padding-bottom` mehr für die Nav-Höhe: `Nav.module
+ * .css` pinnt die untere Navigation per `position: sticky` statt `fixed`,
+ * wodurch sie ihre tatsächliche Höhe im Flex-Layout beansprucht — egal ob
+ * einzeilig (3-4 Einträge) oder zweizeilig (`.grid`-Untermenü, 5+ Einträge).
+ * Ein geratener Pixelwert hier würde bei jeder künftigen Nav-Höhenänderung
+ * erneut Inhalt unter der Leiste verstecken.
+ */
 .main {
   flex: 1;
   padding: var(--s-4);
-  padding-bottom: calc(var(--s-4) + 72px);
 }
 
 .spinner {
