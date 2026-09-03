@@ -1,8 +1,9 @@
 ---
 title: "Todoist task priority should be configurable in household settings instead of fixed"
-status: pending
+status: completed
 priority: normal
 target: packages/shared/src/config/schema.ts, apps/api/src/app/integrations/runReconciliation.ts, apps/api/src/infra/integrations/todoist-sync.ts, apps/web/src/pages/AdminPage/AdminSettingsPage.tsx
+campaign: todoist-task-priority-should-be-configurable-in-household-settings-instead-of-fi
 ---
 
 ## Description

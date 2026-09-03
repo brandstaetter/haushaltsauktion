@@ -91,7 +91,18 @@ describe('AdminSettingsPage', () => {
     const checkbox = screen.getByLabelText(de.admin.fields.todoistEnabled) as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
 
+    // The priority field must be exposed and default to "no value" (today's
+    // pre-feature behaviour: Todoist applies its own default).
+    const prioritySelect = screen.getByLabelText(
+      de.admin.fields.todoistPriority,
+    ) as HTMLSelectElement;
+    expect(prioritySelect.value).toBe('');
+
     await user.click(checkbox);
+    // Raw Todoist API value 4 = urgent (Todoist UI "P1") — see the field's own
+    // option labels, which spell out the UI mapping without introducing a
+    // second stored scale.
+    await user.selectOptions(prioritySelect, '4');
     await user.click(screen.getByRole('button', { name: de.admin.save }));
 
     // The invalidated `adminConfigQueryKey` refetches automatically, so the
@@ -101,6 +112,10 @@ describe('AdminSettingsPage', () => {
     expect((screen.getByLabelText(de.admin.fields.todoistEnabled) as HTMLInputElement).checked).toBe(
       true,
     );
+    expect(
+      (screen.getByLabelText(de.admin.fields.todoistPriority) as HTMLSelectElement).value,
+    ).toBe('4');
+    expect(current.values.integrations.todoist.priority).toBe(4);
 
     // A second save right after must not hit CONFIG_VERSION_CONFLICT: the
     // draft's expectedVersion has to be the freshly-refetched version 2, not

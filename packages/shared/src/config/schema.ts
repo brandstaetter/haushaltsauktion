@@ -188,6 +188,12 @@ const IntegrationsSchema = z
     todoist: z
       .strictObject({
         enabled: z.boolean().default(DEFAULT_CONFIG.integrations.todoist.enabled),
+        // Todoist's *API* numbering (4 = urgent .. 1 = normal — the opposite of
+        // the UI's p1..p4), forwarded as-is to `command.priority` in
+        // `todoist-sync.ts`. `null` omits the argument, preserving the
+        // pre-feature default (Todoist applies API value 1 / UI "p4" itself).
+        // See `TodoistIntegrationConfig.priority` for the full explanation.
+        priority: z.number().int().min(1).max(4).nullable().default(DEFAULT_CONFIG.integrations.todoist.priority),
       })
       .default(DEFAULT_CONFIG.integrations.todoist),
   })

@@ -86,6 +86,42 @@ describe('schema shape (§5.3)', () => {
   });
 });
 
+describe('integrations.todoist.priority (§16/§17)', () => {
+  it('defaults to null — no priority argument is sent, matching pre-feature behaviour', () => {
+    expect(DEFAULT_CONFIG.integrations.todoist.priority).toBeNull();
+  });
+
+  it('accepts every value in Todoist\'s actual API range (1..4)', () => {
+    for (const value of [1, 2, 3, 4]) {
+      const cfg = parseConfig({ integrations: { todoist: { priority: value } } });
+      expect(cfg.integrations.todoist.priority).toBe(value);
+    }
+  });
+
+  it('rejects values outside Todoist\'s API range', () => {
+    expect(pathsOf({ integrations: { todoist: { priority: 0 } } })).toContain(
+      'integrations.todoist.priority',
+    );
+    expect(pathsOf({ integrations: { todoist: { priority: 5 } } })).toContain(
+      'integrations.todoist.priority',
+    );
+  });
+
+  it('rejects a non-integer', () => {
+    expect(pathsOf({ integrations: { todoist: { priority: 2.5 } } })).toContain(
+      'integrations.todoist.priority',
+    );
+  });
+
+  it('accepts an explicit null, round-tripping to "no argument sent"', () => {
+    const cfg = patch((c) => {
+      c.integrations.todoist.priority = 4;
+    });
+    const reparsed = parseConfig({ ...cfg, integrations: { todoist: { ...cfg.integrations.todoist, priority: null } } });
+    expect(reparsed.integrations.todoist.priority).toBeNull();
+  });
+});
+
 describe('the §44 invariants cannot be switched off by configuration (§5.4)', () => {
   it('rejects a multiplier that cannot raise the value', () => {
     expect(pathsOf(patch((c) => (c.valueIncrease.multiplier = 1.0)))).toContain(
@@ -289,5 +325,11 @@ describe('the public projection (Reconciliation §1.3)', () => {
   it('tracks the source config rather than duplicating it', () => {
     const changed = toPublicConfig(patch((c) => (c.voluntary.rewardTiming = 'ON_ACCEPT')));
     expect(changed.voluntary.rewardTiming).toBe('ON_ACCEPT');
+  });
+
+  it('never projects integrations.todoist.priority — only the switch is member-facing', () => {
+    const withPriority = toPublicConfig(patch((c) => (c.integrations.todoist.priority = 4)));
+    expect(withPriority.integrations).toEqual({ todoist: { enabled: false } });
+    expect('priority' in withPriority.integrations.todoist).toBe(false);
   });
 });

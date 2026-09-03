@@ -111,6 +111,10 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
        * operating", not "operating invisibly".
        */
       enabled: false,
+      // null = omit the argument entirely, which is today's behaviour: Todoist
+      // applies its own default (API value 1 / UI "p4") when nothing is sent.
+      // See `TodoistIntegrationConfig.priority` for the direction convention.
+      priority: null,
     }),
   }),
 }) satisfies HouseholdConfig;

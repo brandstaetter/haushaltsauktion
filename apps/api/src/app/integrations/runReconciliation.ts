@@ -43,6 +43,9 @@ interface PayloadSource {
   dueAt: Date | null;
   timezone: string;
   projectId: string | null;
+  /** `integrations.todoist.priority` — see `TodoistIntegrationConfig` for the
+   * direction convention. `null` means "send no `priority` argument". */
+  priority: number | null;
 }
 
 export async function runReconciliation(
@@ -75,6 +78,10 @@ export async function runReconciliation(
   const integrations = (values.integrations ?? {}) as Record<string, unknown>;
   const todoistConfig = (integrations.todoist ?? {}) as Record<string, unknown>;
   const householdEnabled = todoistConfig.enabled === true;
+  // §16/§17: admin-configurable, not hardcoded. Raw Todoist API priority
+  // (4=urgent .. 1=normal), forwarded as-is — see `TodoistIntegrationConfig`.
+  const configuredPriority =
+    typeof todoistConfig.priority === 'number' ? todoistConfig.priority : null;
 
   // ── viable integrations ────────────────────────────────────────────────
   // "Viable" is status ACTIVE *and* a token that still exists: disconnect nulls
@@ -147,6 +154,7 @@ export async function runReconciliation(
       dueAt: assignment.instance.dueAt,
       timezone: household.timezone,
       projectId: integration.projectId,
+      priority: configuredPriority,
     });
   }
   outcome.desired = desired.length;
@@ -231,6 +239,7 @@ export async function runReconciliation(
         dueAt: source?.dueAt?.toISOString() ?? null,
         timezone: source?.timezone ?? 'UTC',
         projectId: source?.projectId ?? null,
+        priority: source?.priority ?? null,
       } as never,
     };
   });
