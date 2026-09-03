@@ -24,10 +24,18 @@
   color: var(--ink-3);
 }
 
+/* Flex-wrap, not grid: a grid's `auto-fit` columns break at fixed
+   thresholds, which on a narrow phone left a long label ("Max.
+   Zufallszuweisungen/Woche") wrapping across three lines inside a
+   too-narrow column. With four fields here (vs. three on
+   TaskMaintenanceCard), shrinking them all onto one row at any width
+   goes past a `<select>`/number input's usable minimum and the two
+   overlap instead -- so this wraps to a clean 2-up row when tight
+   instead of squeezing four onto one. */
 .fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--s-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
 }
 
 .field {
@@ -35,6 +43,8 @@
   flex-direction: column;
   gap: var(--s-1);
   font: var(--t-body-sm);
+  flex: 1 1 100px;
+  min-width: 90px;
 }
 
 .field input,
@@ -75,14 +85,16 @@
   cursor: pointer;
 }
 
-/* Three roughly equal-width buttons in one row instead of stacking
-   full-width underneath each other. */
+/* Grid, not flex-wrap: auto-fit sizes every column to the same width, so
+   when the row wraps the buttons line up in a real 2-column (or N-column)
+   grid instead of each row growing its own buttons to independently
+   different widths. */
 .actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: var(--s-2);
 }
 
-.actions > * {
-  flex: 1 1 0;
-  min-width: 0;
+.actions button {
+  white-space: nowrap;
 }
