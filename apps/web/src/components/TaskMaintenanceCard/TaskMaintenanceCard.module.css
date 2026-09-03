@@ -67,14 +67,20 @@
   text-align: right;
 }
 
-/* Roughly equal-width buttons in one row instead of stacking full-width
-   underneath each other. */
+/* Roughly equal-width buttons that share one row when there's room, and
+   wrap as whole buttons onto a second row when there isn't -- rather than
+   each button shrinking below its own label and wrapping that label's text
+   internally (uneven heights, words split mid-phrase). */
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--s-2);
 }
 
 .actions > * {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.actions button {
+  white-space: nowrap;
 }
