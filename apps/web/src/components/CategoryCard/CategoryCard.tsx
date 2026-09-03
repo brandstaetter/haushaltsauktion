@@ -65,24 +65,24 @@ export function CategoryCard({
 
   return (
     <li ref={setNodeRef} style={style} className={styles.card}>
-      {error && (
-        <div className={styles.message} role="alert">
-          {error}
-        </div>
-      )}
-      <div className={styles.header}>
-        <button
-          type="button"
-          className={styles.dragHandle}
-          aria-label={de.admin.categories.dragHandle}
-          disabled={dragDisabled}
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical size={20} aria-hidden="true" />
-        </button>
+      <button
+        type="button"
+        className={styles.dragHandle}
+        aria-label={de.admin.categories.dragHandle}
+        disabled={dragDisabled}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={20} aria-hidden="true" />
+      </button>
+      <div className={styles.content}>
+        {error && (
+          <div className={styles.message} role="alert">
+            {error}
+          </div>
+        )}
         <div className={styles.fields}>
-          <label className={styles.field}>
+          <label className={`${styles.field} ${styles.nameField}`}>
             <span>{de.admin.categories.name}</span>
             <input
               type="text"
@@ -90,7 +90,7 @@ export function CategoryCard({
               onChange={(e) => onChange({ name: e.target.value })}
             />
           </label>
-          <label className={styles.field}>
+          <label className={`${styles.field} ${styles.colorField}`}>
             <span>{de.admin.categories.color}</span>
             <input
               type="color"
@@ -99,14 +99,14 @@ export function CategoryCard({
             />
           </label>
         </div>
-      </div>
-      <div className={styles.actions}>
-        <Button size="sm" onClick={onSave} loading={saving} disabled={!dirty}>
-          {de.admin.categories.save}
-        </Button>
-        <Button size="sm" variant="danger" onClick={onDelete} loading={deleting}>
-          {de.admin.categories.delete}
-        </Button>
+        <div className={styles.actions}>
+          <Button size="sm" onClick={onSave} loading={saving} disabled={!dirty}>
+            {de.admin.categories.save}
+          </Button>
+          <Button size="sm" variant="danger" onClick={onDelete} loading={deleting}>
+            {de.admin.categories.delete}
+          </Button>
+        </div>
       </div>
     </li>
   );

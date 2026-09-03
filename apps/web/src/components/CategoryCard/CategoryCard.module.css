@@ -1,11 +1,19 @@
 .card {
   display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  padding: var(--s-3);
+  align-items: stretch;
   border: 1px solid var(--hairline);
   border-radius: var(--r-md);
   background: var(--ground);
+  overflow: hidden;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .message {
@@ -16,17 +24,10 @@
   color: var(--ink);
 }
 
-.header {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s-3);
-}
-
 .fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  display: flex;
   gap: var(--s-3);
-  flex: 1 1 auto;
+  justify-content: space-between;
 }
 
 .field {
@@ -34,6 +35,15 @@
   flex-direction: column;
   gap: var(--s-1);
   font: var(--t-body-sm);
+}
+
+.nameField {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.colorField {
+  flex: 0 0 auto;
 }
 
 .field input {
@@ -56,18 +66,22 @@
   cursor: pointer;
 }
 
-/* 44px touch target (§31 mobile-first) and `touch-action: none` so a
-   dnd-kit `PointerSensor` drag on a touch screen isn't fought by the
+/* Spans the full height of the card (rather than a fixed square) so the
+   whole left edge is grabbable, narrower than before but kept >=44px tall
+   as a touch target (§31 mobile-first). `touch-action: none` keeps a
+   dnd-kit `PointerSensor` drag on a touch screen from being fought by the
    browser's own scroll gesture on this handle. */
 .dragHandle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
+  align-self: stretch;
+  width: 32px;
+  min-height: 44px;
+  border: none;
+  border-right: 1px solid var(--hairline);
+  border-radius: 0;
   background: var(--surface);
   color: var(--ink-3);
   cursor: grab;
