@@ -105,7 +105,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
 | 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
 | 3 | complete | verify | Run verification | npm run test passes |
-| 4 |  complete | package | Package for review | PR link or local review package is recorded |
+| 4 |   complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
@@ -113,7 +113,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 |---|---|---|---|---|---|---|---|
 | phase:2 | implementation-diff | file_diff | yes | git diff --stat — 26 files changed, 501 insertions(+), 7 deletions(-); plus new files (2 migrations, app/rewards/, domain/rewards/, infra/http/routes/rewards.ts, RewardsShopPage, AdminRewardsPage, RewardsSection, RewardRedemptionsSection, RewardPurchaseDisclosure, packages/shared/src/api/rewards.ts, 2 new test files) | done | 2 | — |
 | phase:3 | verification-command | test_result | yes | npm run typecheck (root, clean) · npm run lint (root, clean) · npm run test (shared 144 passed, api 293 passed incl. new reward-shop domain+integration tests, web 118 passed) — all against a live Postgres via migrate dev | done | 2 | — |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/punkte-shop-reale-belohnungen-gegen-punkte-einl-sbar-adminseitig-verwaltet-und-e.md | resolved | 2 | review local handoff package |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/51 | resolved | 2 | review pull request |
 
 ## Decision Log
 
