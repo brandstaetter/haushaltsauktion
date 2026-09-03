@@ -45,10 +45,17 @@ export function Nav({ role }: NavProps) {
   ];
 
   const visibleItems = role === 'ADMIN' && inMaintenance ? submenuItems : mainItems;
+  // Ab 5 Spalten reicht selbst die gleichmäßige Aufteilung von §31 nicht
+  // mehr für lange Labels ("Einstellungen", "Punkte-Shop") auf 390px — statt
+  // sie mit Ellipsis abzuschneiden (unlesbar, siehe Decision Log), bricht die
+  // Leiste dann kontrolliert in Zeilen zu je 3 Spalten um (aktuell 2 Zeilen
+  // bei den 6 Einträgen des Verwaltungs-Untermenüs; bei mehr Einträgen in
+  // Zukunft entsprechend mehr Zeilen).
+  const grid = visibleItems.length > 4;
 
   return (
     <nav className={styles.nav} aria-label="Hauptnavigation">
-      <ul className={styles.list}>
+      <ul className={grid ? `${styles.list} ${styles.grid}` : styles.list}>
         {visibleItems.map((item) => (
           <li key={item.to}>
             <NavLink to={item.to} className={styles.link} end={item.to === '/'}>

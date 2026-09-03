@@ -1,7 +1,17 @@
+/*
+ * `height` (nicht nur `min-height`) auf dem Handy: das App-Shell-Layout
+ * braucht eine harte Obergrenze, damit die untere Navigation garantiert
+ * innerhalb des Viewports bleibt, egal wie lang die Seite ist. Mit nur
+ * `min-height` würde `.layout` mit langem Seiteninhalt (z. B. `HistoryPage`)
+ * über den Viewport hinaus wachsen — die Nav käme dann erst ganz am Ende
+ * des Dokuments, unsichtbar bis man dorthin scrollt (genau der Bug, den
+ * `position: sticky` allein nicht löst, siehe Nav.module.css). Stattdessen
+ * scrollt `.main` unten selbst intern.
+ */
 .layout {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
   max-width: 1600px;
   margin: 0 auto;
 }
@@ -33,10 +43,22 @@
   color: var(--ink-3);
 }
 
+/*
+ * Kein hartkodiertes `padding-bottom` mehr für die Nav-Höhe: `.main` scrollt
+ * jetzt selbst (`overflow-y: auto`) innerhalb des höhenbegrenzten `.layout`
+ * (siehe oben), statt dass die ganze Seite scrollt. Die untere Nav bleibt
+ * dadurch als normales, nicht positioniertes Flex-Element am unteren Rand
+ * sichtbar — unabhängig von ihrer tatsächlichen Höhe (einzeilig oder das
+ * zweizeilige `.grid`-Untermenü) und unabhängig davon, wie lang der Inhalt
+ * von `.main` ist. `min-height: 0` ist hier kein Stilrest, sondern nötig:
+ * ohne das würde der Flex-Item-Default (`min-height: auto`) `.main` auf die
+ * Höhe seines Inhalts aufblähen statt `overflow-y: auto` greifen zu lassen.
+ */
 .main {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--s-4);
-  padding-bottom: calc(var(--s-4) + 72px);
 }
 
 .spinner {
@@ -54,8 +76,17 @@
 }
 
 @media (min-width: 900px) {
+  /*
+   * Die Desktop-Seitenleiste ist von der mobilen "Nav am Ende des Viewports
+   * verstecken sich"-Falle gar nicht betroffen (sie steht als `position:
+   * static` fest neben dem Inhalt, siehe Nav.module.css) — hier gilt wieder
+   * das ursprüngliche Verhalten: die ganze Seite scrollt, der Header bleibt
+   * per `position: sticky` oben kleben.
+   */
   .layout {
     display: grid;
+    height: auto;
+    min-height: 100dvh;
     grid-template-columns: 220px 1fr;
     grid-template-rows: auto 1fr;
     grid-template-areas:
@@ -76,6 +107,8 @@
     max-width: 1040px;
     margin: 0 auto;
     width: 100%;
+    min-height: auto;
+    overflow-y: visible;
     padding-bottom: var(--s-4);
   }
 }

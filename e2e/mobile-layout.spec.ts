@@ -11,7 +11,14 @@
 
 import { expect, test } from '@playwright/test';
 
-import { expectNoLineWrap, expectNoHorizontalScroll, expectNoMidWordWrap, NO_SESSION, storageStatePath } from './helpers';
+import {
+  expectNoLineWrap,
+  expectNoTextTruncation,
+  expectNoHorizontalScroll,
+  expectNoMidWordWrap,
+  NO_SESSION,
+  storageStatePath,
+} from './helpers';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -107,7 +114,9 @@ test.describe('Mobile Darstellung (390×844)', () => {
       await expect(links).toHaveCount(4);
 
       for (const label of ['Start', 'Verlauf', 'Ich', 'Verwaltung']) {
-        await expectNoLineWrap(nav.getByRole('link', { name: label, exact: true }));
+        const link = nav.getByRole('link', { name: label, exact: true });
+        await expectNoLineWrap(link);
+        await expectNoTextTruncation(link.locator('span'));
       }
 
       const heights = await links.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
@@ -118,7 +127,7 @@ test.describe('Mobile Darstellung (390×844)', () => {
       ).toBe(1);
     });
 
-    test('Verwaltungs-Untermenü: kein Label bricht um, alle Einträge bleiben gleich hoch', async ({ page }) => {
+    test('Verwaltungs-Untermenü: kein Label bricht um oder wird abgeschnitten, bricht kontrolliert auf zwei Zeilen um', async ({ page }) => {
       await page.getByRole('link', { name: 'Verwaltung', exact: true }).click();
       await expect(page).toHaveURL(/\/verwaltung\/einstellungen$/);
 
@@ -128,7 +137,12 @@ test.describe('Mobile Darstellung (390×844)', () => {
       await expect(links).toHaveCount(6);
 
       for (const label of ['Einstellungen', 'Benutzer', 'Aufgaben', 'Kategorien', 'Punkte-Shop', 'Zurück']) {
-        await expectNoLineWrap(nav.getByRole('link', { name: label, exact: true }));
+        const link = nav.getByRole('link', { name: label, exact: true });
+        await expectNoLineWrap(link);
+        // Die eigentliche Regression: ein Label kann einzeilig bleiben und
+        // trotzdem per `text-overflow: ellipsis` unlesbar abgeschnitten
+        // sein, ohne dass `expectNoLineWrap` das bemerkt.
+        await expectNoTextTruncation(link.locator('span'));
       }
 
       const heights = await links.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
@@ -137,6 +151,14 @@ test.describe('Mobile Darstellung (390×844)', () => {
         distinctHeights.size,
         `Nav-Einträge sind unterschiedlich hoch, die Leiste ist nicht mehr ausgerichtet: ${heights.join(', ')}`,
       ).toBe(1);
+
+      // 6 Einträge auf 390px brauchen zwei Zeilen zu je 3 Spalten (`.grid`
+      // in Nav.module.css) — sonst wären die Spalten wieder so schmal wie
+      // im ursprünglichen Bug. Bestätigt, dass tatsächlich umgebrochen
+      // wurde, statt sich auf eine einzelne, versehentlich passende Breite
+      // zu verlassen.
+      const tops = await links.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+      expect(new Set(tops).size, `Erwartet zwei Zeilen, gemessen: ${tops.join(', ')}`).toBe(2);
 
       await nav.getByRole('link', { name: 'Zurück', exact: true }).click();
       await expect(page).toHaveURL(/\/$/);
@@ -162,7 +184,9 @@ test.describe('Mobile Darstellung (390×844)', () => {
       await expect(links).toHaveCount(3);
 
       for (const label of ['Start', 'Verlauf', 'Ich']) {
-        await expectNoLineWrap(nav.getByRole('link', { name: label, exact: true }));
+        const link = nav.getByRole('link', { name: label, exact: true });
+        await expectNoLineWrap(link);
+        await expectNoTextTruncation(link.locator('span'));
       }
 
       const heights = await links.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));

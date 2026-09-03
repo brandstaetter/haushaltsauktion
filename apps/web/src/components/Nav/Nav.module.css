@@ -1,16 +1,23 @@
+/*
+ * Kein `position: fixed`/`sticky` mehr auf dem Handy: beides koppelt die
+ * Nav-Höhe zurück an `Layout.module.css` (`fixed` braucht dort ein
+ * geratenes `padding-bottom`; `sticky` hält die Leiste nur fest, *nachdem*
+ * sie in den Viewport gescrollt wurde — bei einer langen Seite wie
+ * `HistoryPage` bliebe die Nav dann unsichtbar, bis man ganz nach unten
+ * scrollt, ein Regressions-Risiko für eine primäre Navigation). Die Nav ist
+ * jetzt ein normales, unpositioniertes Flex-Element am Ende von `.layout`,
+ * das dort per `height: 100dvh` + intern scrollendem `.main` immer sichtbar
+ * bleibt — unabhängig von ihrer tatsächlichen Höhe.
+ */
 .nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   background: var(--surface);
   border-top: 1px solid var(--hairline);
   padding-bottom: max(var(--s-2), env(safe-area-inset-bottom));
-  z-index: 20;
 }
 
 .list {
   display: flex;
+  flex-wrap: wrap;
   list-style: none;
   margin: 0;
   padding: var(--s-2) 0 0;
@@ -20,6 +27,21 @@
   flex: 1 1 0;
   min-width: 0;
   display: flex;
+}
+
+/*
+ * Bei mehr als 4 Spalten (z. B. das 6-teilige Verwaltungs-Untermenü) reicht
+ * eine gemeinsame Zeile auf 390px nicht mehr für lange Labels wie
+ * "Einstellungen" oder "Punkte-Shop", ohne sie per Ellipsis abzuschneiden —
+ * das machte sie unlesbar, ohne dass `expectNoLineWrap` es bemerkte (der
+ * Test prüft nur "kein Umbruch", nicht "kein abgeschnittener Text"; bei
+ * `white-space: nowrap` ist ein Umbruch aber ohnehin unmöglich). Statt die
+ * Spalten weiter zu verschmälern, bricht die Leiste kontrolliert auf zwei
+ * Zeilen zu je 3 Spalten um — jede Spalte bleibt dadurch doppelt so breit
+ * wie in einer erzwungenen Einzeilen-Lösung.
+ */
+.list.grid li {
+  flex: 0 0 33.3333%;
 }
 
 .link {
@@ -37,13 +59,15 @@
 }
 
 /*
- * Jede Spalte bekommt via `flex: 1 1 0` auf `.list li` denselben Anteil der
- * Breite (statt `justify-content: space-around`, das Spalten je nach
- * Labellänge unterschiedlich breit ließ und so ausgerechnet das längste
- * Label — z. B. "Einstellungen" im Verwaltungs-Untermenü — zuerst zum
- * Umbrechen brachte). Ein Label, das trotzdem nicht passt, wird einzeilig
- * mit Ellipsis gekürzt statt umzubrechen, damit alle Spalten unabhängig von
- * Eintragsanzahl und Labellänge gleich hoch bleiben.
+ * Jede Spalte bekommt via `flex: 1 1 0` (bzw. `flex: 0 0 33.3333%` im
+ * `.grid`-Fall) denselben Anteil der Breite, statt `justify-content:
+ * space-around`, das Spalten je nach Labellänge unterschiedlich breit ließ.
+ * `white-space: nowrap` verhindert dazu jeden Umbruch — Ellipsis ist nur ein
+ * letzter Sicherheitsnetz für ein einzelnes Wort, das selbst eine ganze
+ * Spalte nicht ausfüllt; die eigentliche Lösung für zu viele Spalten ist der
+ * Zeilenumbruch der ganzen Leiste über `.grid` oben, nicht das Abschneiden
+ * einzelner Labels (das macht sie unlesbar und wurde bislang von keinem Test
+ * erkannt, siehe Decision Log).
  */
 .link span {
   max-width: 100%;
@@ -59,7 +83,6 @@
 
 @media (min-width: 900px) {
   .nav {
-    position: static;
     border-top: none;
     border-right: 1px solid var(--hairline);
     padding: var(--s-5);
@@ -68,11 +91,13 @@
 
   .list {
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
     gap: var(--s-2);
   }
 
-  .list li {
+  .list li,
+  .list.grid li {
     flex: none;
   }
 
