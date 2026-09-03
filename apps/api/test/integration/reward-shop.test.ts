@@ -261,6 +261,15 @@ test(
     const statuses = [first.statusCode, second.statusCode].sort();
     expect(statuses).toEqual([200, 409]);
 
+    // The loser's error detail must reflect what actually closed the
+    // redemption, not a stale read from before the race — a naive
+    // `existing.status` captured before the guarded `updateMany` would report
+    // the PENDING it started from instead of the FULFILLED the winner produced.
+    const loser = first.statusCode === 409 ? first : second;
+    expect((loser.json() as { error: { details: { currentStatus: string } } }).error.details.currentStatus).toBe(
+      'FULFILLED',
+    );
+
     const row = await db.rewardRedemption.findUniqueOrThrow({
       where: { id: redemptionId },
       select: { status: true },
@@ -271,7 +280,7 @@ test(
 );
 
 test(
-  'the shop switch: purchasing while rewards.enabled is false is rejected',
+  'the shop switch: browsing and purchasing while rewards.enabled is false are both rejected',
   async () => {
     const rewardId = await createReward({ title: 'Ausgeschalteter Shop', cost: 1 });
     await grantPoints(paul.memberId, 5);
@@ -294,6 +303,16 @@ test(
     expect(disabled.statusCode).toBe(200);
 
     try {
+      // The list route is the browse half of the same switch, not just the
+      // buy half — a disabled shop must not leak its catalog either.
+      const listRes = await app.inject({
+        method: 'GET',
+        url: '/api/rewards',
+        headers: { cookie: paul.cookie },
+      });
+      expect(listRes.statusCode).toBe(403);
+      expect((listRes.json() as { error: { code: string } }).error.code).toBe('REWARDS_DISABLED');
+
       const res = await app.inject({
         method: 'POST',
         url: `/api/rewards/${rewardId}/purchase`,

@@ -40,8 +40,17 @@ export async function fulfillRedemption(
     data: { status: 'FULFILLED', fulfilledAt: now, fulfilledByMemberId: input.actorMemberId },
   });
   if (count === 0) {
+    // `existing.status` was read before the race, so a loser here — the
+    // status flipped between that read and this updateMany — would report
+    // the stale PENDING it started from. Re-read so the detail reflects what
+    // actually closed the redemption (mirrors executeBuyout's ASSIGNMENT_CLOSED,
+    // which reads its status under a row lock rather than from an earlier read).
+    const current = await deps.db.rewardRedemption.findFirst({
+      where: { id: input.redemptionId, householdId: input.householdId },
+      select: { status: true },
+    });
     throw new ConflictError('REDEMPTION_CLOSED', 'Diese Einlösung wurde bereits bearbeitet.', {
-      currentStatus: existing.status,
+      currentStatus: current?.status ?? existing.status,
     });
   }
 

@@ -12,7 +12,7 @@ import { RewardPurchaseDisclosure } from '../../components/RewardPurchaseDisclos
 import { formatNumber, interpolate } from '../../utils/format';
 import styles from './RewardsShopPage.module.css';
 
-function purchaseErrorMessage(err: unknown, de: Strings): string {
+function rewardApiErrorMessage(err: unknown, de: Strings): string {
   const apiErr = err as { code?: string; details?: { balance?: number; cost?: number } };
   if (apiErr.code === 'REWARDS_DISABLED') return de.rewards.errors.disabled;
   if (apiErr.code === 'INSUFFICIENT_POINTS') {
@@ -29,7 +29,7 @@ export function RewardsShopPage() {
   const { de } = useStrings();
   const navigate = useNavigate();
   const { data: me } = useMemberMe();
-  const { data, isLoading } = useRewardShop();
+  const { data, isLoading, error: shopError } = useRewardShop();
   const purchase = usePurchaseReward();
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export function RewardsShopPage() {
         setConfirmingId(null);
         setMessage(de.rewards.purchaseSuccess);
       },
-      onError: (err) => setError(purchaseErrorMessage(err, de)),
+      onError: (err) => setError(rewardApiErrorMessage(err, de)),
     });
   };
 
@@ -70,6 +70,8 @@ export function RewardsShopPage() {
 
       {isLoading ? (
         <div className={styles.spinner} aria-label="Wird geladen" />
+      ) : shopError ? (
+        <p className={styles.hint}>{rewardApiErrorMessage(shopError, de)}</p>
       ) : items.length === 0 ? (
         <p className={styles.hint}>{de.rewards.empty}</p>
       ) : (
