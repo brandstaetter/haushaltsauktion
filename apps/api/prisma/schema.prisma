@@ -215,6 +215,47 @@ model Session {
   @@map("sessions")
 }
 
+// ───────────────────────── operator plane ─────────────────────────
+// Betriebsdashboard (intake operator-dashboard-active-households-users-metrics,
+// sharpened via /citadel:grill). Bewusst NICHT Teil der identity plane oben:
+// "wie viele Haushalte gibt es" ist inhärent haushaltsübergreifend, und
+// RequestContext (context.ts) ist strukturell an activeHouseholdId/householdId
+// gebunden. Ein OperatorAccount ist deshalb eine vollständig eigenständige
+// Identität — kein Feld, keine Relation, kein gemeinsames Cookie mit
+// User/Session/HouseholdMember. Dieselbe argon2id-Hashing wie User
+// (infra/auth/password.ts), aber eigene Tabellen, eigenes Cookie
+// ("operator_session"), eigener Login-/Context-Pfad (operatorContext.ts).
+
+model OperatorAccount {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash") // argon2id, wie User
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  sessions OperatorSession[]
+
+  @@map("operator_accounts")
+}
+
+model OperatorSession {
+  id                String    @id @default(cuid())
+  operatorAccountId String    @map("operator_account_id")
+  tokenHash         String    @unique @map("token_hash") // sha256 des opaken Cookie-Werts
+  csrfTokenHash     String    @map("csrf_token_hash") // Double-Submit-Partner, wie Session
+  createdAt         DateTime  @default(now()) @map("created_at")
+  lastSeenAt        DateTime  @default(now()) @map("last_seen_at")
+  expiresAt         DateTime  @map("expires_at")
+  revokedAt         DateTime? @map("revoked_at")
+  ipAddress         String?   @map("ip_address")
+  userAgent         String?   @map("user_agent")
+
+  operatorAccount OperatorAccount @relation(fields: [operatorAccountId], references: [id], onDelete: Cascade)
+
+  @@index([operatorAccountId])
+  @@index([expiresAt])
+  @@map("operator_sessions")
+}
+
 // ───────────────────────── household plane ─────────────────────────
 
 model Household {
@@ -235,8 +276,8 @@ model Household {
   notifications  Notification[]
   auditEvents    AuditEvent[]
 
-  memberIntegrations  MemberIntegration[]
-  integrationOutbox   IntegrationOutbox[]
+  memberIntegrations   MemberIntegration[]
+  integrationOutbox    IntegrationOutbox[]
   integrationTaskLinks IntegrationTaskLink[]
 
   @@map("households")
@@ -266,9 +307,9 @@ model HouseholdMember {
   /// noch keine Buchung. Wird NIE außerhalb von completeTask / clawback /
   /// runStreakSweep geschrieben; jede Punktewirkung läuft weiterhin über das
   /// Ledger (§14, §44) — dies sind reine Zustandsfelder, keine Salden.
-  streakLength          Int     @default(0) @map("streak_length")
-  streakLastActiveDate  String? @map("streak_last_active_date")
-  streakBonusPaidDate   String? @map("streak_bonus_paid_date")
+  streakLength         Int     @default(0) @map("streak_length")
+  streakLastActiveDate String? @map("streak_last_active_date")
+  streakBonusPaidDate  String? @map("streak_bonus_paid_date")
 
   joinedAt  DateTime @default(now()) @map("joined_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -800,10 +841,10 @@ model IntegrationOutbox {
   /// obwohl IntegrationTaskLink.externalTaskId NOT NULL ist.
   externalTaskId String? @map("external_task_id")
 
-  createdAt DateTime  @default(now()) @map("created_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
   /// Übergang in einen Endzustand (SENT/DEAD/SKIPPED/ORPHANED). Trägt die
   /// Sperrfrist (1 h) und das Deckel-Fenster (24 h).
-  settledAt DateTime? @map("settled_at")
+  settledAt        DateTime? @map("settled_at")
   /// Gibt dem zustandslosen 60-s-Reconciler ein Gedächtnis pro Schlüssel:
   /// `notifications` besitzt keinen Dedup-Schlüssel, also wäre "genau eine
   /// Benachrichtigung" sonst nur behauptet und nicht mechanisiert.
@@ -846,10 +887,10 @@ model IntegrationTaskLink {
   /// bräuchten.
   externalTaskId String @map("external_task_id")
 
-  createdAt DateTime  @default(now()) @map("created_at")
-  closedAt  DateTime? @map("closed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  closedAt    DateTime? @map("closed_at")
   /// RECONCILED (normal) | DISCONNECTED (Trennung).
-  closeReason String? @map("close_reason")
+  closeReason String?   @map("close_reason")
 
   household   Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
   member      HouseholdMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)

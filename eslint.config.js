@@ -142,6 +142,22 @@ export default tseslint.config(
     rules: { 'haushalt/household-scope': 'error' },
   },
 
+  // ── operator metrics: the one deliberate, audited cross-household query
+  // surface ──────────────────────────────────────────────────────────────
+  {
+    // Architektur `.planning/architecture-operator-dashboard.md` §4: platform-
+    // wide metrics (total households, total users, ...) are inherently
+    // cross-household — there is no householdId to filter by. Deliberately
+    // isolated to this one file (not scattered `eslint-disable` comments
+    // across the module) so the entire exception to CLAUDE.md §36 stays in
+    // one auditable place. Every query here is guarded instead by
+    // `requireOperator` (apps/api/src/infra/http/operatorContext.ts), a
+    // structurally separate identity that a household `Session` can never
+    // hold — proven by `apps/api/test/integration/operator-isolation.test.ts`.
+    files: ['apps/api/src/app/operator/metrics.ts'],
+    rules: { 'haushalt/household-scope': 'off' },
+  },
+
   // ── tests and the seed ───────────────────────────────────────────────
   {
     // The seed *creates* the household it would otherwise have to scope to, so

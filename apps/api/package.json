@@ -22,6 +22,8 @@
     "preseed": "npm run build -w @haushaltsauktion/shared",
     "create-admin": "tsx prisma/create-admin.ts",
     "precreate-admin": "npm run build -w @haushaltsauktion/shared",
+    "create-operator": "tsx prisma/create-operator.ts",
+    "precreate-operator": "npm run build -w @haushaltsauktion/shared",
     "verify-restore": "tsx prisma/verify-restore.ts",
     "sim": "tsx src/simulation/run.ts",
     "presim": "npm run build -w @haushaltsauktion/shared"

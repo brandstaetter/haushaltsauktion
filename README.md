@@ -214,6 +214,60 @@ erlauben, dann pro Person „Ich" → Todoist → Token einfügen.
 Betrieb, Schlüsselrotation, Fehlerdeutung und die Einzelinstanz-Bedingung beim
 Skalieren: **[`docs/todoist.md`](./docs/todoist.md)**.
 
+## Betriebsdashboard (Operator-Dashboard)
+
+Ein separates Cockpit für wer auch immer das Deployment betreibt — nicht für
+Haushaltsmitglieder, nicht für Admins eines Haushalts. Zeigt plattformweite
+Kennzahlen: aktive Haushalte, registrierte/aktive Nutzer, Aufgaben-Durchsatz,
+Punkte-Ledger-Volumen, Freikaufrate, Todoist-Adoption und Audit-Ereignis-
+Volumen — alle live berechnet, ohne Verlaufsspeicherung.
+
+**Bewusst eine eigene, vollständig getrennte Identität.** Die bestehende
+`ADMIN`-Rolle ist strikt haushaltsgebunden (`requireAdmin` löst immer zuerst
+eine `HouseholdMember`-Zeile auf) — für plattformweite Zahlen gibt es dort
+strukturell keinen Zugriffspfad, und das ist Absicht (CLAUDE.md §36: „kein
+Zugriff auf fremde Haushalte"). Ein `OperatorAccount` ist deshalb weder ein
+Flag auf `User` noch eine Erweiterung von `Session` — eigenes Modell, eigenes
+Cookie (`operator_session`, getrennt von `hh_session`), eigene Login-Route. Ein
+Haushalts-Login gewährt nie Zugriff auf `/api/operator/*` und umgekehrt; das
+ist eigens regressionsgetestet (`apps/api/test/integration/
+operator-isolation.test.ts`), nicht nur implizit über die üblichen
+Auth-Tests abgedeckt.
+
+**Einrichten:**
+
+```bash
+npm run create-operator -w apps/api
+```
+
+Interaktiv, fragt nur nach der E-Mail-Adresse, zeigt ein zufälliges Passwort
+genau einmal an (wie `create-admin`) — nirgendwo gespeichert, also sicher
+weitergeben und nach dem ersten Login ändern. Der Befehl ist **beliebig oft
+wiederholbar**: jeder erneute Aufruf mit einer neuen E-Mail-Adresse legt
+einen weiteren Operator-Account an. Es gibt bewusst keine
+In-App-Verwaltung für Operator-Accounts in v1 — Shell-/CLI-Zugriff auf den
+Server *ist* die Zugriffskontrolle.
+
+**Ohne eigenen Shell-Zugriff auf die Produktionsinstanz** (nur der
+Deploy-Workflow hat `DEPLOY_SSH_KEY`): der Workflow
+[`create-operator.yml`](.github/workflows/create-operator.yml) führt den
+gleichen Befehl per SSH im laufenden `api`-Container aus —
+`gh workflow run create-operator.yml -f email=operator@example.com`. Er
+generiert das Passwort nicht selbst, sondern erwartet es vorab als
+GitHub-Secret `OPERATOR_BOOTSTRAP_PASSWORD` (`gh secret set
+OPERATOR_BOOTSTRAP_PASSWORD`) — so landet nie ein Passwort im Workflow-Log,
+das GitHub nicht schon vorher kannte und automatisch maskiert.
+
+**Anmeldung:** [`/betrieb`](/betrieb) (leitet unangemeldet auf
+`/betrieb/login` weiter) — komplett unabhängig von der
+mitgliederseitigen `/login`-Seite, ohne Haushaltsauswahl erreichbar.
+
+Kein neuer Umgebungsvariablen-Bedarf: die CSRF-Ableitung für Operator-
+Sessions nutzt denselben `SESSION_SECRET` wie Haushalts-Sessions (verschiedene
+Cookie-Namen, verschiedene Tabellen — keine Kollisionsgefahr, aber eine
+Konfigurationszeile weniger für eine Familie ohne eigenen Systemadministrator,
+§37).
+
 ## Architektur
 
 Kurzfassung — die vollständige Begründung steht in
