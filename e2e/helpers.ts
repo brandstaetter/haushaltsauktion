@@ -261,3 +261,50 @@ export async function expectNoMidWordWrap(locator: Locator): Promise<void> {
     ).toBe(true);
   }
 }
+
+/**
+ * Prüft, dass ein Element seinen Text in genau einer Zeile darstellt — kein
+ * Umbruch, auch nicht sauber an einer Wortgrenze (§31 — hier für Nav-Labels:
+ * anders als beim Aktions-Button auf der `TaskCard`, wo ein Umbruch an der
+ * Wortgrenze in Ordnung ist, macht bei der unteren Navigation schon *ein*
+ * zusätzlicher Umbruch den betroffenen Eintrag höher als seine Nachbarn und
+ * verschiebt die ganze Leiste — es zählt jeder Umbruch, nicht nur ein
+ * mitten-im-Wort-Umbruch).
+ *
+ * Nutzt dieselbe `Range.getClientRects()`-Technik wie `expectNoMidWordWrap`.
+ */
+export async function expectNoLineWrap(locator: Locator): Promise<void> {
+  const result = await locator.evaluate((el) => {
+    // Skip whitespace-only text nodes (e.g. a stray text node between an
+    // icon element and the label `<span>`) rather than blindly taking the
+    // first one — that would silently check zero/whitespace content and let
+    // an actually-wrapped label pass.
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let textNode: Text | null = null;
+    for (let candidate = walker.nextNode() as Text | null; candidate; candidate = walker.nextNode() as Text | null) {
+      if ((candidate.textContent ?? '').trim().length > 0) {
+        textNode = candidate;
+        break;
+      }
+    }
+    if (!textNode) return { lines: 0, text: '' };
+
+    const text = textNode.textContent ?? '';
+    const range = document.createRange();
+    let lines = text.length > 0 ? 1 : 0;
+    let lastTop: number | null = null;
+    for (let i = 0; i < text.length; i += 1) {
+      range.setStart(textNode, i);
+      range.setEnd(textNode, i + 1);
+      const rect = range.getClientRects()[0];
+      if (!rect) continue;
+      if (lastTop !== null && Math.abs(rect.top - lastTop) > 1) {
+        lines += 1;
+      }
+      lastTop = rect.top;
+    }
+    return { lines, text };
+  });
+
+  expect(result.lines, `"${result.text}" bricht in ${result.lines} Zeilen um.`).toBeLessThanOrEqual(1);
+}

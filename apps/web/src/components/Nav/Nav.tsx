@@ -22,10 +22,20 @@ export function Nav({ role }: NavProps) {
     { to: '/verwaltung/kategorien', icon: Folder, label: de.nav.adminCategories },
   ];
 
+  const visibleItems = role === 'ADMIN' ? [...items, ...adminItems] : items;
+
+  // §31 — auf schmalen Handys reicht die Spaltenbreite ab einer gewissen
+  // Eintragsanzahl (typischerweise die Admin-Nav mit 7 Einträgen) nicht mehr
+  // für sichtbaren Text, egal wie kurz die Labels sind. Statt einzelne
+  // Labels umbrechen zu lassen, wird die ganze Leiste dann konsequent
+  // Icon-only (Text bleibt für Screenreader über den weiterhin im DOM
+  // vorhandenen `<span>` erhalten, siehe `.compact` in Nav.module.css).
+  const compact = visibleItems.length > 4;
+
   return (
     <nav className={styles.nav} aria-label="Hauptnavigation">
-      <ul className={styles.list}>
-        {items.map((item) => (
+      <ul className={compact ? `${styles.list} ${styles.compact}` : styles.list}>
+        {visibleItems.map((item) => (
           <li key={item.to}>
             <NavLink to={item.to} className={styles.link} end={item.to === '/'}>
               <item.icon size={20} strokeWidth={1.75} aria-hidden="true" />
@@ -33,15 +43,6 @@ export function Nav({ role }: NavProps) {
             </NavLink>
           </li>
         ))}
-        {role === 'ADMIN' &&
-          adminItems.map((item) => (
-            <li key={item.to}>
-              <NavLink to={item.to} className={styles.link}>
-                <item.icon size={20} strokeWidth={1.75} aria-hidden="true" />
-                <span>{item.label}</span>
-              </NavLink>
-            </li>
-          ))}
       </ul>
     </nav>
   );

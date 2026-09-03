@@ -11,7 +11,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { expectNoHorizontalScroll, expectNoMidWordWrap, NO_SESSION, storageStatePath } from './helpers';
+import { expectNoLineWrap, expectNoHorizontalScroll, expectNoMidWordWrap, NO_SESSION, storageStatePath } from './helpers';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -98,6 +98,61 @@ test.describe('Mobile Darstellung (390×844)', () => {
       // Start, Verlauf, Ich — plus Einstellungen, Benutzer, Aufgaben,
       // Kategorien für Elke (ADMIN).
       await expect(nav.getByRole('link')).toHaveCount(7);
+    });
+
+    test('Admin-Hauptnavigation: kein Label bricht um, alle Einträge bleiben gleich hoch', async ({ page }) => {
+      // 7 Spalten auf 390px sind zu schmal für sichtbaren Text (siehe
+      // Nav.tsx `compact` / Nav.module.css `.compact`) — die Leiste zeigt
+      // dann nur Icons. Die eigentliche Prüfung ist deshalb nicht "bricht
+      // der sichtbare Text um" (er ist gar nicht sichtbar), sondern dass
+      // dadurch kein Eintrag höher wird als seine Nachbarn, UND dass jeder
+      // Link trotzdem weiterhin für Screenreader benannt bleibt.
+      const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+      const links = nav.getByRole('link');
+      await expect(links).toHaveCount(7);
+
+      // Der zugängliche Name bleibt erhalten, obwohl der Text visuell
+      // ausgeblendet ist (nur `clip`/`position`, kein `display: none`).
+      for (const label of ['Start', 'Verlauf', 'Ich', 'Einstellungen', 'Benutzer', 'Aufgaben', 'Kategorien']) {
+        await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
+      }
+
+      const heights = await links.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
+      const distinctHeights = new Set(heights);
+      expect(
+        distinctHeights.size,
+        `Nav-Einträge sind unterschiedlich hoch, die Leiste ist nicht mehr ausgerichtet: ${heights.join(', ')}`,
+      ).toBe(1);
+    });
+  });
+
+  test.describe('angemeldet als Mitglied ohne Admin-Rechte', () => {
+    test.use({ storageState: storageStatePath('arthur') });
+
+    test.beforeEach(async ({ page }) => {
+      await page.goto('/');
+      await expect(page.getByRole('heading', { name: 'Hallo Arthur' })).toBeVisible();
+    });
+
+    test('Mitglieder-Hauptnavigation: kein Label bricht um', async ({ page }) => {
+      const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+      const links = nav.getByRole('link');
+
+      // Nur Start/Verlauf/Ich — keine Admin-Einträge. Bei 3 Spalten ist
+      // genug Platz, der Text bleibt hier sichtbar (kein Icon-only-
+      // Fallback), muss also weiterhin einzeilig bleiben.
+      await expect(links).toHaveCount(3);
+
+      for (const label of ['Start', 'Verlauf', 'Ich']) {
+        await expectNoLineWrap(nav.getByRole('link', { name: label, exact: true }));
+      }
+
+      const heights = await links.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
+      const distinctHeights = new Set(heights);
+      expect(
+        distinctHeights.size,
+        `Nav-Einträge sind unterschiedlich hoch, die Leiste ist nicht mehr ausgerichtet: ${heights.join(', ')}`,
+      ).toBe(1);
     });
   });
 });

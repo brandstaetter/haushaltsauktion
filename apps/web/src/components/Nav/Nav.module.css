@@ -39,6 +39,26 @@
   color: var(--accent);
 }
 
+/*
+ * Icon-only Fallback für zu viele Spalten auf schmalen Handys (z. B. die
+ * 7-Einträge-Admin-Nav auf 390px, siehe Nav.tsx `compact`).
+ *
+ * Der Text bleibt im DOM und damit der zugängliche Name des Links erhalten —
+ * nur visuell ausgeblendet (Standard "visually hidden"-Muster: 1x1px statt
+ * `display: none`, das ihn aus dem Accessibility Tree entfernen würde).
+ */
+.list.compact .link span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (min-width: 900px) {
   .nav {
     position: static;
@@ -64,5 +84,18 @@
 
   .link span {
     font-size: 14px;
+  }
+
+  /* Desktop-Seitenleiste hat genug Platz — Icon-only-Fallback nie anwenden. */
+  .list.compact .link span {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    border: 0;
   }
 }
