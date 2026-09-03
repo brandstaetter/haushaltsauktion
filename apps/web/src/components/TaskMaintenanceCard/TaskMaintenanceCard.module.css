@@ -32,10 +32,14 @@
   color: var(--ink);
 }
 
+/* Flex, not grid: a grid's `auto-fit` columns break at fixed thresholds —
+   on a narrow phone that dropped the 3rd field to its own full-width row
+   instead of shrinking all three together. Flex lets each field give up
+   width gracefully (wrapping its own label) so all three always share one
+   row, at any card width. */
 .fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--s-3);
+  display: flex;
+  gap: var(--s-2);
 }
 
 .field {
@@ -43,13 +47,17 @@
   flex-direction: column;
   gap: var(--s-1);
   font: var(--t-body-sm);
+  flex: 1 1 90px;
+  min-width: 0;
 }
 
-/* The ValueChip is naturally compact (inline-flex) — without this, its grid
-   cell stretches it to the full column width like the other 1fr fields. */
+/* The ValueChip is naturally compact (inline-flex) — `flex: 0 0 auto` keeps
+   it at that natural width instead of growing/shrinking like the two text
+   fields it sits next to. */
 .baseValueCell {
   display: flex;
   align-items: flex-start;
+  flex: 0 0 auto;
 }
 
 /* Pushes the buyout-allowed label/value to the right edge of the fields
