@@ -415,7 +415,7 @@ export const de = {
         ADMIN: 'Admin',
       },
       active: 'Aktiv',
-      maxRandomAssignmentsPerWeek: 'Max. Zufallszuweisungen/Woche',
+      maxRandomAssignmentsPerWeek: 'Zufallslimit/Woche',
       maxRandomAssignmentsPerWeekHint: 'Leer lassen für kein Limit.',
       balance: 'Punktestand',
       save: 'Speichern',
