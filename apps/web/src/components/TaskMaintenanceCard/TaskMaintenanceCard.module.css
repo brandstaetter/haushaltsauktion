@@ -45,6 +45,13 @@
   font: var(--t-body-sm);
 }
 
+/* The ValueChip is naturally compact (inline-flex) — without this, its grid
+   cell stretches it to the full column width like the other 1fr fields. */
+.baseValueCell {
+  display: flex;
+  align-items: flex-start;
+}
+
 /* Pushes the buyout-allowed label/value to the right edge of the fields
    row, instead of sitting left-justified in the middle of its grid cell. */
 .buyoutField {

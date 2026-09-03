@@ -1,9 +1,10 @@
 import type { AdminTaskDefinitionDto } from '../../api/types';
 import { useStrings } from '../../context/StringsContext';
 import type { Strings } from '../../strings/de';
-import { formatNumber, interpolate } from '../../utils/format';
+import { interpolate } from '../../utils/format';
 import { Button } from '../Button/Button';
 import { CategoryBadge } from '../CategoryBadge/CategoryBadge';
+import { ValueChip } from '../ValueChip/ValueChip';
 import styles from './TaskMaintenanceCard.module.css';
 
 export function recurrenceSummary(
@@ -90,9 +91,8 @@ export function TaskMaintenanceCard({
       )}
 
       <div className={styles.fields}>
-        <div className={styles.field}>
-          <span>{de.admin.taskDefinitions.baseValue}</span>
-          <span>{formatNumber(definition.baseValue)}</span>
+        <div className={styles.baseValueCell}>
+          <ValueChip value={definition.baseValue} baseValue={definition.baseValue} size="sm" showBase={false} />
         </div>
         <div className={styles.field}>
           <span>{de.admin.taskDefinitions.recurrence.title}</span>
