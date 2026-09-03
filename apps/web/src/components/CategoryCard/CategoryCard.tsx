@@ -101,10 +101,10 @@ export function CategoryCard({
         </div>
       </div>
       <div className={styles.actions}>
-        <Button onClick={onSave} loading={saving} disabled={!dirty}>
+        <Button size="sm" onClick={onSave} loading={saving} disabled={!dirty}>
           {de.admin.categories.save}
         </Button>
-        <Button variant="danger" onClick={onDelete} loading={deleting}>
+        <Button size="sm" variant="danger" onClick={onDelete} loading={deleting}>
           {de.admin.categories.delete}
         </Button>
       </div>
