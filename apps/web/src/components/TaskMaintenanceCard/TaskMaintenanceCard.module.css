@@ -24,16 +24,6 @@
   color: var(--ink-3);
 }
 
-/* Same Bootstrap-warning-style amber as CategoryCard's error banner --
-   the theme's tier-1 value-chip tokens, already dark-mode aware. */
-.message {
-  padding: var(--s-3) var(--s-4);
-  background: var(--value-fill-1);
-  border: 1px solid var(--value-border-1);
-  border-radius: var(--r-md);
-  color: var(--value-ink-1);
-}
-
 /* Flex, not grid: a grid's `auto-fit` columns break at fixed thresholds —
    on a narrow phone that dropped the 3rd field to its own full-width row
    instead of shrinking all three together. Flex lets each field give up

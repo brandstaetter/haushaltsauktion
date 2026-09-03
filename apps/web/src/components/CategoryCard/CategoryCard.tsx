@@ -4,6 +4,7 @@ import { GripVertical } from 'lucide-react';
 import type { CategoryDto } from '../../api/types';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../Button/Button';
+import { ErrorBanner } from '../ErrorBanner/ErrorBanner';
 import styles from './CategoryCard.module.css';
 
 export interface CategoryDraft {
@@ -76,11 +77,7 @@ export function CategoryCard({
         <GripVertical size={20} aria-hidden="true" />
       </button>
       <div className={styles.content}>
-        {error && (
-          <div className={styles.message} role="alert">
-            {error}
-          </div>
-        )}
+        {error && <ErrorBanner>{error}</ErrorBanner>}
         <div className={styles.fields}>
           <label className={`${styles.field} ${styles.nameField}`}>
             <span>{de.admin.categories.name}</span>

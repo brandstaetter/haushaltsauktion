@@ -4,6 +4,7 @@ import type { Strings } from '../../strings/de';
 import { interpolate } from '../../utils/format';
 import { Button } from '../Button/Button';
 import { CategoryBadge } from '../CategoryBadge/CategoryBadge';
+import { ErrorBanner } from '../ErrorBanner/ErrorBanner';
 import { ValueChip } from '../ValueChip/ValueChip';
 import styles from './TaskMaintenanceCard.module.css';
 
@@ -84,11 +85,7 @@ export function TaskMaintenanceCard({
         </span>
       </div>
 
-      {error && (
-        <div className={styles.message} role="alert">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
 
       <div className={styles.fields}>
         <div className={styles.baseValueCell}>
