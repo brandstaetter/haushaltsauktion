@@ -1,0 +1,52 @@
+# Bootstrap or add an operator-dashboard account on the production instance
+# without shell access to it — only GitHub Actions holds `DEPLOY_SSH_KEY`.
+#
+# `create-operator.ts` (apps/api/prisma/create-operator.ts) normally
+# generates a random one-off password and prints it — fine at an interactive
+# terminal, unsafe here: a value this workflow didn't already know about
+# would land in plaintext in the run log (GitHub only masks values it can
+# recognize *before* they're printed, i.e. secrets it was given).
+#
+# So this workflow supplies the password itself, from a GitHub Secret you set
+# beforehand (`gh secret set OPERATOR_BOOTSTRAP_PASSWORD`) — you already know
+# the value because you chose it, and since it's referenced via `secrets.*`
+# here, GitHub auto-masks it in this job's log even if the container's own
+# stdout echoes it back. The email is not sensitive, so it's a plain
+# `workflow_dispatch` input instead — re-run this with a different email to
+# add a second/third operator (create-operator.ts is deliberately
+# re-runnable, see its module doc).
+
+name: Create Operator Account
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Operator account email to create"
+        required: true
+        type: string
+
+jobs:
+  create-operator:
+    runs-on: ubuntu-latest
+    environment: production # same manual-approval gate as deploy.yml, if configured
+    permissions:
+      contents: read
+    steps:
+      - name: Run create-operator.ts inside the running api container
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          OPERATOR_BOOTSTRAP_EMAIL: ${{ inputs.email }}
+          OPERATOR_BOOTSTRAP_PASSWORD: ${{ secrets.OPERATOR_BOOTSTRAP_PASSWORD }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: OPERATOR_BOOTSTRAP_EMAIL,OPERATOR_BOOTSTRAP_PASSWORD
+          script: |
+            set -euo pipefail
+            cd /opt/haushaltsauktion
+            docker compose exec -T \
+              -e OPERATOR_BOOTSTRAP_EMAIL="$OPERATOR_BOOTSTRAP_EMAIL" \
+              -e OPERATOR_BOOTSTRAP_PASSWORD="$OPERATOR_BOOTSTRAP_PASSWORD" \
+              api npx tsx prisma/create-operator.ts

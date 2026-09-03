@@ -9,6 +9,16 @@
  * in-app "invite an operator" flow for v1; shell/CLI access is itself the
  * access control, same reasoning as the CLI-not-self-service decision for
  * the first account.
+ *
+ * **Non-interactive mode** (`OPERATOR_BOOTSTRAP_EMAIL` / `OPERATOR_BOOTSTRAP_PASSWORD`
+ * env vars) exists for environments with no interactive shell at all — e.g. a
+ * production instance reachable only via a CI job's SSH key
+ * (`.github/workflows/create-operator.yml`), where a human cannot sit at a
+ * TTY to answer `prompt()`. Both prompts fall back to env vars when set, so a
+ * local `npm run create-operator` run is unchanged. When
+ * `OPERATOR_BOOTSTRAP_PASSWORD` is supplied, the caller already knows the
+ * password (it came from a value they chose) — this script does not need to
+ * invent one, and never has to print a secret CI didn't already know about.
  */
 
 import { createInterface, type Interface } from 'node:readline/promises';
@@ -27,23 +37,29 @@ async function prompt(rl: Interface, question: string): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const envEmail = process.env.OPERATOR_BOOTSTRAP_EMAIL;
 
-  const rawEmail = await prompt(rl, 'Operator-E-Mail: ');
+  let rawEmail: string;
+  if (envEmail !== undefined) {
+    rawEmail = envEmail;
+  } else {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rawEmail = await prompt(rl, 'Operator-E-Mail: ');
+    rl.close();
+  }
   const email = EmailSchema.parse(rawEmail).toLowerCase();
-
-  rl.close();
 
   const existing = await prisma.operatorAccount.findUnique({ where: { email } });
   if (existing !== null) {
     throw new Error(`Es existiert bereits ein Operator-Account mit der E-Mail "${email}".`);
   }
 
-  // 24 random bytes, base64url-encoded — same shape as create-admin.ts's
-  // generatePassword(), reused here via generateTemporaryPassword() rather
-  // than duplicated (it's the identical "one-off password, shown once"
-  // primitive, already exported from password.ts for admin resets).
-  const password = generateTemporaryPassword();
+  // Non-interactive callers (see module doc) supply their own password —
+  // they already know it, so there is nothing here for this script to
+  // generate or reveal. Interactive/local runs keep the original one-off
+  // generated password, same shape as create-admin.ts's generatePassword().
+  const envPassword = process.env.OPERATOR_BOOTSTRAP_PASSWORD;
+  const password = envPassword ?? generateTemporaryPassword();
   const passwordHash = await hashPassword(password);
 
   const account = await prisma.operatorAccount.create({
@@ -56,11 +72,17 @@ async function main(): Promise<void> {
   console.log(`  E-Mail:    ${email}`);
   console.log(`  Passwort:  ${password}`);
   console.log('');
-  console.log('Dieses Passwort wird nur jetzt angezeigt und nirgendwo gespeichert.');
+  console.log(
+    envPassword !== undefined
+      ? 'Passwort wie vorgegeben gesetzt (OPERATOR_BOOTSTRAP_PASSWORD).'
+      : 'Dieses Passwort wird nur jetzt angezeigt und nirgendwo gespeichert.',
+  );
   console.log(
     'Diese Identität ist bewusst getrennt von jedem Haushalts-Account — Login unter /betrieb.',
   );
-  console.log('Bitte sicher übergeben und nach dem ersten Login ändern.');
+  if (envPassword === undefined) {
+    console.log('Bitte sicher übergeben und nach dem ersten Login ändern.');
+  }
 }
 
 main()

@@ -248,6 +248,16 @@ einen weiteren Operator-Account an. Es gibt bewusst keine
 In-App-Verwaltung für Operator-Accounts in v1 — Shell-/CLI-Zugriff auf den
 Server *ist* die Zugriffskontrolle.
 
+**Ohne eigenen Shell-Zugriff auf die Produktionsinstanz** (nur der
+Deploy-Workflow hat `DEPLOY_SSH_KEY`): der Workflow
+[`create-operator.yml`](.github/workflows/create-operator.yml) führt den
+gleichen Befehl per SSH im laufenden `api`-Container aus —
+`gh workflow run create-operator.yml -f email=operator@example.com`. Er
+generiert das Passwort nicht selbst, sondern erwartet es vorab als
+GitHub-Secret `OPERATOR_BOOTSTRAP_PASSWORD` (`gh secret set
+OPERATOR_BOOTSTRAP_PASSWORD`) — so landet nie ein Passwort im Workflow-Log,
+das GitHub nicht schon vorher kannte und automatisch maskiert.
+
 **Anmeldung:** [`/betrieb`](/betrieb) (leitet unangemeldet auf
 `/betrieb/login` weiter) — komplett unabhängig von der
 mitgliederseitigen `/login`-Seite, ohne Haushaltsauswahl erreichbar.

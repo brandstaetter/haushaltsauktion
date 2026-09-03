@@ -218,6 +218,12 @@ Auf der Instanz per Bootstrap (`curl get.docker.com`, offizieller AWS-CLI-v2-Ins
 **GitHub Secrets (Repo `brandstaetter/haushaltsauktion`) — gesetzt:**
 `AWS_CI_DEPLOY_ROLE_ARN`, `AWS_BACKUP_READ_ROLE_ARN`, `BACKUP_BUCKET`, `DEPLOY_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY`, `SETUP_TOKEN`, `INTEGRATION_ENCRYPTION_KEY`.
 
+**Optional, selbst zu setzen bei Bedarf:** `OPERATOR_BOOTSTRAP_PASSWORD` —
+nur nötig, um `.github/workflows/create-operator.yml` auszuführen (Operator-
+Dashboard-Account anlegen ohne eigenen Shell-Zugriff auf die Instanz, siehe
+README „Betriebsdashboard"). Wird nie in die Instanz-`.env` geschrieben,
+sondern nur transient per SSH an den laufenden `api`-Container durchgereicht.
+
 `SETUP_TOKEN` und `INTEGRATION_ENCRYPTION_KEY` werden bei jedem Deploy vom
 `deploy`-Job in die Instanz-`.env` geschrieben (`.github/workflows/deploy.yml`)
 — anders als `SESSION_SECRET` und die DB-Zugangsdaten (§4 oben), die
