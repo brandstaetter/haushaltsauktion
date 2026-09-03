@@ -18,10 +18,18 @@
 
 .message {
   padding: var(--s-3) var(--s-4);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
+  background: #fbf0d8;
+  border: 1px solid #e4cf9b;
   border-radius: var(--r-md);
-  color: var(--ink);
+  color: #7a1f1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .message {
+    background: #3a2e12;
+    border-color: #4a3a14;
+    color: #f2b4b0;
+  }
 }
 
 .fields {
