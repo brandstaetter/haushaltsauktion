@@ -79,5 +79,4 @@ Readiness: ready
 - Review target: .planning/review-packages/storybook-f-r-apps-web-hinzuf-gen-komponenten-isoliert-entwerfen-und-prototypen.md
 - Campaign: .planning/campaigns/storybook-f-r-apps-web-hinzuf-gen-komponenten-isoliert-entwerfen-und-prototypen.md
 - Evidence readiness: ready
-- Git status: dirty
 ---

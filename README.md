@@ -288,7 +288,7 @@ npm run build-storybook -w apps/web   # statischer Export nach apps/web/storyboo
 Zeigt Komponenten aus `apps/web/src/components/` einzeln mit ihren
 Prop-Varianten, ohne Backend oder Router (`apps/web/.storybook/`). Läuft mit
 Vite (`@storybook/react-vite`, nicht Webpack) und lädt dieselben
-Design-Tokens (`apps/web/src/styles/global.css`/`tokens.css`) wie die echte App, so
+Design-Tokens (`apps/web/src/styles/global.css` und `apps/web/src/styles/tokens.css`) wie die echte App, so
 dass Komponenten dort genauso aussehen. Ein eigenständiges Dev-Werkzeug —
 läuft nicht in `npm run build`, `npm run dev`, `npm test` oder CI mit.
 Story-Dateien (`*.stories.tsx`) liegen neben der jeweiligen Komponente;
