@@ -105,19 +105,19 @@ export function TaskMaintenanceCard({
       </div>
 
       <div className={styles.actions}>
-        <Button variant="secondary" onClick={onEdit}>
+        <Button size="sm" variant="secondary" onClick={onEdit}>
           {de.admin.taskDefinitions.edit}
         </Button>
-        <Button variant="secondary" onClick={onEligibility}>
+        <Button size="sm" variant="secondary" onClick={onEligibility}>
           {de.admin.taskDefinitions.eligibilityButton}
         </Button>
         {!archived && (
-          <Button variant="secondary" onClick={onMaterialize} loading={materializing}>
+          <Button size="sm" variant="secondary" onClick={onMaterialize} loading={materializing}>
             {de.admin.taskDefinitions.materializeButton}
           </Button>
         )}
         {!archived && (
-          <Button variant="danger" onClick={onArchive} loading={archiving}>
+          <Button size="sm" variant="danger" onClick={onArchive} loading={archiving}>
             {de.admin.taskDefinitions.archive}
           </Button>
         )}
