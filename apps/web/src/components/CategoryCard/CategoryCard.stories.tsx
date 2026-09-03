@@ -18,7 +18,7 @@ const meta = {
   parameters: { layout: 'padded' },
   decorators: [
     (Story) => (
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxWidth: 420 }}>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxWidth: 520 }}>
         <Story />
       </ul>
     ),
