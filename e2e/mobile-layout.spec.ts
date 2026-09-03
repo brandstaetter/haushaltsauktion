@@ -96,12 +96,12 @@ test.describe('Mobile Darstellung (390×844)', () => {
 
       await expect(nav).toBeVisible();
       // Start, Verlauf, Ich — plus Einstellungen, Benutzer, Aufgaben,
-      // Kategorien für Elke (ADMIN).
-      await expect(nav.getByRole('link')).toHaveCount(7);
+      // Kategorien, Punkte-Shop für Elke (ADMIN).
+      await expect(nav.getByRole('link')).toHaveCount(8);
     });
 
     test('Admin-Hauptnavigation: kein Label bricht um, alle Einträge bleiben gleich hoch', async ({ page }) => {
-      // 7 Spalten auf 390px sind zu schmal für sichtbaren Text (siehe
+      // 8 Spalten auf 390px sind zu schmal für sichtbaren Text (siehe
       // Nav.tsx `compact` / Nav.module.css `.compact`) — die Leiste zeigt
       // dann nur Icons. Die eigentliche Prüfung ist deshalb nicht "bricht
       // der sichtbare Text um" (er ist gar nicht sichtbar), sondern dass
@@ -109,11 +109,20 @@ test.describe('Mobile Darstellung (390×844)', () => {
       // Link trotzdem weiterhin für Screenreader benannt bleibt.
       const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
       const links = nav.getByRole('link');
-      await expect(links).toHaveCount(7);
+      await expect(links).toHaveCount(8);
 
       // Der zugängliche Name bleibt erhalten, obwohl der Text visuell
       // ausgeblendet ist (nur `clip`/`position`, kein `display: none`).
-      for (const label of ['Start', 'Verlauf', 'Ich', 'Einstellungen', 'Benutzer', 'Aufgaben', 'Kategorien']) {
+      for (const label of [
+        'Start',
+        'Verlauf',
+        'Ich',
+        'Einstellungen',
+        'Benutzer',
+        'Aufgaben',
+        'Kategorien',
+        'Punkte-Shop',
+      ]) {
         await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
       }
 
