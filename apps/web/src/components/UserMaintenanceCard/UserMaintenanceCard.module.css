@@ -47,6 +47,14 @@
   min-width: 90px;
 }
 
+/* Reserves 2 lines for the label regardless of whether it actually wraps
+   ("Max. Zufallszuweisungen/Woche" does, the others don't) -- otherwise
+   the select/checkbox/inputs below a 1-line label sit higher than the one
+   below a 2-line label, breaking the row's alignment. */
+.field > span:first-child {
+  min-height: 2.9em;
+}
+
 .field input,
 .field select {
   padding: var(--s-2) var(--s-3);
