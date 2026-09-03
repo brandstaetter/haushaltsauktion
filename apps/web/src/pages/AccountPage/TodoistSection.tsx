@@ -159,6 +159,7 @@ export function TodoistSection({ enabled }: { enabled: boolean }) {
               </option>
             ))}
           </select>
+          <p className={styles.email}>{t.projectHint}</p>
 
           <fieldset>
             <legend className={styles.household}>{t.triggers}</legend>

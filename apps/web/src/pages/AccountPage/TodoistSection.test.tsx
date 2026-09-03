@@ -84,6 +84,17 @@ describe('TodoistSection', () => {
     expect(container.textContent).not.toMatch(/tdst-|[A-Za-z0-9]{32,}/);
   });
 
+  it('explains that project selection is per-account, not a shared household project', async () => {
+    mockedApi.mockResolvedValue(connected);
+    renderSection(true);
+
+    // Each member's Todoist account is separate (CLAUDE.md §36) — there is no
+    // literal shared project. The hint must say so next to the selector,
+    // since nothing else on screen would tell a member their choice is
+    // account-local (intake "todoist-household-default-project").
+    await waitFor(() => expect(screen.getByText(de.todoist.projectHint)).toBeInTheDocument());
+  });
+
   it('surfaces a rejected token instead of failing silently', async () => {
     mockedApi.mockResolvedValue({ ...connected, status: 'INVALID_CREDENTIALS' });
     renderSection(true);

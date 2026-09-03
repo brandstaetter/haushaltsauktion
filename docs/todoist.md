@@ -20,7 +20,7 @@ abgelaufen, abgelehnt), wird die Todoist-Aufgabe geschlossen.
 |---|---|
 | **Rückrichtung Todoist → Haushaltsauktion** | Ein Häkchen in Todoist erledigt die Aufgabe hier **nicht**. Eine Erledigung verschiebt eine Zustandsmaschine, bucht ins Punkte-Ledger und setzt `currentValue` zurück (§28, §44). Ein externer Schreibpfad in diese Kette bräuchte ein eigenes Bedrohungsmodell — und wir könnten nicht einmal feststellen, *welches* Mitglied in einem geteilten Projekt abgehakt hat. |
 | Kommentare, Unteraufgaben, Anhänge, Erinnerungen | Nicht im MVP-Umfang. |
-| Gemeinsame Haushalts-Projekte | Jedes Mitglied verbindet sein eigenes Konto. |
+| Gemeinsame Haushalts-Projekte | Jedes Mitglied verbindet sein eigenes Konto — es gibt keine Projekt-ID, die über getrennte Todoist-Konten hinweg geteilt werden könnte, und daher keine Haushalts-Einstellung dafür. Wer Aufgaben trotzdem gebündelt sehen möchte, legt in jedem Konto von Hand ein Projekt mit demselben Namen an und wählt es unter „Ich" → Todoist → Projekt aus. |
 | OAuth | Siehe unten. |
 
 Die Einbahn-Beschränkung steht **in der Oberfläche vor dem Verbinden** und im
@@ -53,7 +53,9 @@ bleibt also additiv nachrüstbar.
 3. **Pro Person verbinden:** „Ich" → Todoist → persönliches API-Token einfügen.
    Zu finden in Todoist unter *Einstellungen → Integrationen → Entwickler*.
 4. Optional Projekt und Auslöser wählen (zufällige Zuweisung / freiwillige
-   Übernahme, beide standardmäßig an).
+   Übernahme, beide standardmäßig an). Die Projektwahl gilt nur für das eigene
+   Konto — für ein gebündeltes Bild einigt sich der Haushalt außerhalb der
+   Anwendung auf einen Projektnamen, den jede Person bei sich anlegt.
 
 Der Worker gleicht danach höchstens einmal pro `TODOIST_INTERVAL_SECONDS` ab.
 
