@@ -17,8 +17,11 @@ function rewardErrorMessage(err: unknown, de: Strings): string {
   return de.admin.rewards.errors.generic;
 }
 
-type RewardKind = 'MANUAL_FULFILLMENT' | 'VIRTUAL_EFFECT';
-type EffectType = 'IMMUNITY' | 'MULTIPLIER';
+// Derived from `AdminRewardDto` rather than redeclared, so a future 3rd
+// effect type only needs updating in one place (the shared DTOs) — Copilot
+// review on PR #52.
+type RewardKind = AdminRewardDto['kind'];
+type EffectType = NonNullable<AdminRewardDto['effectType']>;
 
 interface RewardDraft {
   title: string;

@@ -389,13 +389,16 @@ export async function loadDashboard(
     listAvailableTasks(tx, ctx),
     listMembers(tx, ctx.householdId),
     // §6.12 — "active" mirrors the eligibility read in `candidates.ts`:
-    // expiresAt > now, further narrowed to non-exhausted charges for
-    // MULTIPLIER in the filter below (Prisma cannot express "charges_remaining
-    // IS NULL OR > 0" as a single where clause across two nullable columns
-    // cleanly, so the exhausted-multiplier case is filtered in JS instead of
-    // adding a second query).
+    // expiresAt > now, plus (for MULTIPLIER) non-exhausted charges. A
+    // MULTIPLIER row that hit 0 charges is `consumedAt`-marked but not
+    // deleted (audit trail), so it must not be shown as still usable.
     tx.memberEffect.findMany({
-      where: { householdId: ctx.householdId, memberId: ctx.memberId, expiresAt: { gt: ctx.now } },
+      where: {
+        householdId: ctx.householdId,
+        memberId: ctx.memberId,
+        expiresAt: { gt: ctx.now },
+        OR: [{ type: { not: 'MULTIPLIER' } }, { chargesRemaining: { gt: 0 } }],
+      },
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,
@@ -438,20 +441,16 @@ export async function loadDashboard(
     }),
   ]);
 
-  // "Active" (§6.12): expiresAt > now (already the query predicate), and for
-  // MULTIPLIER additionally chargesRemaining > 0 — a MULTIPLIER row that hit
-  // 0 charges is `consumedAt`-marked but not deleted (audit trail), so it
-  // must not be shown as still usable.
-  const activeEffects: MemberEffectDto[] = activeEffectRows
-    .filter((e) => e.type !== 'MULTIPLIER' || (e.chargesRemaining ?? 0) > 0)
-    .map((e) => ({
-      id: e.id,
-      type: e.type as 'IMMUNITY' | 'MULTIPLIER',
-      multiplierValue: e.multiplierValue,
-      chargesRemaining: e.chargesRemaining,
-      totalCharges: e.redemption.reward.effectCharges,
-      expiresAt: e.expiresAt.toISOString(),
-    }));
+  // "Active" (§6.12) is already the query predicate above — nothing left to
+  // filter here, just shape the DTO.
+  const activeEffects: MemberEffectDto[] = activeEffectRows.map((e) => ({
+    id: e.id,
+    type: e.type as 'IMMUNITY' | 'MULTIPLIER',
+    multiplierValue: e.multiplierValue,
+    chargesRemaining: e.chargesRemaining,
+    totalCharges: e.redemption.reward.effectCharges,
+    expiresAt: e.expiresAt.toISOString(),
+  }));
 
   return {
     me: {
