@@ -444,8 +444,13 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
     // `WHERE nextDueAt <= now` (runAssignmentSweep.ts) never matches a null
     // value, so leaving it null here would silently strand the definition,
     // never materializing again despite `isActive: true`.
-    await deps.db.taskDefinition.updateMany({
-      where: { id: params.id, householdId: ctx.householdId },
+    //
+    // `archivedAt: { not: null }` here too (not just in the `findFirst`
+    // above) so a second concurrent reactivate — or an archive racing this
+    // one — can't win a stale 200 and its own bogus audit event once the
+    // row's already been touched between the lookup and this write.
+    const { count } = await deps.db.taskDefinition.updateMany({
+      where: { id: params.id, householdId: ctx.householdId, archivedAt: { not: null } },
       data: {
         archivedAt: null,
         isActive: true,
@@ -463,6 +468,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         ),
       },
     });
+    if (count === 0) throw new NotFoundError('Archivierte Aufgabendefinition nicht gefunden.');
     await deps.db.auditEvent.create({
       data: {
         householdId: ctx.householdId,
