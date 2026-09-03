@@ -261,3 +261,40 @@ export async function expectNoMidWordWrap(locator: Locator): Promise<void> {
     ).toBe(true);
   }
 }
+
+/**
+ * Prüft, dass ein Element seinen Text in genau einer Zeile darstellt — kein
+ * Umbruch, auch nicht sauber an einer Wortgrenze (§31 — hier für Nav-Labels:
+ * anders als beim Aktions-Button auf der `TaskCard`, wo ein Umbruch an der
+ * Wortgrenze in Ordnung ist, macht bei der unteren Navigation schon *ein*
+ * zusätzlicher Umbruch den betroffenen Eintrag höher als seine Nachbarn und
+ * verschiebt die ganze Leiste — es zählt jeder Umbruch, nicht nur ein
+ * mitten-im-Wort-Umbruch).
+ *
+ * Nutzt dieselbe `Range.getClientRects()`-Technik wie `expectNoMidWordWrap`.
+ */
+export async function expectNoLineWrap(locator: Locator): Promise<void> {
+  const result = await locator.evaluate((el) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const textNode = walker.nextNode() as Text | null;
+    if (!textNode) return { lines: 0, text: '' };
+
+    const text = textNode.textContent ?? '';
+    const range = document.createRange();
+    let lines = text.length > 0 ? 1 : 0;
+    let lastTop: number | null = null;
+    for (let i = 0; i < text.length; i += 1) {
+      range.setStart(textNode, i);
+      range.setEnd(textNode, i + 1);
+      const rect = range.getClientRects()[0];
+      if (!rect) continue;
+      if (lastTop !== null && Math.abs(rect.top - lastTop) > 1) {
+        lines += 1;
+      }
+      lastTop = rect.top;
+    }
+    return { lines, text };
+  });
+
+  expect(result.lines, `"${result.text}" bricht in ${result.lines} Zeilen um.`).toBeLessThanOrEqual(1);
+}

@@ -1,8 +1,9 @@
 ---
 title: "Admin-Bottom-Navigation: „Einstellungen“ bricht auf schmalen Handybildschirmen um und verschiebt die Ausrichtung"
-status: pending
+status: completed
 priority: normal
 target: apps/web/src/components/Nav/Nav.tsx, apps/web/src/components/Nav/Nav.module.css, e2e/mobile-layout.spec.ts
+campaign: admin-bottom-navigation-einstellungen-bricht-auf-schmalen-handybildschirmen-um-u
 ---
 
 ## Description
