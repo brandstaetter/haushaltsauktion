@@ -210,7 +210,10 @@ export const de = {
     markAllRead: 'Alle als gelesen markieren',
     unreadBadge: '{n} ungelesen',
     types: {
+      TASK_AVAILABLE: '„{task}“ ist jetzt freiwillig verfügbar — aktueller Wert {value}',
       TASK_ASSIGNED: 'Dir wurde „{task}“ zufällig zugewiesen — aktueller Wert {value}',
+      TASK_TAKEN: 'Du hast „{task}“ übernommen — aktueller Wert {value}',
+      TASK_DUE_SOON: '„{task}“ wird bald fällig',
       TASK_COMPLETED: '„{task}“ wurde von {by} erledigt',
       TASK_VALUE_INCREASED: '„{task}“: Wert ist von {from} auf {to} gestiegen',
       ADMIN_NO_CANDIDATES: 'Für „{task}“ gab es keine geeigneten Kandidaten',

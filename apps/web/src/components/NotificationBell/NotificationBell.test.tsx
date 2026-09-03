@@ -40,6 +40,14 @@ describe('renderMessage', () => {
     expect(message).toBe('Dir wurde „Bad putzen“ zufällig zugewiesen — aktueller Wert 6');
   });
 
+  it('interpoliert den Aufgabentitel für eine freiwillige Übernahme', () => {
+    const message = renderMessage(
+      de,
+      notificationFixture({ type: 'TASK_TAKEN', taskTitle: 'Bad putzen', payload: { value: 6 } }),
+    );
+    expect(message).toBe('Du hast „Bad putzen“ übernommen — aktueller Wert 6');
+  });
+
   it('interpoliert Titel und Namen für eine Erledigung', () => {
     const message = renderMessage(
       de,
