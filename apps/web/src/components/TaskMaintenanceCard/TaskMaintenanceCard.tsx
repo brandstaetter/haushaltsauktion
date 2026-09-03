@@ -47,10 +47,12 @@ interface TaskMaintenanceCardProps {
   error: string | null;
   archiving: boolean;
   materializing: boolean;
+  reactivating: boolean;
   onEdit: () => void;
   onEligibility: () => void;
   onArchive: () => void;
   onMaterialize: () => void;
+  onReactivate: () => void;
 }
 
 /**
@@ -63,10 +65,12 @@ export function TaskMaintenanceCard({
   error,
   archiving,
   materializing,
+  reactivating,
   onEdit,
   onEligibility,
   onArchive,
   onMaterialize,
+  onReactivate,
 }: TaskMaintenanceCardProps) {
   const { de } = useStrings();
   const archived = definition.archivedAt !== null;
@@ -108,21 +112,25 @@ export function TaskMaintenanceCard({
       </div>
 
       <div className={styles.actions}>
-        <Button size="sm" variant="secondary" onClick={onEdit}>
-          {de.admin.taskDefinitions.edit}
-        </Button>
-        <Button size="sm" variant="secondary" onClick={onEligibility}>
-          {de.admin.taskDefinitions.eligibilityButton}
-        </Button>
-        {!archived && (
-          <Button size="sm" variant="secondary" onClick={onMaterialize} loading={materializing}>
-            {de.admin.taskDefinitions.materializeButton}
+        {archived ? (
+          <Button size="sm" variant="secondary" onClick={onReactivate} loading={reactivating}>
+            {de.admin.taskDefinitions.reactivate}
           </Button>
-        )}
-        {!archived && (
-          <Button size="sm" variant="danger" onClick={onArchive} loading={archiving}>
-            {de.admin.taskDefinitions.archive}
-          </Button>
+        ) : (
+          <>
+            <Button size="sm" variant="secondary" onClick={onEdit}>
+              {de.admin.taskDefinitions.edit}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={onEligibility}>
+              {de.admin.taskDefinitions.eligibilityButton}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={onMaterialize} loading={materializing}>
+              {de.admin.taskDefinitions.materializeButton}
+            </Button>
+            <Button size="sm" variant="danger" onClick={onArchive} loading={archiving}>
+              {de.admin.taskDefinitions.archive}
+            </Button>
+          </>
         )}
       </div>
     </li>

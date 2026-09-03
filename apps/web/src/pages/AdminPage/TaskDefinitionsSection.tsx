@@ -10,6 +10,7 @@ import {
   useArchiveTaskDefinition,
   useCreateTaskDefinition,
   useMaterializeTaskDefinition,
+  useReactivateTaskDefinition,
   useSession,
   useUpdateTaskDefinition,
   useUpdateTaskEligibility,
@@ -556,6 +557,7 @@ export function TaskDefinitionsSection() {
   const { data: membersData } = useAdminMembers();
   const archiveDefinition = useArchiveTaskDefinition();
   const materializeDefinition = useMaterializeTaskDefinition();
+  const reactivateDefinition = useReactivateTaskDefinition();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -564,6 +566,7 @@ export function TaskDefinitionsSection() {
   const [message, setMessage] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [materializingId, setMaterializingId] = useState<string | null>(null);
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
 
   const definitions = data?.items ?? [];
@@ -628,6 +631,24 @@ export function TaskDefinitionsSection() {
     });
   };
 
+  const handleReactivate = (definition: AdminTaskDefinitionDto) => {
+    setRowErrors((prev) => ({ ...prev, [definition.id]: null }));
+    setReactivatingId(definition.id);
+    reactivateDefinition.mutate(definition.id, {
+      onSuccess: () => {
+        setReactivatingId(null);
+        setMessage(de.admin.taskDefinitions.reactivatedSuccess);
+      },
+      onError: (err) => {
+        setReactivatingId(null);
+        setRowErrors((prev) => ({
+          ...prev,
+          [definition.id]: taskDefinitionErrorMessage(err, de),
+        }));
+      },
+    });
+  };
+
   return (
     <section className={styles.section}>
       <h2 className={styles.sectionTitle}>{de.admin.sections.taskDefinitions}</h2>
@@ -668,10 +689,12 @@ export function TaskDefinitionsSection() {
               error={rowErrors[definition.id] ?? null}
               archiving={archivingId === definition.id}
               materializing={materializingId === definition.id}
+              reactivating={reactivatingId === definition.id}
               onEdit={() => openEdit(definition.id)}
               onEligibility={() => setEligibilityForId(definition.id)}
               onArchive={() => handleArchive(definition)}
               onMaterialize={() => handleMaterialize(definition)}
+              onReactivate={() => handleReactivate(definition)}
             />
           ))}
         </ul>

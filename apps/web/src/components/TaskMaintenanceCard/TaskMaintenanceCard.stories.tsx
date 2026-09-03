@@ -46,10 +46,12 @@ const meta = {
     error: null,
     archiving: false,
     materializing: false,
+    reactivating: false,
     onEdit: () => {},
     onEligibility: () => {},
     onArchive: () => {},
     onMaterialize: () => {},
+    onReactivate: () => {},
   },
 } satisfies Meta<typeof TaskMaintenanceCard>;
 
@@ -66,7 +68,7 @@ export const NoCategory: Story = {
   args: { definition: makeDefinition({ category: null, categoryId: null }) },
 };
 
-/** Archived definitions drop the "Vergeben"/"Archivieren" actions. */
+/** Archived definitions show a single "Reaktivieren" action, nothing else. */
 export const Archived: Story = {
   args: { definition: makeDefinition({ archivedAt: new Date().toISOString() }) },
 };
@@ -77,6 +79,10 @@ export const Materializing: Story = {
 
 export const Archiving: Story = {
   args: { definition: makeDefinition(), archiving: true },
+};
+
+export const Reactivating: Story = {
+  args: { definition: makeDefinition({ archivedAt: new Date().toISOString() }), reactivating: true },
 };
 
 /** A rejected archive (e.g. open instances still exist) surfaces inline. */

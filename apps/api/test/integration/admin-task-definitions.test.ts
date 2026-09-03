@@ -209,3 +209,78 @@ test('materializing an unknown definition is a 404, not a leak', async () => {
   });
   expect(response.statusCode).toBe(404);
 });
+
+test('admin reactivates an archived definition, which recomputes nextDueAt', async () => {
+  const defId = ids.definitionId('badputzen-reactivate');
+  await db.taskDefinition.create({
+    data: {
+      id: defId,
+      householdId: ids.householdId,
+      title: 'Bad putzen',
+      baseValue: 6,
+      recurrenceType: 'WEEKLY',
+      recurrenceWeekdays: [6],
+      archivedAt: new Date(),
+      isActive: false,
+      nextDueAt: null,
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/admin/task-definitions/${defId}/reactivate`,
+      headers: authHeaders(admin),
+      payload: {},
+    });
+    expect(response.statusCode).toBe(200);
+
+    const reloaded = await db.taskDefinition.findUniqueOrThrow({ where: { id: defId } });
+    expect(reloaded.archivedAt).toBeNull();
+    expect(reloaded.isActive).toBe(true);
+    // The sweep's `nextDueAt: { lte: now }` filter never matches null, so a
+    // reactivated definition needs a real next occurrence, not a leftover
+    // null from when it was archived.
+    expect(reloaded.nextDueAt).not.toBeNull();
+
+    const auditActions = (
+      await db.auditEvent.findMany({
+        where: { householdId: ids.householdId, entityId: defId },
+        orderBy: { createdAt: 'asc' },
+      })
+    ).map((e) => e.action);
+    expect(auditActions).toContain('TASK_DEFINITION_REACTIVATED');
+  } finally {
+    await db.taskDefinition.delete({ where: { id: defId } });
+  }
+});
+
+test('reactivating a definition that is not archived is a 404', async () => {
+  const response = await app.inject({
+    method: 'POST',
+    url: `/api/admin/task-definitions/${ids.definitionId('keller')}/reactivate`,
+    headers: authHeaders(admin),
+    payload: {},
+  });
+  expect(response.statusCode).toBe(404);
+});
+
+test('reactivating an unknown definition is a 404, not a leak', async () => {
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/admin/task-definitions/does-not-belong-to-this-household/reactivate',
+    headers: authHeaders(admin),
+    payload: {},
+  });
+  expect(response.statusCode).toBe(404);
+});
+
+test('a non-admin cannot reactivate a task definition', async () => {
+  const response = await app.inject({
+    method: 'POST',
+    url: `/api/admin/task-definitions/${ids.definitionId('keller')}/reactivate`,
+    headers: authHeaders(bob),
+    payload: {},
+  });
+  expect(response.statusCode).toBe(403);
+});
