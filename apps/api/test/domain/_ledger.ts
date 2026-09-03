@@ -25,6 +25,7 @@ export interface PostInput {
   type: PointTransactionType;
   taskAssignmentId?: string | null;
   assignmentKind?: AssignmentKind | null;
+  rewardRedemptionId?: string | null;
 }
 
 export class TestLedger {
@@ -39,6 +40,7 @@ export class TestLedger {
       type: input.type,
       taskAssignmentId: input.taskAssignmentId ?? null,
       assignmentKind: input.assignmentKind ?? null,
+      rewardRedemptionId: input.rewardRedemptionId ?? null,
     });
 
     const entry: LedgerEntry = {
@@ -52,6 +54,7 @@ export class TestLedger {
       previousTransactionId: previousTransactionIdFor(tail),
       taskAssignmentId: input.taskAssignmentId ?? null,
       assignmentKind: input.assignmentKind ?? null,
+      rewardRedemptionId: input.rewardRedemptionId ?? null,
     };
 
     this.nextSeq += 1n;

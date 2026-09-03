@@ -18,6 +18,10 @@ export const ErrorCode = Object.freeze({
   NOT_ASSIGNEE: 'NOT_ASSIGNEE',
   BUYOUT_DISABLED: 'BUYOUT_DISABLED',
   RELEASE_DISABLED: 'RELEASE_DISABLED',
+  /** Punkte-Shop (intake "points-shop-real-life-rewards") — household switch is off. */
+  REWARDS_DISABLED: 'REWARDS_DISABLED',
+  /** A redemption's fulfillment race — the double-fulfill case, mirrors ASSIGNMENT_CLOSED. */
+  REDEMPTION_CLOSED: 'REDEMPTION_CLOSED',
   ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
   NOT_FOUND: 'NOT_FOUND',
   TASK_NOT_AVAILABLE: 'TASK_NOT_AVAILABLE',
@@ -74,6 +78,7 @@ export interface ErrorDetailsByCode {
   FORBIDDEN: { requiredRole: MemberRole };
   NOT_ELIGIBLE: { reason: EligibilityReason };
   BUYOUT_DISABLED: { scope: 'GLOBAL' | 'TASK' };
+  REDEMPTION_CLOSED: { currentStatus: string };
   TASK_NOT_AVAILABLE: { currentStatus: TaskStatus; heldBy: string | null };
   STALE_VIEW: { currentVersion: number };
   ASSIGNMENT_CLOSED: { currentStatus: string };

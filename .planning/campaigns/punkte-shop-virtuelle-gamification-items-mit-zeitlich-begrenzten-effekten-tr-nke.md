@@ -1,13 +1,32 @@
 ---
-title: "Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)"
-status: pending
-priority: normal
-target: apps/api/prisma/schema.prisma, apps/api/src/app/rewards/, apps/api/src/app/assignment/candidates.ts, apps/api/src/domain/assignment/eligibility.ts, apps/api/src/app/tasks/completeTask.ts, apps/api/src/domain/points/ledger-math.ts, packages/shared/src/config/schema.ts
-campaign: punkte-shop-virtuelle-gamification-items-mit-zeitlich-begrenzten-effekten-tr-nke
-blocked_by: points-shop-real-life-rewards
+version: 1
+id: "d84bf251-1721-4e41-8981-4c00544b9a25"
+status: blocked
+started: "2026-09-03T05:49:21.409Z"
+completed_at: null
+direction: "Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)"
+phase_count: 4
+current_phase: 2
+branch: null
+worktree_status: null
 ---
 
-## Description
+# Campaign: Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)
+
+Status: active
+Started: 2026-09-03T05:49:21.409Z
+Direction: Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)
+
+## Claimed Scope
+- apps/api/prisma/schema.prisma, apps/api/src/app/rewards/, apps/api/src/app/assignment/candidates.ts, apps/api/src/domain/assignment/eligibility.ts, apps/api/src/app/tasks/completeTask.ts, apps/api/src/domain/points/ledger-math.ts, packages/shared/src/config/schema.ts
+
+## Intake Source
+
+- File: .planning/intake/points-shop-virtual-gamification-items.md
+- Priority: normal
+- Initial Status: pending
+
+## Delivery Brief
 
 **Depends on** `.planning/intake/points-shop-real-life-rewards.md` — this
 item extends that points shop (same purchase-and-ledger-debit mechanism,
@@ -81,3 +100,60 @@ don't hand-roll two ad hoc mechanisms for what is the same shape of state.
   sweep during its window and stops excluding them after expiry; a
   multiplier is applied to exactly 3 completions and not a 4th, and stops
   applying after 5 hours even if charges remain.
+
+## Map Context
+
+No map index available. Run `node scripts/map-index.js --generate --root .` before delegation.
+
+## Phases
+
+| # | Status | Type | Phase | Done When |
+|---|--------|------|-------|-----------|
+| 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
+| 2 | pending | build | Implement requested change | Required files are changed and implementation diff is available |
+| 3 | pending | verify | Run verification | npm run test passes |
+| 4 | pending | package | Package for review | PR link or local review package is recorded |
+
+## Exit Evidence
+
+| Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
+|---|---|---|---|---|---|---|---|
+| phase:2 | implementation-diff | file_diff | yes | git diff --stat | pending | 2 | implement requested change |
+| phase:3 | verification-command | test_result | yes | npm run test | pending | 2 | fix verification failures |
+| phase:4 | review-package | review_package | yes | .planning/review-packages/punkte-shop-virtuelle-gamification-items-mit-zeitlich-begrenzten-effekten-tr-nke.md | pending | 2 | package delivery for review |
+
+## Decision Log
+
+- 2026-09-03T05:49:21.409Z: Created delivery campaign from intake preflight.
+  Reason: Convert intake into an evidence-backed delivery loop before implementation.
+- 2026-09-03: Blocked before implementation.
+  Reason: Hard dependency on `.planning/intake/points-shop-real-life-rewards.md`
+  (still `pending`) is unbuilt — `apps/api/src/app/rewards/` does not exist,
+  there is no reward catalog, no `RewardDefinition`/purchase flow, and no
+  `PointTransactionType` for shop redemptions. This item extends that base
+  shop (same catalog table shape, same purchase-debit mechanism) rather than
+  standing alone. Building it now would mean inventing the base shop ad hoc
+  and likely conflicting with the real dependency's design once built.
+  Switching autopilot to build points-shop-real-life-rewards first, then
+  resuming this campaign.
+
+## Active Context
+
+Unblocked: `points-shop-real-life-rewards` is now `completed` (campaign
+`punkte-shop-reale-belohnungen-gegen-punkte-einl-sbar-adminseitig-verwaltet-und-e`).
+Before resuming Phase 2, read what actually got built — `apps/api/src/app/rewards/`
+(`purchaseReward.ts`, `fulfillRedemption.ts`), `apps/api/src/domain/rewards/rules.ts`,
+`RewardDefinition`/`RewardRedemption` in `schema.prisma`, and
+`apps/web/src/pages/RewardsShopPage/` — since this item's `VIRTUAL_EFFECT`
+catalog kind and purchase flow must extend that shape (same catalog table,
+same purchase-debit mechanism) rather than reinvent it. Note in particular
+that `RewardDefinition` currently has no `kind` discriminator column at all —
+adding `VIRTUAL_EFFECT` alongside the implicit `MANUAL_FULFILLMENT` kind is
+itself a schema change this phase must make.
+
+## Continuation State
+
+Phase: 2
+Sub-step: implementation not started — blocked on prerequisite
+Files modified: campaign scaffold only
+Blocking: .planning/intake/points-shop-real-life-rewards.md (status: pending)

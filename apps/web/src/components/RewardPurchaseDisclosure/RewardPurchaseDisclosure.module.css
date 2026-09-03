@@ -1,0 +1,23 @@
+.dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.dl div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.dl dt {
+  font: var(--t-label);
+  color: var(--ink-3);
+}
+
+.dl dd {
+  font: var(--t-h3);
+  margin: 0;
+}

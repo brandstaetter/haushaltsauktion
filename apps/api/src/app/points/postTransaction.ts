@@ -28,6 +28,8 @@ export interface PostTransactionInput {
   taskAssignmentId?: string | null;
   /** Required iff `taskAssignmentId` is set; bound to it by a composite FK (§1.5). */
   assignmentKind?: string | null;
+  /** Punkte-Shop (intake "points-shop-real-life-rewards"); required for REWARD_REDEMPTION. */
+  rewardRedemptionId?: string | null;
   description?: string | null;
   initiatorMemberId?: string | null;
   initiatorType?: 'MEMBER' | 'ADMIN' | 'SYSTEM';
@@ -78,6 +80,7 @@ export async function postTransaction(
     type: input.type as never,
     taskAssignmentId: input.taskAssignmentId ?? null,
     assignmentKind: (input.assignmentKind ?? null) as never,
+    rewardRedemptionId: input.rewardRedemptionId ?? null,
   });
 
   // Step 4 — the chain tail, or the literal 'GENESIS' (§8.3). NULL would let two
@@ -102,6 +105,7 @@ export async function postTransaction(
       taskInstanceId: input.taskInstanceId ?? null,
       taskAssignmentId: input.taskAssignmentId ?? null,
       assignmentKind: (input.assignmentKind ?? null) as never,
+      rewardRedemptionId: input.rewardRedemptionId ?? null,
       description: input.description ?? null,
       initiatorMemberId: input.initiatorMemberId ?? null,
       initiatorType: (input.initiatorType ?? 'MEMBER') as never,

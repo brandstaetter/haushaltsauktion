@@ -23,6 +23,7 @@ import { validateAndPreview } from '../../../app/config/validateConfig.js';
 import type { Deps } from '../../../app/deps.js';
 import { adjustPoints } from '../../../app/points/adjustPoints.js';
 import { verifyLedgerIntegrity } from '../../../app/points/verifyLedgerIntegrity.js';
+import { fulfillRedemption } from '../../../app/rewards/fulfillRedemption.js';
 import { completeTask } from '../../../app/tasks/completeTask.js';
 import { rejectCompletion } from '../../../app/tasks/rejectCompletion.js';
 import { ConflictError, NotFoundError, ValidationError } from '../../../domain/errors.js';
@@ -623,6 +624,96 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       where: { id: params.id, householdId: ctx.householdId },
     });
     return reply.status(204).send();
+  });
+
+  // ───────────────────────── rewards (Punkte-Shop) ─────────────────────────
+  // intake "points-shop-real-life-rewards".
+
+  app.get('/admin/rewards', async (request, reply) => {
+    const ctx = requireAdmin(request, reply);
+    return {
+      items: await deps.db.rewardDefinition.findMany({
+        where: { householdId: ctx.householdId },
+        orderBy: { title: 'asc' },
+      }),
+    };
+  });
+
+  const RewardBody = z.object({
+    title: z.string().min(1).max(200),
+    description: z.string().max(2000).nullable().default(null),
+    cost: z.number().int().min(1).max(100_000),
+    isActive: z.boolean().default(true),
+  });
+
+  app.post('/admin/rewards', async (request, reply) => {
+    const ctx = requireAdmin(request, reply);
+    const body = parse(RewardBody, request.body);
+    const created = await deps.db.rewardDefinition.create({
+      data: { householdId: ctx.householdId, ...body },
+    });
+    await deps.db.auditEvent.create({
+      data: {
+        householdId: ctx.householdId,
+        actorType: 'ADMIN',
+        actorMemberId: ctx.memberId,
+        action: 'REWARD_DEFINITION_CREATED',
+        entityType: 'RewardDefinition',
+        entityId: created.id,
+        payload: { title: created.title, cost: created.cost },
+      },
+    });
+    return reply.status(201).send(created);
+  });
+
+  app.put('/admin/rewards/:id', async (request, reply) => {
+    const ctx = requireAdmin(request, reply);
+    const params = parse(IdParam, request.params);
+    const body = parse(RewardBody, request.body);
+    const { count } = await deps.db.rewardDefinition.updateMany({
+      where: { id: params.id, householdId: ctx.householdId },
+      data: body,
+    });
+    if (count === 0) throw new NotFoundError('Belohnung nicht gefunden.');
+    await deps.db.auditEvent.create({
+      data: {
+        householdId: ctx.householdId,
+        actorType: 'ADMIN',
+        actorMemberId: ctx.memberId,
+        action: 'REWARD_DEFINITION_UPDATED',
+        entityType: 'RewardDefinition',
+        entityId: params.id,
+        payload: { title: body.title, cost: body.cost, isActive: body.isActive },
+      },
+    });
+    return { id: params.id };
+  });
+
+  app.get('/admin/rewards/redemptions', async (request, reply) => {
+    const ctx = requireAdmin(request, reply);
+    const query = parse(
+      z.object({ status: z.enum(['PENDING', 'FULFILLED']).optional() }),
+      request.query,
+    );
+    const rows = await deps.db.rewardRedemption.findMany({
+      where: { householdId: ctx.householdId, ...(query.status ? { status: query.status } : {}) },
+      orderBy: { purchasedAt: 'desc' },
+      include: {
+        reward: { select: { id: true, title: true } },
+        member: { select: { id: true, displayName: true } },
+      },
+    });
+    return { items: rows };
+  });
+
+  app.post('/admin/rewards/redemptions/:id/fulfill', async (request, reply) => {
+    const ctx = requireAdmin(request, reply);
+    const params = parse(IdParam, request.params);
+    return fulfillRedemption(deps, {
+      householdId: ctx.householdId,
+      actorMemberId: ctx.memberId,
+      redemptionId: params.id,
+    });
   });
 
   // ───────────────────────── members ─────────────────────────

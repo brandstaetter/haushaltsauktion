@@ -88,6 +88,9 @@ enum PointTransactionType {
   /// Tages-Streak-Bonus (intake "daily-completion-streak-bonus"). Sign wie
   /// VOLUNTARY_TASK_REWARD: amount > 0 (ledger-math.ts signRuleViolated).
   STREAK_BONUS
+  /// Punkte-Shop (intake "points-shop-real-life-rewards"). Sign wie BUYOUT:
+  /// amount < 0 (ledger-math.ts signRuleViolated).
+  REWARD_REDEMPTION
 }
 
 enum HistoryEventType {
@@ -174,6 +177,12 @@ enum AuditAction {
   INTEGRATION_CONNECTED
   INTEGRATION_DISCONNECTED
   INTEGRATION_SETTINGS_UPDATED
+
+  /// Punkte-Shop (intake "points-shop-real-life-rewards").
+  REWARD_DEFINITION_CREATED
+  REWARD_DEFINITION_UPDATED
+  REWARD_PURCHASED
+  REWARD_FULFILLED
 }
 
 // ───────────────────────── identity plane ─────────────────────────
@@ -280,6 +289,9 @@ model Household {
   integrationOutbox    IntegrationOutbox[]
   integrationTaskLinks IntegrationTaskLink[]
 
+  rewardDefinitions RewardDefinition[]
+  rewardRedemptions RewardRedemption[]
+
   @@map("households")
 }
 
@@ -331,6 +343,9 @@ model HouseholdMember {
   integrations         MemberIntegration[]
   integrationOutbox    IntegrationOutbox[]
   integrationTaskLinks IntegrationTaskLink[]
+
+  rewardRedemptions    RewardRedemption[] @relation("RewardBuyer")
+  fulfilledRedemptions RewardRedemption[] @relation("RewardFulfiller")
 
   @@unique([householdId, userId])
   @@index([householdId, isActive])
@@ -620,21 +635,29 @@ model PointTransaction {
   /// Zufallszuweisungen verbieten kann (§1.5, §44).
   assignmentKind AssignmentKind? @map("assignment_kind")
 
+  /// Punkte-Shop (intake "points-shop-real-life-rewards"): gesetzt genau dann,
+  /// wenn type = REWARD_REDEMPTION (CHECK in der Constraints-Migration) — ein
+  /// eigenständiges Fremdschlüsselfeld statt einer Wiederverwendung von
+  /// taskAssignmentId, weil eine Einlösung keine TaskAssignment-Zeile ist.
+  rewardRedemptionId String? @map("reward_redemption_id")
+
   description       String?
   initiatorMemberId String?   @map("initiator_member_id") // null ⇒ SYSTEM (§14 "Initiator")
   initiatorType     ActorType @default(MEMBER) @map("initiator_type")
   createdAt         DateTime  @default(now()) @map("created_at")
 
-  household  Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  member     HouseholdMember  @relation("LedgerOwner", fields: [memberId], references: [id], onDelete: Restrict)
-  initiator  HouseholdMember? @relation("LedgerInitiator", fields: [initiatorMemberId], references: [id], onDelete: SetNull)
-  instance   TaskInstance?    @relation(fields: [taskInstanceId], references: [id], onDelete: Restrict)
-  assignment TaskAssignment?  @relation(fields: [taskAssignmentId, assignmentKind], references: [id, kind], onDelete: Restrict)
+  household        Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  member           HouseholdMember   @relation("LedgerOwner", fields: [memberId], references: [id], onDelete: Restrict)
+  initiator        HouseholdMember?  @relation("LedgerInitiator", fields: [initiatorMemberId], references: [id], onDelete: SetNull)
+  instance         TaskInstance?     @relation(fields: [taskInstanceId], references: [id], onDelete: Restrict)
+  assignment       TaskAssignment?   @relation(fields: [taskAssignmentId, assignmentKind], references: [id, kind], onDelete: Restrict)
+  rewardRedemption RewardRedemption? @relation(fields: [rewardRedemptionId], references: [id], onDelete: Restrict)
 
   @@unique([memberId, previousTransactionId])
   @@index([householdId, memberId, seq])
   @@index([householdId, createdAt])
   @@index([taskAssignmentId])
+  @@index([rewardRedemptionId])
   @@map("point_transactions")
 }
 
@@ -900,4 +923,63 @@ model IntegrationTaskLink {
   @@unique([householdId, assignmentId])
   @@index([taskInstanceId])
   @@map("integration_task_links")
+}
+
+// ───────────────────────── rewards (Punkte-Shop) ─────────────────────────
+// intake "points-shop-real-life-rewards": reale Belohnungen gegen Punkte,
+// adminseitig verwaltet und erfüllt — ein Antrags-/Freigabe-Workflow über dem
+// bestehenden Ledger, kein neuer Mechanismus für die Punktebuchung selbst.
+
+enum RewardRedemptionStatus {
+  PENDING
+  FULFILLED
+}
+
+/// Der Katalogeintrag — parallel zu TaskDefinition (§27), aber ohne
+/// Wiederholung oder Wert-Lebenszyklus: eine Belohnung hat einen festen Preis,
+/// den ein Admin direkt pflegt, nicht einen currentValue, der durch Freikäufe
+/// steigt.
+model RewardDefinition {
+  id          String   @id @default(cuid())
+  householdId String   @map("household_id")
+  title       String
+  description String?
+  cost        Int
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  household   Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  redemptions RewardRedemption[]
+
+  @@index([householdId, isActive])
+  @@map("reward_definitions")
+}
+
+/// Ein Kauf. costAtPurchase friert den Preis zum Kaufzeitpunkt ein — Vorbild
+/// TaskAssignment.valueAtAssignment (§1.3) — damit eine spätere Preisänderung
+/// am Katalogeintrag nie rückwirkend für eine schon laufende Einlösung gilt.
+model RewardRedemption {
+  id                 String @id @default(cuid())
+  householdId        String @map("household_id")
+  rewardDefinitionId String @map("reward_definition_id")
+  memberId           String @map("member_id")
+
+  costAtPurchase Int                    @map("cost_at_purchase")
+  status         RewardRedemptionStatus @default(PENDING)
+
+  purchasedAt         DateTime  @default(now()) @map("purchased_at")
+  fulfilledAt         DateTime? @map("fulfilled_at")
+  fulfilledByMemberId String?   @map("fulfilled_by_member_id")
+
+  household   Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  reward      RewardDefinition @relation(fields: [rewardDefinitionId], references: [id], onDelete: Restrict)
+  member      HouseholdMember  @relation("RewardBuyer", fields: [memberId], references: [id], onDelete: Restrict)
+  fulfilledBy HouseholdMember? @relation("RewardFulfiller", fields: [fulfilledByMemberId], references: [id], onDelete: SetNull)
+
+  transactions PointTransaction[]
+
+  @@index([householdId, status, purchasedAt])
+  @@index([rewardDefinitionId])
+  @@map("reward_redemptions")
 }

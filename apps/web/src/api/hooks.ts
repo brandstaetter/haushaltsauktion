@@ -9,6 +9,8 @@ import type {
   MemberDto,
   MemberRole,
   PointTransactionDto,
+  PurchaseRewardResultDto,
+  RewardShopItemDto,
   SelectionExplanationDto,
   TaskInstanceDetailDto,
   VolunteerRequest,
@@ -17,6 +19,8 @@ import { api, setCsrfToken } from './client';
 import type {
   AdminConfigDto,
   AdminMemberDto,
+  AdminRedemptionDto,
+  AdminRewardDto,
   AdminTaskDefinitionDetailDto,
   AdminTaskDefinitionDto,
   CategoryDto,
@@ -28,6 +32,7 @@ import type {
   RejectCompletionOutcome,
   RejectCompletionResultDto,
   RevokeAssignmentResultDto,
+  RewardWriteBody,
   SessionDto,
   TaskDefinitionSummaryDto,
   TaskDefinitionWriteBody,
@@ -40,6 +45,9 @@ const adminConfigQueryKey = ['admin', 'config'] as const;
 const adminMembersQueryKey = ['admin', 'members'] as const;
 const adminCategoriesQueryKey = ['admin', 'categories'] as const;
 const adminTaskDefinitionsQueryKey = ['admin', 'task-definitions'] as const;
+const rewardShopQueryKey = ['rewards'] as const;
+const adminRewardsQueryKey = ['admin', 'rewards'] as const;
+const adminRedemptionsQueryKey = ['admin', 'rewards', 'redemptions'] as const;
 
 export function useSession() {
   return useQuery({
@@ -623,6 +631,73 @@ export function useReorderCategories() {
       void qc.invalidateQueries({ queryKey: adminCategoriesQueryKey });
       void qc.invalidateQueries({ queryKey: adminTaskDefinitionsQueryKey });
     },
+  });
+}
+
+// ───────────────────────── rewards (Punkte-Shop) ─────────────────────────
+// intake "points-shop-real-life-rewards".
+
+export function useRewardShop() {
+  return useQuery({
+    queryKey: rewardShopQueryKey,
+    queryFn: () => api<{ items: RewardShopItemDto[] }>('/rewards'),
+  });
+}
+
+export function usePurchaseReward() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (rewardId: string) =>
+      api<PurchaseRewardResultDto>(`/rewards/${rewardId}/purchase`, { method: 'POST', body: {} }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: dashboardQueryKey });
+      void qc.invalidateQueries({ queryKey: ['members', 'me'] });
+      void qc.invalidateQueries({ queryKey: rewardShopQueryKey });
+    },
+  });
+}
+
+export function useAdminRewards() {
+  return useQuery({
+    queryKey: adminRewardsQueryKey,
+    queryFn: () => api<{ items: AdminRewardDto[] }>('/admin/rewards'),
+  });
+}
+
+export function useCreateReward() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: RewardWriteBody) =>
+      api<AdminRewardDto>('/admin/rewards', { method: 'POST', body }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: adminRewardsQueryKey }),
+  });
+}
+
+export function useUpdateReward() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: RewardWriteBody }) =>
+      api<{ id: string }>(`/admin/rewards/${id}`, { method: 'PUT', body }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: adminRewardsQueryKey }),
+  });
+}
+
+export function useAdminRedemptions(status?: 'PENDING' | 'FULFILLED') {
+  return useQuery({
+    queryKey: [...adminRedemptionsQueryKey, status ?? 'all'],
+    queryFn: () =>
+      api<{ items: AdminRedemptionDto[] }>(
+        status ? `/admin/rewards/redemptions?status=${status}` : '/admin/rewards/redemptions',
+      ),
+  });
+}
+
+export function useFulfillRedemption() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<{ id: string }>(`/admin/rewards/redemptions/${id}/fulfill`, { method: 'POST' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: adminRedemptionsQueryKey }),
   });
 }
 

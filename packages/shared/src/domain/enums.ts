@@ -84,9 +84,16 @@ export const PointTransactionType = asEnum({
   CORRECTION: 'CORRECTION',
   /** Daily completion streak (CLAUDE.md §16, intake "daily-completion-streak-bonus"). */
   STREAK_BONUS: 'STREAK_BONUS',
+  /** Punkte-Shop purchase (intake "points-shop-real-life-rewards"). */
+  REWARD_REDEMPTION: 'REWARD_REDEMPTION',
 });
 export type PointTransactionType =
   (typeof PointTransactionType)[keyof typeof PointTransactionType];
+
+/** Punkte-Shop (intake "points-shop-real-life-rewards"). */
+export const RewardRedemptionStatus = asEnum({ PENDING: 'PENDING', FULFILLED: 'FULFILLED' });
+export type RewardRedemptionStatus =
+  (typeof RewardRedemptionStatus)[keyof typeof RewardRedemptionStatus];
 
 export const HistoryEventType = asEnum({
   CREATED: 'CREATED',
@@ -158,6 +165,11 @@ export const AuditAction = asEnum({
   BUYOUT_EXECUTED: 'BUYOUT_EXECUTED',
   TASK_COMPLETED: 'TASK_COMPLETED',
   TASK_COMPLETION_REJECTED: 'TASK_COMPLETION_REJECTED',
+  /** Punkte-Shop (intake "points-shop-real-life-rewards"). */
+  REWARD_DEFINITION_CREATED: 'REWARD_DEFINITION_CREATED',
+  REWARD_DEFINITION_UPDATED: 'REWARD_DEFINITION_UPDATED',
+  REWARD_PURCHASED: 'REWARD_PURCHASED',
+  REWARD_FULFILLED: 'REWARD_FULFILLED',
 });
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 

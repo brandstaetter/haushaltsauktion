@@ -226,3 +226,35 @@ export interface CategoryWriteBody {
   colorHex: string | null;
   sortOrder: number;
 }
+
+/** Full reward-catalog row from `GET /admin/rewards[/:id]` (Punkte-Shop,
+ * intake "points-shop-real-life-rewards"). */
+export interface AdminRewardDto {
+  id: string;
+  title: string;
+  description: string | null;
+  cost: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Body shape for `POST`/`PUT /admin/rewards[/:id]` — mirrors `RewardBody`
+ * server-side exactly. */
+export interface RewardWriteBody {
+  title: string;
+  description: string | null;
+  cost: number;
+  isActive: boolean;
+}
+
+/** One row of `GET /admin/rewards/redemptions` — the fulfillment queue. */
+export interface AdminRedemptionDto {
+  id: string;
+  status: 'PENDING' | 'FULFILLED';
+  costAtPurchase: number;
+  purchasedAt: string;
+  fulfilledAt: string | null;
+  reward: { id: string; title: string };
+  member: { id: string; displayName: string };
+}

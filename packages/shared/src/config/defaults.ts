@@ -70,6 +70,13 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
     decreasePercentage: 25,
   }),
 
+  rewards: Object.freeze({
+    enabled: true,
+    allowNegativeBalance: false,
+    minimumBalance: 0,
+    maximumDebt: null,
+  }),
+
   points: Object.freeze({
     decay: Object.freeze({
       enabled: false, // §39
@@ -155,6 +162,7 @@ export function toPublicConfig(cfg: HouseholdConfig): PublicHouseholdConfig {
     completion: {
       resetStrategy: cfg.completion.resetStrategy,
     },
+    rewards: { enabled: cfg.rewards.enabled },
     pointDecayEnabled: cfg.points.decay.enabled,
     streak: { enabled: cfg.streak.enabled, baseRate: cfg.streak.baseRate },
     // The switch only. A member's token, project and triggers are personal and

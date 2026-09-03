@@ -87,6 +87,23 @@ export interface ValueIncreaseConfig {
   maximumValue: number | null;
 }
 
+/**
+ * Punkte-Shop (intake "points-shop-real-life-rewards").
+ *
+ * Deliberately its own balance-guard shape rather than reusing `BuyoutConfig`'s
+ * `allowNegativeBalance`/`minimumBalance`/`maximumDebt`: a reward purchase is a
+ * discretionary spend, not the buyout mechanic's punishment-avoidance, and an
+ * admin who tightens buyout debt limits should not silently also tighten (or
+ * loosen) what the shop allows.
+ */
+export interface RewardsConfig {
+  enabled: boolean;
+  allowNegativeBalance: boolean;
+  minimumBalance: number;
+  /** used iff `allowNegativeBalance`; the furthest a balance may go below zero */
+  maximumDebt: number | null;
+}
+
 export interface CompletionConfig {
   resetStrategy: ResetStrategy;
   /** used iff `DECREASE_PERCENTAGE`; 1 .. 99 */
@@ -173,6 +190,7 @@ export interface HouseholdConfig {
   buyout: BuyoutConfig;
   valueIncrease: ValueIncreaseConfig;
   completion: CompletionConfig;
+  rewards: RewardsConfig;
   points: PointsConfig;
   streak: StreakConfig;
   fairness: FairnessConfig;
@@ -194,6 +212,8 @@ export interface PublicHouseholdConfig {
   assignment: Pick<AssignmentConfig, 'strategy' | 'offerDurationMinutes' | 'leadMinutesBeforeDue'>;
   valueIncrease: Pick<ValueIncreaseConfig, 'strategy' | 'minimumIncrease' | 'maximumValue'>;
   completion: Pick<CompletionConfig, 'resetStrategy'>;
+  /** Just the switch — whether the shop nav entry should render at all. */
+  rewards: Pick<RewardsConfig, 'enabled'>;
   pointDecayEnabled: boolean;
   streak: Pick<StreakConfig, 'enabled' | 'baseRate'>;
   /**

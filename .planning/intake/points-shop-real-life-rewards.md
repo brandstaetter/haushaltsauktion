@@ -1,8 +1,9 @@
 ---
 title: "Punkte-Shop: reale Belohnungen gegen Punkte einlösbar, adminseitig verwaltet und erfüllt"
-status: pending
+status: completed
 priority: normal
 target: apps/api/prisma/schema.prisma, apps/api/src/app/rewards/, apps/api/src/app/points/postTransaction.ts, apps/api/src/infra/http/routes/, apps/web/src/pages/AdminPage/, apps/web/src/pages/ (new RewardsShopPage), apps/web/src/api/hooks.ts
+campaign: punkte-shop-reale-belohnungen-gegen-punkte-einl-sbar-adminseitig-verwaltet-und-e
 ---
 
 ## Description

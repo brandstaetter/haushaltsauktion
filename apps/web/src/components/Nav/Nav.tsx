@@ -1,4 +1,4 @@
-import { Home, History, User, Settings, Users, ClipboardList, Folder } from 'lucide-react';
+import { Home, History, User, Settings, Users, ClipboardList, Folder, Gift } from 'lucide-react';
 import { NavLink } from 'react-router';
 import { useStrings } from '../../context/StringsContext';
 import styles from './Nav.module.css';
@@ -20,6 +20,7 @@ export function Nav({ role }: NavProps) {
     { to: '/verwaltung/benutzer', icon: Users, label: de.nav.adminMembers },
     { to: '/verwaltung/aufgaben', icon: ClipboardList, label: de.nav.adminTasks },
     { to: '/verwaltung/kategorien', icon: Folder, label: de.nav.adminCategories },
+    { to: '/verwaltung/punkte-shop', icon: Gift, label: de.nav.adminRewards },
   ];
 
   const visibleItems = role === 'ADMIN' ? [...items, ...adminItems] : items;

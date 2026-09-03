@@ -14,6 +14,8 @@ import { AdminSettingsPage } from './pages/AdminPage/AdminSettingsPage';
 import { AdminMembersPage } from './pages/AdminPage/AdminMembersPage';
 import { AdminTasksPage } from './pages/AdminPage/AdminTasksPage';
 import { AdminCategoriesPage } from './pages/AdminPage/AdminCategoriesPage';
+import { AdminRewardsPage } from './pages/AdminPage/AdminRewardsPage';
+import { RewardsShopPage } from './pages/RewardsShopPage/RewardsShopPage';
 import { OperatorLoginPage } from './pages/OperatorDashboardPage/OperatorLoginPage';
 import { OperatorDashboardPage } from './pages/OperatorDashboardPage/OperatorDashboardPage';
 import { useOperatorSession } from './api/operatorHooks';
@@ -107,6 +109,14 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            path: 'punkte-shop',
+            element: (
+              <Protected>
+                <RewardsShopPage />
+              </Protected>
+            ),
+          },
+          {
             path: 'verwaltung',
             element: (
               <AdminRoute>
@@ -143,6 +153,14 @@ export const router = createBrowserRouter([
             element: (
               <AdminRoute>
                 <AdminCategoriesPage />
+              </AdminRoute>
+            ),
+          },
+          {
+            path: 'verwaltung/punkte-shop',
+            element: (
+              <AdminRoute>
+                <AdminRewardsPage />
               </AdminRoute>
             ),
           },

@@ -33,6 +33,7 @@ const entry = (over: Partial<LedgerEntry> & Pick<LedgerEntry, 'id' | 'seq'>): Le
   previousTransactionId: GENESIS,
   taskAssignmentId: null,
   assignmentKind: null,
+  rewardRedemptionId: null,
   ...over,
 });
 
