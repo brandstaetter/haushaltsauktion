@@ -78,6 +78,17 @@
   justify-content: center;
 }
 
+/* Distinguishes the read-only points balance from the editable
+   select/input/checkbox cells it sits next to in `.fields` -- same box
+   weight (per the comment above), but a dashed border, muted background,
+   and muted text so it doesn't visually invite a click/edit. */
+.readonlyBox {
+  border-style: dashed;
+  background: var(--ground);
+  color: var(--ink-3);
+  cursor: default;
+}
+
 .activeBox input[type='checkbox'] {
   width: 20px;
   height: 20px;

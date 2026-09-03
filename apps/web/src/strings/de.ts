@@ -418,6 +418,7 @@ export const de = {
       maxRandomAssignmentsPerWeek: 'Zufallslimit/Woche',
       maxRandomAssignmentsPerWeekHint: 'Leer lassen für kein Limit.',
       balance: 'Punktestand',
+      balanceReadonlyHint: 'Nur lesbar.',
       save: 'Speichern',
       create: 'Anlegen',
       cancel: 'Abbrechen',

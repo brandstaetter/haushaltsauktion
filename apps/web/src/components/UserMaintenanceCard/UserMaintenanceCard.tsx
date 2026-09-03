@@ -105,7 +105,12 @@ export function UserMaintenanceCard({
         </label>
         <div className={styles.field}>
           <span>{de.admin.members.balance}</span>
-          <span className={styles.fieldBox}>{formatNumber(member.pointsCache)}</span>
+          <span
+            className={`${styles.fieldBox} ${styles.readonlyBox}`}
+            title={de.admin.members.balanceReadonlyHint}
+          >
+            {formatNumber(member.pointsCache)}
+          </span>
         </div>
       </div>
 
