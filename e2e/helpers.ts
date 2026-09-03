@@ -321,7 +321,7 @@ export async function expectNoTextTruncation(locator: Locator): Promise<void> {
   const result = await locator.evaluate((el) => ({
     scrollWidth: el.scrollWidth,
     clientWidth: el.clientWidth,
-    text: el.textContent,
+    text: (el.textContent ?? '').trim(),
   }));
 
   // 1px Toleranz für Subpixel-Rundung beim Messen selbst, nicht als

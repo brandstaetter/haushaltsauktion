@@ -1,19 +1,18 @@
 /*
- * `sticky` statt `fixed`: die Leiste bleibt am Viewport-Rand kleben, nimmt
- * dabei aber (anders als `fixed`, das Elemente aus dem Fluss herausnimmt)
- * ihre tatsächliche Höhe im Flex-Layout von `Layout.module.css` ein. Dadurch
- * muss `.main` dort keine geraten/hartkodierte Nav-Höhe mehr als
- * `padding-bottom` reservieren — das bricht sonst genau dann, wenn die Nav
- * (z. B. das zweizeilige `.grid`-Untermenü unten) höher wird als der beim
- * letzten Mal angenommene Wert.
+ * Kein `position: fixed`/`sticky` mehr auf dem Handy: beides koppelt die
+ * Nav-Höhe zurück an `Layout.module.css` (`fixed` braucht dort ein
+ * geratenes `padding-bottom`; `sticky` hält die Leiste nur fest, *nachdem*
+ * sie in den Viewport gescrollt wurde — bei einer langen Seite wie
+ * `HistoryPage` bliebe die Nav dann unsichtbar, bis man ganz nach unten
+ * scrollt, ein Regressions-Risiko für eine primäre Navigation). Die Nav ist
+ * jetzt ein normales, unpositioniertes Flex-Element am Ende von `.layout`,
+ * das dort per `height: 100dvh` + intern scrollendem `.main` immer sichtbar
+ * bleibt — unabhängig von ihrer tatsächlichen Höhe.
  */
 .nav {
-  position: sticky;
-  bottom: 0;
   background: var(--surface);
   border-top: 1px solid var(--hairline);
   padding-bottom: max(var(--s-2), env(safe-area-inset-bottom));
-  z-index: 20;
 }
 
 .list {
@@ -84,7 +83,6 @@
 
 @media (min-width: 900px) {
   .nav {
-    position: static;
     border-top: none;
     border-right: 1px solid var(--hairline);
     padding: var(--s-5);

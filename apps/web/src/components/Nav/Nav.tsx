@@ -47,8 +47,10 @@ export function Nav({ role }: NavProps) {
   const visibleItems = role === 'ADMIN' && inMaintenance ? submenuItems : mainItems;
   // Ab 5 Spalten reicht selbst die gleichmäßige Aufteilung von §31 nicht
   // mehr für lange Labels ("Einstellungen", "Punkte-Shop") auf 390px — statt
-  // sie mit Ellipsis abzuschneiden (unlesbar, siehe Decision Log), bricht
-  // die Leiste dann kontrolliert auf zwei Zeilen um (3 Spalten je Zeile).
+  // sie mit Ellipsis abzuschneiden (unlesbar, siehe Decision Log), bricht die
+  // Leiste dann kontrolliert in Zeilen zu je 3 Spalten um (aktuell 2 Zeilen
+  // bei den 6 Einträgen des Verwaltungs-Untermenüs; bei mehr Einträgen in
+  // Zukunft entsprechend mehr Zeilen).
   const grid = visibleItems.length > 4;
 
   return (
