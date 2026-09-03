@@ -1,19 +1,19 @@
 ---
 version: 1
 id: "d84bf251-1721-4e41-8981-4c00544b9a25"
-status: blocked
+status: completed
 started: "2026-09-03T05:49:21.409Z"
-completed_at: null
+completed_at: "2026-09-03T10:15:00.000Z"
 direction: "Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)"
 phase_count: 4
-current_phase: 2
-branch: null
+current_phase: 4
+branch: feat/points-shop-virtual-effects
 worktree_status: null
 ---
 
 # Campaign: Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)
 
-Status: active
+Status: completed
 Started: 2026-09-03T05:49:21.409Z
 Direction: Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)
 
@@ -110,17 +110,17 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | # | Status | Type | Phase | Done When |
 |---|--------|------|-------|-----------|
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
-| 2 | pending | build | Implement requested change | Required files are changed and implementation diff is available |
-| 3 | pending | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
+| 3 | complete | verify | Run verification | npm run test passes |
+| 4 |  complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
 | Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
 |---|---|---|---|---|---|---|---|
-| phase:2 | implementation-diff | file_diff | yes | git diff --stat | pending | 2 | implement requested change |
-| phase:3 | verification-command | test_result | yes | npm run test | pending | 2 | fix verification failures |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/punkte-shop-virtuelle-gamification-items-mit-zeitlich-begrenzten-effekten-tr-nke.md | pending | 2 | package delivery for review |
+| phase:2 | implementation-diff | file_diff | yes | git diff --stat: 25 files changed, 936 insertions(+), 82 deletions(-) | pass | 2 | implement requested change |
+| phase:3 | verification-command | test_result | yes | npm run typecheck (root+web+e2e) clean; npm run test -w apps/api: 305/305 passed (31 files) | pass | 2 | fix verification failures |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/52 | resolved | 2 | review pull request |
 
 ## Decision Log
 
@@ -136,6 +136,21 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
   and likely conflicting with the real dependency's design once built.
   Switching autopilot to build points-shop-real-life-rewards first, then
   resuming this campaign.
+- 2026-09-03: Phase 2 (build) delegated to a sub-agent with fixed design
+  decisions handed down rather than left to the delegate: `MemberEffect` as
+  one generic substrate (not two ad hoc tables); rule 8 (immunity) kept out
+  of `hardEligibilityReason`/`CONSTRAINT_OF` so it gates the random draw
+  without blocking volunteering and is never relaxed by the ladder; the
+  multiplier consumed via compare-and-set inside `completeTask.ts`'s
+  existing level-3 member lock, no new lock level. Reviewed the resulting
+  diff personally (eligibility.ts, candidates.ts, completeTask.ts,
+  purchaseReward.ts, schema/migrations, admin.ts validation, the race
+  test), independently re-ran `npm run typecheck` and
+  `npm run test -w apps/api` (305/305 pass), and dispatched a
+  citadel:phase-validator for an independent check — verdict `pass`, 6/6
+  conditions met, one warning (dashboard DTO extension not spot-checked by
+  the validator) which I closed by reading `reads.ts` directly. Exit
+  evidence for phase:2 and phase:3 both validate `PASS`.
 
 ## Active Context
 
@@ -153,7 +168,8 @@ itself a schema change this phase must make.
 
 ## Continuation State
 
-Phase: 2
-Sub-step: implementation not started — blocked on prerequisite
-Files modified: campaign scaffold only
-Blocking: .planning/intake/points-shop-real-life-rewards.md (status: pending)
+Phase: 4
+Sub-step: build (2) and verify (3) complete and validated; packaging for review
+Files modified: 25 files changed, 936 insertions(+), 82 deletions(-), plus 2
+new migrations and 3 new test/domain files (see phase:2 exit evidence)
+Blocking: none

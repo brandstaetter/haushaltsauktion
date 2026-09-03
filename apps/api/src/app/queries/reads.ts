@@ -14,6 +14,7 @@ import type {
   CursorPage,
   HistoryEventDto,
   MemberDto,
+  MemberEffectDto,
   PointTransactionDto,
   SelectionExplanationDto,
   SelectionTrace,
@@ -347,6 +348,12 @@ export interface DashboardDto {
     balance: number;
     assigned: Awaited<ReturnType<typeof listAssignedToMe>>;
     available: Awaited<ReturnType<typeof listAvailableTasks>>;
+    /**
+     * §31 / §6.12 (intake "points-shop-virtual-gamification-items") — the
+     * member's active potion effects, so remaining time/charges are visible
+     * before they act, not just discoverable after the fact.
+     */
+    activeEffects: MemberEffectDto[];
   };
   family: {
     members: MemberDto[];
@@ -377,10 +384,33 @@ export async function loadDashboard(
   });
   if (member === null) throw new NotFoundError('Mitglied nicht gefunden.');
 
-  const [assigned, available, members, completed] = await Promise.all([
+  const [assigned, available, members, activeEffectRows, completed] = await Promise.all([
     listAssignedToMe(tx, ctx, member.pointsCache),
     listAvailableTasks(tx, ctx),
     listMembers(tx, ctx.householdId),
+    // §6.12 — "active" mirrors the eligibility read in `candidates.ts`:
+    // expiresAt > now, plus (for MULTIPLIER) non-exhausted charges. A
+    // MULTIPLIER row that hit 0 charges is `consumedAt`-marked but not
+    // deleted (audit trail), so it must not be shown as still usable.
+    tx.memberEffect.findMany({
+      where: {
+        householdId: ctx.householdId,
+        memberId: ctx.memberId,
+        expiresAt: { gt: ctx.now },
+        OR: [{ type: { not: 'MULTIPLIER' } }, { chargesRemaining: { gt: 0 } }],
+      },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        type: true,
+        multiplierValue: true,
+        chargesRemaining: true,
+        expiresAt: true,
+        // §31 — "n von total" needs the item's original charge count; the
+        // effect row only ever tracks what remains.
+        redemption: { select: { reward: { select: { effectCharges: true } } } },
+      },
+    }),
     tx.taskInstance.findMany({
       where: { householdId: ctx.householdId, status: 'COMPLETED' },
       orderBy: { completedAt: 'desc' },
@@ -411,6 +441,17 @@ export async function loadDashboard(
     }),
   ]);
 
+  // "Active" (§6.12) is already the query predicate above — nothing left to
+  // filter here, just shape the DTO.
+  const activeEffects: MemberEffectDto[] = activeEffectRows.map((e) => ({
+    id: e.id,
+    type: e.type as 'IMMUNITY' | 'MULTIPLIER',
+    multiplierValue: e.multiplierValue,
+    chargesRemaining: e.chargesRemaining,
+    totalCharges: e.redemption.reward.effectCharges,
+    expiresAt: e.expiresAt.toISOString(),
+  }));
+
   return {
     me: {
       memberId: ctx.memberId,
@@ -418,6 +459,7 @@ export async function loadDashboard(
       balance: member.pointsCache,
       assigned,
       available: available.filter((t) => t.canVolunteer),
+      activeEffects,
     },
     family: {
       members,

@@ -1,5 +1,5 @@
 /**
- * Erledigung — T7 (Architektur §4.5, CLAUDE.md §7, §11, §28, §44).
+ * Erledigung — T7 (Architektur §4.5, §6.12, CLAUDE.md §7, §11, §28, §44).
  *
  * **The headline invariant lives in one expression.** `voluntaryReward` tests
  * `kind === 'VOLUNTARY'` *before* consulting any configuration value, so no
@@ -7,6 +7,14 @@
  * setting that would (§5.4). When the award is 0, **no ledger row is written at
  * all**: the zero is an absence, not a zero-amount entry that could later be
  * mistaken for a payout (§8.2 step 1).
+ *
+ * `finalAward` (§6.12, intake "points-shop-virtual-gamification-items")
+ * layers a per-member, per-charge multiplier effect on top of `award` — the
+ * same `kind === 'VOLUNTARY' && award > 0` test guards it, so a `RANDOM`
+ * completion can never be scaled into a payout either. One ledger row still
+ * posts, not two: the multiplier changes the *amount* of the existing
+ * `VOLUNTARY_TASK_REWARD` transaction, unlike the unrelated `STREAK_BONUS`
+ * below, which is a second, independent transaction.
  *
  * Locks 1 → 2 → 3, the same order as the buyout, so the two cannot deadlock.
  * Level 3 is only entered when there is actually something to credit.
@@ -16,6 +24,7 @@ import type { CompletionResultDto } from '@haushaltsauktion/shared';
 import { dayKey, RewardTiming } from '@haushaltsauktion/shared';
 
 import { ConflictError, ForbiddenError, NotFoundError } from '../../domain/errors.js';
+import { applyRewardMultiplier } from '../../domain/effects/multiplier.js';
 import { nextOccurrence } from '../../domain/recurrence/next-occurrence.js';
 import { resolve, TaskEvent } from '../../domain/task/state-machine.js';
 import { carriedValueAfterCompletion, resetValue, voluntaryReward } from '../../domain/task/value.js';
@@ -113,6 +122,45 @@ export async function completeTask(
       timing: RewardTiming.ON_COMPLETE,
     });
 
+    // §6.12 (intake "points-shop-virtual-gamification-items"): a member's
+    // oldest active reward-multiplier effect, applied on top of the pinned
+    // household config. `kind === 'VOLUNTARY' && award > 0` is tested first,
+    // the same discipline `voluntaryReward` itself uses for §7/§44 — a
+    // multiplier can only ever scale a payment that would happen anyway, it
+    // can never conjure one for a RANDOM completion.
+    let finalAward = award;
+    if (assignment.kind === 'VOLUNTARY' && award > 0) {
+      const effect = await tx.memberEffect.findFirst({
+        where: {
+          householdId: input.householdId,
+          memberId: assignment.memberId,
+          type: 'MULTIPLIER',
+          expiresAt: { gt: now },
+          chargesRemaining: { gt: 0 },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, multiplierValue: true, chargesRemaining: true },
+      });
+      if (effect !== null && effect.multiplierValue !== null && effect.chargesRemaining !== null) {
+        const multiplied = applyRewardMultiplier(award, {
+          multiplierValue: effect.multiplierValue,
+          chargesRemaining: effect.chargesRemaining,
+        });
+        // Compare-and-set, the same shape as the assignment-close guard below:
+        // a lost race here (already serialized by the level-3 member lock
+        // taken above, so this is defence in depth, §4.7) degrades silently
+        // to the un-multiplied award rather than failing the completion.
+        const consumed = await tx.memberEffect.updateMany({
+          where: { id: effect.id, householdId: input.householdId, chargesRemaining: { gt: 0 } },
+          data: {
+            chargesRemaining: { decrement: 1 },
+            ...(effect.chargesRemaining - 1 <= 0 ? { consumedAt: now } : {}),
+          },
+        });
+        if (consumed.count > 0) finalAward = multiplied;
+      }
+    }
+
     // Daily completion streak (intake "daily-completion-streak-bonus"). ANY
     // kind extends/keeps the streak alive for today; only a VOLUNTARY
     // completion can trigger a payment, computed from the length AFTER this
@@ -146,11 +194,11 @@ export async function completeTask(
     // ── level 3, only when there is something to credit ─────────────────
     let balanceAfter = assignee.pointsCache;
     let transaction: CompletionResultDto['transaction'] = null;
-    if (award > 0) {
+    if (finalAward > 0) {
       const credit = await postTransaction(tx, {
         householdId: input.householdId,
         memberId: assignment.memberId,
-        amount: award,
+        amount: finalAward,
         type: 'VOLUNTARY_TASK_REWARD',
         taskInstanceId: instance.id,
         taskAssignmentId: assignment.id,
@@ -289,7 +337,7 @@ export async function completeTask(
               type: 'POINTS_AWARDED',
               payload: {
                 memberId: assignment.memberId,
-                amount: award,
+                amount: finalAward,
                 transactionId: transaction.id,
               },
             },
@@ -334,7 +382,7 @@ export async function completeTask(
       payload: {
         assignmentId: assignment.id,
         kind: assignment.kind,
-        pointsAwarded: award,
+        pointsAwarded: finalAward,
         streakBonusAwarded: streakOutcome.bonusAmount,
         streakLength: streakOutcome.nextState.length,
         valueResetFrom: instance.currentValue,
@@ -375,7 +423,7 @@ export async function completeTask(
 
     return {
       instance: detail,
-      pointsAwarded: award,
+      pointsAwarded: finalAward,
       transaction,
       balanceAfter,
       valueResetFrom: instance.currentValue,

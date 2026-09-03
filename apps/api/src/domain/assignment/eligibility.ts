@@ -1,15 +1,20 @@
 /**
- * Eligibility filter and relaxation ladder (Architektur §6.9, PRD §3D).
+ * Eligibility filter and relaxation ladder (Architektur §6.9, §6.12, PRD §3D).
  *
- * Seven ordered predicates. Rules 1–5 are **hard**: they are never relaxed, and
+ * Eight ordered predicates. Rules 1–5 are **hard**: they are never relaxed, and
  * they are the only ones that gate volunteering — assigning a chore to someone
  * on holiday or explicitly excluded is worse than leaving it unassigned.
  * Rules 6 and 7 are fairness protections against being *given* work, so they
- * never block someone who wants the task.
+ * never block someone who wants the task. Rule 8 (intake
+ * "points-shop-virtual-gamification-items") is hard for the random draw but,
+ * unlike rules 1–5, does not gate volunteering — an immunity potion buys out
+ * of being *drawn*, not out of *choosing* to help. It is evaluated separately
+ * from `hardEligibilityReason` for exactly that reason: folding it into rules
+ * 1–5 would also block volunteering, which the intake explicitly forbids.
  *
  * Pure: no Prisma, no `Date`, no `Math.random` (§7.2). "Now" arrives already
- * folded into `isAbsent`; the caller resolved the absence window against the
- * injected clock.
+ * folded into `isAbsent` and `hasActiveImmunity`; the caller resolved the
+ * absence/effect windows against the injected clock.
  */
 
 import {
@@ -44,6 +49,13 @@ export interface EligibilityCandidate {
    * `null` means never.
    */
   cyclesSinceLastRandomAssignmentOfTask: number | null;
+  /**
+   * rule 8 (§6.12, intake "points-shop-virtual-gamification-items") — an
+   * unexpired `MemberEffect` of type IMMUNITY covers the decision instant.
+   * Hard for the random draw, never relaxed, never consulted by
+   * `assertCanVolunteer`/`canVolunteer`.
+   */
+  hasActiveImmunity: boolean;
   metrics: FairnessMetrics;
 }
 
@@ -121,6 +133,12 @@ function evaluate(
 ): EligibilityEvaluation {
   const hard = hardEligibilityReason(candidate, options);
   if (hard !== null) return { memberId: candidate.memberId, included: false, reason: hard };
+  // Rule 8 — checked here, between the hard and soft rules, not inside
+  // `hardEligibilityReason`: that function is also what `assertCanVolunteer`
+  // consults, and immunity must never block volunteering (§6.12).
+  if (candidate.hasActiveImmunity) {
+    return { memberId: candidate.memberId, included: false, reason: EligibilityReason.MEMBER_IMMUNE };
+  }
   const soft = softEligibilityReason(cfg, candidate, relaxed);
   if (soft !== null) return { memberId: candidate.memberId, included: false, reason: soft };
   return { memberId: candidate.memberId, included: true, reason: null };

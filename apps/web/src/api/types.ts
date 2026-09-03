@@ -4,6 +4,7 @@ import type {
   EligibilityMode,
   HouseholdConfig,
   MemberDto,
+  MemberEffectDto,
   MemberRole,
   PublicHouseholdConfig,
   RecurrenceType,
@@ -26,6 +27,7 @@ export interface DashboardDto {
     balance: number;
     assigned: TaskInstanceDetailDto[];
     available: AvailableTaskDto[];
+    activeEffects: MemberEffectDto[];
   };
   family: {
     members: MemberDto[];
@@ -228,12 +230,18 @@ export interface CategoryWriteBody {
 }
 
 /** Full reward-catalog row from `GET /admin/rewards[/:id]` (Punkte-Shop,
- * intake "points-shop-real-life-rewards"). */
+ * intake "points-shop-real-life-rewards", erweitert um virtuelle Effekte
+ * durch "points-shop-virtual-gamification-items"). */
 export interface AdminRewardDto {
   id: string;
   title: string;
   description: string | null;
   cost: number;
+  kind: 'MANUAL_FULFILLMENT' | 'VIRTUAL_EFFECT';
+  effectType: 'IMMUNITY' | 'MULTIPLIER' | null;
+  effectDurationMinutes: number | null;
+  effectCharges: number | null;
+  effectMultiplier: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -246,6 +254,11 @@ export interface RewardWriteBody {
   description: string | null;
   cost: number;
   isActive: boolean;
+  kind: 'MANUAL_FULFILLMENT' | 'VIRTUAL_EFFECT';
+  effectType: 'IMMUNITY' | 'MULTIPLIER' | null;
+  effectDurationMinutes: number | null;
+  effectCharges: number | null;
+  effectMultiplier: number | null;
 }
 
 /** One row of `GET /admin/rewards/redemptions` — the fulfillment queue. */

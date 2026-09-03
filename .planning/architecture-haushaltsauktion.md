@@ -673,10 +673,10 @@ occurrence, not on `lastCompletedAt`, so a missed week does not shift the series
 
 ## 1.5 Database constraints not expressible in the Prisma DSL
 
-Added by a raw-SQL step in the initial migration
-(`prisma/migrations/.../constraints.sql`). These are the structural enforcement
-of §44 — each one makes an invariant violation a database error rather than a
-test failure.
+Added by a raw-SQL step in a dedicated migration, e.g.
+`apps/api/prisma/migrations/20260903060000_add_reward_shop_constraints/migration.sql`.
+These are the structural enforcement of §44 — each one makes an invariant
+violation a database error rather than a test failure.
 
 ```sql
 -- ── §44: a buyout costs points; a reward gives points ──
@@ -2035,9 +2035,15 @@ Ordered predicates. Each rejection records an `EligibilityReason`, which is what
 | 5 | `CATEGORY_EXCLUDED` (`MemberCategoryExclusion`) | **hard** | yes |
 | 6 | `RANDOM_ASSIGNMENT_CAP_REACHED` (`maxRandomAssignmentsPerWeek`) | soft | **no** |
 | 7 | `IMMEDIATE_REASSIGNMENT_BLOCKED` (`preventImmediateReassignment` / `reassignmentCooldownCycles`) | soft | **no** |
+| 8 | `MEMBER_IMMUNE` (an unexpired `MemberEffect` of type `IMMUNITY` covers now — §6.12) | **hard, but only for the draw** | **no** |
 
 Rules 6 and 7 are fairness protections against being *given* work. They never
 block someone who *wants* the task, so §5 volunteering only checks rules 1–5.
+Rule 8 (§6.12) is evaluated on its own, between the hard and soft groups: it is
+never relaxed like rules 1–5, but — unlike rules 1–5 — it must never gate
+volunteering either. Folding it into either existing group would get one of
+those two properties wrong, so `evaluate()` checks it as a third, standalone
+step.
 
 **Relaxation ladder (PRD §3D).** If the eligible set is empty and
 `cfg.assignment.relaxConstraintsWhenNoCandidates`:
@@ -2092,6 +2098,106 @@ looked up by the config string. Adding a strategy means adding a key and a pure
 function; the config schema's enum and the record's keys are checked against each
 other at compile time (`satisfies Record<AssignmentStrategy, …>`), so a strategy
 can never be configurable but unimplemented.
+
+## 6.12 Member effects (intake "points-shop-virtual-gamification-items")
+
+A time-boxed, per-member gameplay effect purchased from the Punkte-Shop
+(§3.10's `RewardDefinition` catalog, extended by this intake with
+`kind: VIRTUAL_EFFECT`). Two concrete effects ship: an immunity potion that
+excludes the buyer from the random draw, and a reward-multiplier potion that
+scales a fixed number of subsequent voluntary payouts. Both are instances of
+one substrate rather than two ad hoc mechanisms:
+
+```prisma
+model MemberEffect {
+  id                 String     @id @default(cuid())
+  householdId        String
+  memberId           String
+  type               EffectType // IMMUNITY | MULTIPLIER
+  rewardRedemptionId String     // which purchase created this row
+  multiplierValue    Float?     // MULTIPLIER only
+  chargesRemaining   Int?       // MULTIPLIER only
+  expiresAt          DateTime
+  createdAt          DateTime   @default(now())
+  consumedAt         DateTime?  // set once chargesRemaining hits 0 (observability only)
+}
+```
+
+**"Active"** is `expiresAt > now`, and for `MULTIPLIER` additionally
+`chargesRemaining > 0`. There is deliberately no status enum: an effect's
+lifecycle is fully determined by time and, for `MULTIPLIER`, by charge count —
+adding a status column would just be a second, potentially-inconsistent
+encoding of the same fact.
+
+**Purchase → activation is one transaction, no admin step.** `purchaseReward`
+(§4.3-adjacent, same ledger-debit shape as a `MANUAL_FULFILLMENT` purchase)
+branches on `RewardDefinition.kind` *after* the debit: a `VIRTUAL_EFFECT`
+purchase creates its `RewardRedemption` already `FULFILLED` (system-fulfilled,
+`fulfilledByMemberId` stays null — the admin fulfillment queue is for
+`MANUAL_FULFILLMENT` only) and inserts the `MemberEffect` row in the same
+transaction. The write rides the level-3 member lock `purchaseReward` already
+holds for the debit (§4.2) — no new lock level, because the effect always
+belongs to the same member whose row is already locked for the points write.
+
+**Rule 8 — immunity, and why it lives outside `CONSTRAINT_OF`.** §6.9's
+relaxation ladder is driven by `CONSTRAINT_OF`: a map from a soft
+`EligibilityReason` to the `RelaxableConstraint` it belongs to. The ladder
+only ever walks constraints present in that map. `MEMBER_IMMUNE` is
+deliberately **absent** from it — not merely unlisted in the ladder's fixed
+order, but structurally unreachable by it — which is what guarantees an
+immune member can never be drawn even when `relaxConstraintsWhenNoCandidates`
+is on and immunity is the only thing blocking every candidate (T5 applies:
+no assignment, notify admins). Immunity is also evaluated separately from
+`hardEligibilityReason` (rules 1–5), which is the one function
+`assertCanVolunteer`/`canVolunteer` consult — folding rule 8 in there would
+also block volunteering, which the intake explicitly forbids ("Voluntary
+participation is unaffected"). `loadCandidates()` sources
+`hasActiveImmunity` the same way it sources `isAbsent` from `MemberAbsence`:
+an unlocked read of `MemberEffect` inside the sweep's own advisory-lock
+transaction (§4.2 — the sweep lock, not a per-member lock, is what makes the
+fairness/exclusion reads safe here).
+
+**Multiplier — consulted, not merged into config.** §5.5 pins the household's
+`voluntary.rewardMultiplier` to the assignment at creation time; a
+`MemberEffect` multiplier is a different kind of thing — per-member,
+time-boxed, and charge-limited — so it is layered on top of the pinned reward
+rather than folded into it. `completeTask.ts` computes `finalAward` right
+after the pinned `award`, gated by the same `kind === 'VOLUNTARY' && award > 0`
+test §7/§44 use for the headline invariant — a `RANDOM` completion is never
+even eligible to consult an effect, let alone be scaled by one. When an active
+effect is found, one charge is consumed with a compare-and-set
+(`UPDATE … WHERE id = ? AND chargesRemaining > 0`), the same idiom
+`executeBuyout`/`completeTask`'s assignment-close guard already uses
+elsewhere in this file. Because `completeTask.ts` already holds the level-3
+lock on the completing member (taken for the ledger write) before this
+consultation runs, two concurrent completions by the *same* member cannot
+actually race here — the second transaction blocks on `lockMember` until the
+first commits its charge decrement. The compare-and-set is defence in depth
+(§4.7), not the sole guarantee: it makes the code correct even if that
+ordering assumption is ever weakened, and it is what stops
+`chargesRemaining` from ever going negative regardless. A lost compare-and-set
+(count = 0) degrades silently to the un-multiplied award — it must never fail
+the completion, since a member should always be able to complete their task
+whether or not a potion happens to apply.
+
+**One ledger row, not two.** The multiplier changes the *amount* of the
+existing `VOLUNTARY_TASK_REWARD` transaction; unlike `STREAK_BONUS` (a second,
+independent mechanism layered onto completion), it does not create a second
+`PointTransaction`. No new `PointTransactionType` was needed.
+
+**Lifecycle on household reset / disconnection.** There is no special
+handling: an effect simply stops mattering once `expiresAt` passes or
+`chargesRemaining` hits 0, exactly like any other time-boxed row. Unused
+charges or time are not refunded — the same "spent means spent" rule that
+already governs a `RewardRedemption`'s `costAtPurchase`.
+
+**Dashboard visibility (§31, §19).** `GET /dashboard`'s `me.activeEffects`
+array is what satisfies "show the consequence before acting": every currently
+active `MemberEffect` for the viewer, with remaining time and, for
+`MULTIPLIER`, remaining/total charges. Extending the existing dashboard DTO
+was preferred over a new endpoint since the dashboard is already the "für
+mich" aggregate (§19) and a second round-trip would just re-fetch data the
+first call already gathered in the same transaction.
 
 ---
 
@@ -2569,7 +2675,8 @@ That is honest but may surprise; if unacceptable, the answer is to forbid
 | §35 test cases | §4.8; end-conditions 6–19 |
 | §36 security | §3.1, §3.2, §3.12, §7.3, §8.6 |
 | §37 non-functional | §7; Prisma migrations; pino |
-| §38 seed data | `prisma/seed.ts` |
+| §38 seed data | `apps/api/prisma/seed.ts` |
 | §39 defaults | §5.3 |
 | §43 anti-overengineering | §7.2 (no repository ports), §6.8 (no alias method), §1.4 (no RRULE) |
 | §44 invariants | §1.5, §5.4 |
+| intake "points-shop-virtual-gamification-items" | §6.12; §6.9 rule 8; `MemberEffect` (§1.3-adjacent) |

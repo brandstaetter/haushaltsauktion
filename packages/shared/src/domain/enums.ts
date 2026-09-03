@@ -95,6 +95,22 @@ export const RewardRedemptionStatus = asEnum({ PENDING: 'PENDING', FULFILLED: 'F
 export type RewardRedemptionStatus =
   (typeof RewardRedemptionStatus)[keyof typeof RewardRedemptionStatus];
 
+/**
+ * Virtuelle Gamification-Items (intake "points-shop-virtual-gamification-items").
+ * `MANUAL_FULFILLMENT` is the parent intake's original, implicit shape; a
+ * `VIRTUAL_EFFECT` item skips the admin fulfillment step entirely and becomes
+ * active immediately at purchase (`purchaseReward.ts`).
+ */
+export const RewardKind = asEnum({
+  MANUAL_FULFILLMENT: 'MANUAL_FULFILLMENT',
+  VIRTUAL_EFFECT: 'VIRTUAL_EFFECT',
+});
+export type RewardKind = (typeof RewardKind)[keyof typeof RewardKind];
+
+/** The two potion types the intake names — new ones need only a new value here. */
+export const EffectType = asEnum({ IMMUNITY: 'IMMUNITY', MULTIPLIER: 'MULTIPLIER' });
+export type EffectType = (typeof EffectType)[keyof typeof EffectType];
+
 export const HistoryEventType = asEnum({
   CREATED: 'CREATED',
   OFFERED: 'OFFERED',
@@ -170,6 +186,8 @@ export const AuditAction = asEnum({
   REWARD_DEFINITION_UPDATED: 'REWARD_DEFINITION_UPDATED',
   REWARD_PURCHASED: 'REWARD_PURCHASED',
   REWARD_FULFILLED: 'REWARD_FULFILLED',
+  /** Virtuelle Gamification-Items (intake "points-shop-virtual-gamification-items"). */
+  MEMBER_EFFECT_ACTIVATED: 'MEMBER_EFFECT_ACTIVATED',
 });
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 

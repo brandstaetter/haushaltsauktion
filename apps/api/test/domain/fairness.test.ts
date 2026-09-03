@@ -50,6 +50,7 @@ const candidate = (
   memberId,
   isActive: true,
   isAbsent: false,
+  hasActiveImmunity: false,
   excludedFromTask: false,
   inAllowlist: true,
   categoryExcluded: false,

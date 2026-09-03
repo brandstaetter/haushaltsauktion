@@ -89,6 +89,13 @@ export const de = {
     recent: 'Kürzlich erledigt',
     ledgerLink: 'Punktekonto',
     allTasks: 'Alle',
+    /** §31 / §6.12 — aktive Trank-Effekte, mit Restzeit/-ladungen sichtbar
+     * bevor gehandelt wird. */
+    activeEffects: {
+      heading: 'Aktive Tränke',
+      immunity: 'Aufgaben-Immunität: noch {remaining}',
+      multiplier: 'Belohnungs-Multiplikator ×{value}: noch {charges} von {total}, {remaining}',
+    },
     reject: {
       trigger: 'Ablehnen',
       rejectedBadge: 'abgelehnt',
@@ -253,6 +260,8 @@ export const de = {
       CATEGORY_EXCLUDED: 'ist für diese Kategorie ausgenommen',
       RANDOM_ASSIGNMENT_CAP_REACHED: 'hat das Limit für Zuweisungen erreicht',
       IMMEDIATE_REASSIGNMENT_BLOCKED: 'hat diese Aufgabe zuletzt erledigt',
+      /** rule 8, intake "points-shop-virtual-gamification-items". */
+      MEMBER_IMMUNE: 'hat gerade einen Immunitätstrank aktiv',
     },
     /** Deckt `RelaxableConstraint` aus packages/shared/src/domain/reasons.ts ab. */
     constraints: {
@@ -333,6 +342,14 @@ export const de = {
     confirm: 'Kauf bestätigen',
     cancel: 'Abbrechen',
     purchaseSuccess: 'Belohnung gekauft — ein Admin erfüllt sie als Nächstes.',
+    /** Virtuelle Effekte werden sofort wirksam — keine Admin-Erfüllung. */
+    purchaseSuccessImmunity: 'Trank gewirkt — du bist jetzt für {duration} von der Zufallsvergabe ausgenommen.',
+    purchaseSuccessMultiplier: 'Trank gewirkt — die nächsten {charges} freiwilligen Erledigungen zählen ×{multiplier}, {duration} lang.',
+    virtualEffectBadge: 'Sofort wirksam',
+    effectSummary: {
+      IMMUNITY: 'Macht dich für {duration} unsichtbar für die Zufallsvergabe. Freiwillig übernehmen bleibt möglich.',
+      MULTIPLIER: 'Die nächsten {charges} freiwilligen Erledigungen zählen ×{multiplier}, {duration} lang.',
+    },
     errors: {
       disabled: 'Der Punkte-Shop ist gerade deaktiviert.',
       insufficientPoints: 'Du hast {balance} Punkte, die Belohnung kostet {cost}.',
@@ -550,6 +567,21 @@ export const de = {
       empty: 'Noch keine Belohnungen.',
       createSuccess: 'Belohnung wurde angelegt.',
       saved: 'Gespeichert.',
+      /** intake "points-shop-virtual-gamification-items". */
+      kind: 'Art',
+      kindOptions: {
+        MANUAL_FULFILLMENT: 'Reale Belohnung (Admin erfüllt)',
+        VIRTUAL_EFFECT: 'Virtueller Effekt (sofort wirksam)',
+      },
+      effectType: 'Effekt',
+      effectTypeOptions: {
+        IMMUNITY: 'Immunität (Zufallsvergabe aussetzen)',
+        MULTIPLIER: 'Belohnungs-Multiplikator',
+      },
+      effectDurationMinutes: 'Dauer (Minuten)',
+      effectCharges: 'Ladungen',
+      effectMultiplier: 'Multiplikator',
+      virtualEffectBadge: 'Virtueller Effekt',
       errors: {
         generic: 'Das hat nicht funktioniert.',
       },

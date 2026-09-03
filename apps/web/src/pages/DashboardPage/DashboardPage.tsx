@@ -8,7 +8,7 @@ import type { Strings } from '../../strings/de';
 import { TaskCard } from '../../components/TaskCard/TaskCard';
 import { Button } from '../../components/Button/Button';
 import { Sheet } from '../../components/Sheet/Sheet';
-import { formatNumber, interpolate } from '../../utils/format';
+import { formatNumber, formatRemaining, interpolate } from '../../utils/format';
 import styles from './DashboardPage.module.css';
 
 function rejectErrorMessage(err: unknown, de: Strings): string {
@@ -139,6 +139,30 @@ export function DashboardPage() {
           <span className={styles.balanceValue}>{formatNumber(data.me.balance)}</span>
         </div>
       </section>
+
+      {data.me.activeEffects.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{de.dashboard.activeEffects.heading}</h2>
+          <ul className={styles.stack}>
+            {data.me.activeEffects.map((effect) => (
+              <li key={effect.id} className={styles.row}>
+                <span>
+                  {effect.type === 'IMMUNITY'
+                    ? interpolate(de.dashboard.activeEffects.immunity, {
+                        remaining: formatRemaining(effect.expiresAt),
+                      })
+                    : interpolate(de.dashboard.activeEffects.multiplier, {
+                        value: effect.multiplierValue ?? 0,
+                        charges: effect.chargesRemaining ?? 0,
+                        total: effect.totalCharges ?? effect.chargesRemaining ?? 0,
+                        remaining: formatRemaining(effect.expiresAt),
+                      })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>

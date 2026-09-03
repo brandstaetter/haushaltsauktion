@@ -26,6 +26,13 @@ export const EligibilityReason = asEnum({
   RANDOM_ASSIGNMENT_CAP_REACHED: 'RANDOM_ASSIGNMENT_CAP_REACHED',
   /** rule 7 — soft, never blocks volunteering */
   IMMEDIATE_REASSIGNMENT_BLOCKED: 'IMMEDIATE_REASSIGNMENT_BLOCKED',
+  /**
+   * rule 8 (intake "points-shop-virtual-gamification-items") — hard for the
+   * random draw only, and never relaxed: unlike rules 1-5 it does not gate
+   * volunteering, and unlike rules 6-7 it is not in `CONSTRAINT_OF`, so the
+   * relaxation ladder can never drop it.
+   */
+  MEMBER_IMMUNE: 'MEMBER_IMMUNE',
 });
 export type EligibilityReason = (typeof EligibilityReason)[keyof typeof EligibilityReason];
 

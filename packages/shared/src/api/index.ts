@@ -25,4 +25,8 @@ export type {
 } from './assignments.js';
 export type { CursorPage, MemberDto, PointsBalanceDto, PointTransactionDto } from './points.js';
 export type { HistoryEventDto, HistoryEventPayload } from './history.js';
-export type { PurchaseRewardResultDto, RewardShopItemDto } from './rewards.js';
+export type {
+  MemberEffectDto,
+  PurchaseRewardResultDto,
+  RewardShopItemDto,
+} from './rewards.js';

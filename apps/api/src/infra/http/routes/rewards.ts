@@ -28,7 +28,17 @@ export async function registerRewardRoutes(app: FastifyInstance, deps: Deps): Pr
     const items = await deps.db.rewardDefinition.findMany({
       where: { householdId: ctx.householdId, isActive: true },
       orderBy: { cost: 'asc' },
-      select: { id: true, title: true, description: true, cost: true },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        cost: true,
+        kind: true,
+        effectType: true,
+        effectDurationMinutes: true,
+        effectCharges: true,
+        effectMultiplier: true,
+      },
     });
     return { items };
   });
