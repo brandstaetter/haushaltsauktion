@@ -1,0 +1,58 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--ground);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.name {
+  font: var(--t-h3);
+}
+
+.hint {
+  color: var(--ink-3);
+}
+
+.message {
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--ink);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--s-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font: var(--t-body-sm);
+}
+
+/* Roughly equal-width buttons in one row instead of stacking full-width
+   underneath each other. */
+.actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}

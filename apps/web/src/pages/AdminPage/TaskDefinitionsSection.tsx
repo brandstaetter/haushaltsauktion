@@ -25,9 +25,9 @@ import type {
 import { useStrings } from '../../context/StringsContext';
 import type { Strings } from '../../strings/de';
 import { Button } from '../../components/Button/Button';
-import { CategoryBadge } from '../../components/CategoryBadge/CategoryBadge';
 import { DurationInput } from '../../components/DurationInput/DurationInput';
 import { Sheet } from '../../components/Sheet/Sheet';
+import { TaskMaintenanceCard } from '../../components/TaskMaintenanceCard/TaskMaintenanceCard';
 import { TimeOfDayInput } from '../../components/TimeOfDayInput/TimeOfDayInput';
 import { Toast } from '../../components/Toast/Toast';
 import { formatNumber, interpolate } from '../../utils/format';
@@ -48,37 +48,6 @@ function taskDefinitionErrorMessage(err: unknown, de: Strings): string {
   }
   if (err instanceof ApiError && err.message) return err.message;
   return de.admin.taskDefinitions.errors.generic;
-}
-
-function recurrenceSummary(
-  def: Pick<AdminTaskDefinitionDto, 'recurrenceType' | 'recurrenceInterval' | 'recurrenceWeekdays' | 'recurrenceDayOfMonth'>,
-  de: Strings,
-): string {
-  const r = de.admin.taskDefinitions.recurrence;
-  switch (def.recurrenceType) {
-    case 'ONCE':
-      return r.summary.ONCE;
-    case 'DAILY':
-      return r.summary.DAILY;
-    case 'WEEKLY':
-      return r.summary.WEEKLY;
-    case 'MANUAL':
-      return r.summary.MANUAL;
-    case 'WEEKDAYS': {
-      const days = def.recurrenceWeekdays
-        .slice()
-        .sort((a, b) => a - b)
-        .map((d) => r.weekdayLabels[d - 1] ?? String(d))
-        .join(', ');
-      return interpolate(r.summary.WEEKDAYS, { days: days || '–' });
-    }
-    case 'EVERY_N_DAYS':
-      return interpolate(r.summary.EVERY_N_DAYS, { n: def.recurrenceInterval ?? '?' });
-    case 'MONTHLY':
-      return interpolate(r.summary.MONTHLY, { day: def.recurrenceDayOfMonth ?? '?' });
-    default:
-      return def.recurrenceType;
-  }
 }
 
 // ───────────────────────── create/edit sheet ─────────────────────────
@@ -577,87 +546,6 @@ function EligibilityForm({
   );
 }
 
-// ───────────────────────── definition row ─────────────────────────
-
-function DefinitionRow({
-  definition,
-  error,
-  archiving,
-  materializing,
-  onEdit,
-  onEligibility,
-  onArchive,
-  onMaterialize,
-}: {
-  definition: AdminTaskDefinitionDto;
-  error: string | null;
-  archiving: boolean;
-  materializing: boolean;
-  onEdit: () => void;
-  onEligibility: () => void;
-  onArchive: () => void;
-  onMaterialize: () => void;
-}) {
-  const { de } = useStrings();
-  const archived = definition.archivedAt !== null;
-
-  return (
-    <li className={styles.memberRow}>
-      <div className={styles.memberHeader}>
-        <span className={styles.memberName}>{definition.title}</span>
-        <span className={styles.hint}>
-          {definition.category ? (
-            <CategoryBadge name={definition.category.name} colorHex={definition.category.colorHex} />
-          ) : (
-            de.admin.taskDefinitions.noCategory
-          )}
-          {archived && ` · ${de.admin.taskDefinitions.archivedBadge}`}
-        </span>
-      </div>
-
-      {error && (
-        <div className={styles.message} role="alert">
-          {error}
-        </div>
-      )}
-
-      <div className={styles.memberFields}>
-        <div className={styles.field}>
-          <span>{de.admin.taskDefinitions.baseValue}</span>
-          <span>{formatNumber(definition.baseValue)}</span>
-        </div>
-        <div className={styles.field}>
-          <span>{de.admin.taskDefinitions.recurrence.title}</span>
-          <span>{recurrenceSummary(definition, de)}</span>
-        </div>
-        <div className={styles.field}>
-          <span>{de.admin.taskDefinitions.buyoutEnabled}</span>
-          <span>{definition.buyoutEnabled ? '✓' : '–'}</span>
-        </div>
-      </div>
-
-      <div className={styles.rowActions}>
-        <Button variant="secondary" onClick={onEdit}>
-          {de.admin.taskDefinitions.edit}
-        </Button>
-        <Button variant="secondary" onClick={onEligibility}>
-          {de.admin.taskDefinitions.eligibilityButton}
-        </Button>
-        {!archived && (
-          <Button variant="secondary" onClick={onMaterialize} loading={materializing}>
-            {de.admin.taskDefinitions.materializeButton}
-          </Button>
-        )}
-        {!archived && (
-          <Button variant="danger" onClick={onArchive} loading={archiving}>
-            {de.admin.taskDefinitions.archive}
-          </Button>
-        )}
-      </div>
-    </li>
-  );
-}
-
 // ───────────────────────── section ─────────────────────────
 
 export function TaskDefinitionsSection() {
@@ -774,7 +662,7 @@ export function TaskDefinitionsSection() {
       ) : (
         <ul className={styles.list}>
           {filteredDefinitions.map((definition) => (
-            <DefinitionRow
+            <TaskMaintenanceCard
               key={definition.id}
               definition={definition}
               error={rowErrors[definition.id] ?? null}
