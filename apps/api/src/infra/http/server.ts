@@ -15,6 +15,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { Deps } from '../../app/deps.js';
 import type { AppEnv } from '../../config.js';
 import { makeContextPreHandler } from './context.js';
+import { makeOperatorContextPreHandler } from './operatorContext.js';
 import { registerErrorHandler } from './error-mapper.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAssignmentRoutes } from './routes/assignments.js';
@@ -22,6 +23,7 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerIntegrationRoutes } from './routes/integrations.js';
 import { registerMemberRoutes } from './routes/members.js';
 import { registerMiscRoutes } from './routes/misc.js';
+import { registerOperatorRoutes } from './routes/operator.js';
 import { registerRegisterRoutes } from './routes/register.js';
 import { registerTaskRoutes } from './routes/tasks.js';
 
@@ -56,6 +58,11 @@ export async function buildServer(options: ServerOptions): Promise<FastifyInstan
   registerErrorHandler(app);
 
   app.addHook('preHandler', makeContextPreHandler(db, () => deps.clock.now()));
+  // Independent of the household hook above: attaches `request.operatorCtx`
+  // from a *different* cookie (`operator_session`), never `request.ctx`. The
+  // two never interfere — a request can carry at most one of the two cookies
+  // in practice, and each hook only ever looks at its own.
+  app.addHook('preHandler', makeOperatorContextPreHandler(db, () => deps.clock.now()));
 
   // Health probes live outside `/api` and outside auth (§3.11).
   app.get('/healthz', async () => ({ status: 'ok' }));
@@ -77,6 +84,7 @@ export async function buildServer(options: ServerOptions): Promise<FastifyInstan
       await registerMiscRoutes(api, deps);
       await registerIntegrationRoutes(api, deps);
       await registerAdminRoutes(api, deps);
+      await registerOperatorRoutes(api, deps, env);
       // Only registered when a setup token is configured — see register.ts's
       // module doc — so `POST /api/register` genuinely 404s otherwise.
       if (typeof env.SETUP_TOKEN === 'string') {

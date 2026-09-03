@@ -14,6 +14,9 @@ import { AdminSettingsPage } from './pages/AdminPage/AdminSettingsPage';
 import { AdminMembersPage } from './pages/AdminPage/AdminMembersPage';
 import { AdminTasksPage } from './pages/AdminPage/AdminTasksPage';
 import { AdminCategoriesPage } from './pages/AdminPage/AdminCategoriesPage';
+import { OperatorLoginPage } from './pages/OperatorDashboardPage/OperatorLoginPage';
+import { OperatorDashboardPage } from './pages/OperatorDashboardPage/OperatorDashboardPage';
+import { useOperatorSession } from './api/operatorHooks';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { data: session, isLoading } = useSession();
@@ -29,6 +32,19 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   if (isLoading) return null;
   if (session?.role !== 'ADMIN') {
     return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+}
+
+/**
+ * Guards `/betrieb` against the operator's own query-cache session state, not
+ * the household `useSession()` — the two identity systems are structurally
+ * separate (Architektur `.planning/architecture-operator-dashboard.md`).
+ */
+function OperatorProtected({ children }: { children: React.ReactNode }) {
+  const { operator } = useOperatorSession();
+  if (!operator) {
+    return <Navigate to="/betrieb/login" replace />;
   }
   return <>{children}</>;
 }
@@ -134,6 +150,15 @@ export const router = createBrowserRouter([
       },
       { path: 'login', element: <LoginPage /> },
       { path: 'registrieren', element: <RegisterPage /> },
+      { path: 'betrieb/login', element: <OperatorLoginPage /> },
+      {
+        path: 'betrieb',
+        element: (
+          <OperatorProtected>
+            <OperatorDashboardPage />
+          </OperatorProtected>
+        ),
+      },
     ],
   },
 ]);

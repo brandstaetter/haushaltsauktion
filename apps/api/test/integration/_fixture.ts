@@ -284,3 +284,42 @@ export async function login(
 export function authHeaders(session: Session): Record<string, string> {
   return { cookie: session.cookie, 'x-csrf-token': session.csrfToken };
 }
+
+// ───────────────────────── operator fixtures ─────────────────────────
+
+/** Creates an `OperatorAccount` directly (no HTTP round trip needed to seed one). */
+export async function createOperatorAccount(
+  db: PrismaClient,
+  id: string,
+  email: string,
+): Promise<void> {
+  await db.operatorAccount.create({
+    data: { id, email, passwordHash: await hashPassword(TEST_PASSWORD) },
+  });
+}
+
+export async function dropOperatorAccount(db: PrismaClient, id: string): Promise<void> {
+  // OperatorSession cascades from OperatorAccount.
+  await db.operatorAccount.deleteMany({ where: { id } });
+}
+
+/** `POST /api/operator/login` through the real route — mirrors `login()` above. */
+export async function operatorLogin(app: FastifyInstance, email: string): Promise<Session> {
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/operator/login',
+    payload: { email, password: TEST_PASSWORD },
+  });
+  if (response.statusCode !== 200) {
+    throw new Error(`Operator-Login für ${email} fehlgeschlagen: ${response.statusCode} ${response.body}`);
+  }
+  const setCookie = response.headers['set-cookie'];
+  const raw = Array.isArray(setCookie) ? setCookie[0] : setCookie;
+  if (typeof raw !== 'string') throw new Error('Operator-Login lieferte kein Session-Cookie.');
+  const body = response.json() as { csrfToken: string; operator: { id: string } };
+  return {
+    cookie: raw.split(';')[0] ?? '',
+    csrfToken: body.csrfToken,
+    memberId: body.operator.id,
+  };
+}
