@@ -275,8 +275,18 @@ export async function expectNoMidWordWrap(locator: Locator): Promise<void> {
  */
 export async function expectNoLineWrap(locator: Locator): Promise<void> {
   const result = await locator.evaluate((el) => {
+    // Skip whitespace-only text nodes (e.g. a stray text node between an
+    // icon element and the label `<span>`) rather than blindly taking the
+    // first one — that would silently check zero/whitespace content and let
+    // an actually-wrapped label pass.
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-    const textNode = walker.nextNode() as Text | null;
+    let textNode: Text | null = null;
+    for (let candidate = walker.nextNode() as Text | null; candidate; candidate = walker.nextNode() as Text | null) {
+      if ((candidate.textContent ?? '').trim().length > 0) {
+        textNode = candidate;
+        break;
+      }
+    }
     if (!textNode) return { lines: 0, text: '' };
 
     const text = textNode.textContent ?? '';
