@@ -17,15 +17,33 @@ function rewardErrorMessage(err: unknown, de: Strings): string {
   return de.admin.rewards.errors.generic;
 }
 
+type RewardKind = 'MANUAL_FULFILLMENT' | 'VIRTUAL_EFFECT';
+type EffectType = 'IMMUNITY' | 'MULTIPLIER';
+
 interface RewardDraft {
   title: string;
   description: string;
   cost: number;
   isActive: boolean;
+  kind: RewardKind;
+  effectType: EffectType | null;
+  effectDurationMinutes: number | null;
+  effectCharges: number | null;
+  effectMultiplier: number | null;
 }
 
 function emptyDraft(): RewardDraft {
-  return { title: '', description: '', cost: 1, isActive: true };
+  return {
+    title: '',
+    description: '',
+    cost: 1,
+    isActive: true,
+    kind: 'MANUAL_FULFILLMENT',
+    effectType: null,
+    effectDurationMinutes: null,
+    effectCharges: null,
+    effectMultiplier: null,
+  };
 }
 
 function draftFromReward(reward: AdminRewardDto): RewardDraft {
@@ -34,15 +52,42 @@ function draftFromReward(reward: AdminRewardDto): RewardDraft {
     description: reward.description ?? '',
     cost: reward.cost,
     isActive: reward.isActive,
+    kind: reward.kind,
+    effectType: reward.effectType,
+    effectDurationMinutes: reward.effectDurationMinutes,
+    effectCharges: reward.effectCharges,
+    effectMultiplier: reward.effectMultiplier,
   };
 }
 
+/** §36 — clears the effect fields the current kind/effectType combination
+ * does not use, mirroring the server's `RewardBody.superRefine`: the client
+ * never sends a stray value the server would reject anyway. */
 function toWriteBody(draft: RewardDraft): RewardWriteBody {
+  if (draft.kind === 'MANUAL_FULFILLMENT') {
+    return {
+      title: draft.title,
+      description: draft.description.trim() === '' ? null : draft.description,
+      cost: draft.cost,
+      isActive: draft.isActive,
+      kind: 'MANUAL_FULFILLMENT',
+      effectType: null,
+      effectDurationMinutes: null,
+      effectCharges: null,
+      effectMultiplier: null,
+    };
+  }
+  const isMultiplier = draft.effectType === 'MULTIPLIER';
   return {
     title: draft.title,
     description: draft.description.trim() === '' ? null : draft.description,
     cost: draft.cost,
     isActive: draft.isActive,
+    kind: 'VIRTUAL_EFFECT',
+    effectType: draft.effectType,
+    effectDurationMinutes: draft.effectDurationMinutes,
+    effectCharges: isMultiplier ? draft.effectCharges : null,
+    effectMultiplier: isMultiplier ? draft.effectMultiplier : null,
   };
 }
 
@@ -117,6 +162,82 @@ function RewardForm({
           onChange={(e) => update({ cost: parseInt(e.target.value, 10) || 1 })}
         />
       </label>
+      <label className={styles.field}>
+        <span>{de.admin.rewards.kind}</span>
+        <select
+          value={draft.kind}
+          onChange={(e) => {
+            const kind = e.target.value as RewardKind;
+            update(
+              kind === 'MANUAL_FULFILLMENT'
+                ? {
+                    kind,
+                    effectType: null,
+                    effectDurationMinutes: null,
+                    effectCharges: null,
+                    effectMultiplier: null,
+                  }
+                : { kind, effectType: draft.effectType ?? 'IMMUNITY' },
+            );
+          }}
+        >
+          <option value="MANUAL_FULFILLMENT">{de.admin.rewards.kindOptions.MANUAL_FULFILLMENT}</option>
+          <option value="VIRTUAL_EFFECT">{de.admin.rewards.kindOptions.VIRTUAL_EFFECT}</option>
+        </select>
+      </label>
+
+      {draft.kind === 'VIRTUAL_EFFECT' && (
+        <>
+          <label className={styles.field}>
+            <span>{de.admin.rewards.effectType}</span>
+            <select
+              value={draft.effectType ?? 'IMMUNITY'}
+              onChange={(e) => update({ effectType: e.target.value as EffectType })}
+            >
+              <option value="IMMUNITY">{de.admin.rewards.effectTypeOptions.IMMUNITY}</option>
+              <option value="MULTIPLIER">{de.admin.rewards.effectTypeOptions.MULTIPLIER}</option>
+            </select>
+          </label>
+          <label className={styles.field}>
+            <span>{de.admin.rewards.effectDurationMinutes}</span>
+            <input
+              type="number"
+              min={1}
+              required
+              value={draft.effectDurationMinutes ?? ''}
+              onChange={(e) =>
+                update({ effectDurationMinutes: parseInt(e.target.value, 10) || null })
+              }
+            />
+          </label>
+          {draft.effectType === 'MULTIPLIER' && (
+            <>
+              <label className={styles.field}>
+                <span>{de.admin.rewards.effectCharges}</span>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={draft.effectCharges ?? ''}
+                  onChange={(e) => update({ effectCharges: parseInt(e.target.value, 10) || null })}
+                />
+              </label>
+              <label className={styles.field}>
+                <span>{de.admin.rewards.effectMultiplier}</span>
+                <input
+                  type="number"
+                  min={0.01}
+                  step={0.01}
+                  required
+                  value={draft.effectMultiplier ?? ''}
+                  onChange={(e) => update({ effectMultiplier: parseFloat(e.target.value) || null })}
+                />
+              </label>
+            </>
+          )}
+        </>
+      )}
+
       <label className={styles.checkbox}>
         <input
           type="checkbox"
@@ -157,6 +278,12 @@ function RewardRow({
           <span>{de.admin.rewards.cost}</span>
           <span>{formatNumber(reward.cost)}</span>
         </div>
+        {reward.kind === 'VIRTUAL_EFFECT' && (
+          <div className={styles.field}>
+            <span>{de.admin.rewards.kind}</span>
+            <span>{de.admin.rewards.virtualEffectBadge}</span>
+          </div>
+        )}
       </div>
       <div className={styles.rowActions}>
         <Button variant="secondary" onClick={onEdit}>

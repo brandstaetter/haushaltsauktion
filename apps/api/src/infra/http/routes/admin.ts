@@ -627,7 +627,8 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
   });
 
   // ───────────────────────── rewards (Punkte-Shop) ─────────────────────────
-  // intake "points-shop-real-life-rewards".
+  // intake "points-shop-real-life-rewards", erweitert um virtuelle Effekte
+  // durch "points-shop-virtual-gamification-items".
 
   app.get('/admin/rewards', async (request, reply) => {
     const ctx = requireAdmin(request, reply);
@@ -639,12 +640,90 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
     };
   });
 
-  const RewardBody = z.object({
-    title: z.string().min(1).max(200),
-    description: z.string().max(2000).nullable().default(null),
-    cost: z.number().int().min(1).max(100_000),
-    isActive: z.boolean().default(true),
-  });
+  // §36: the client never gets to assert its own price OR its own effect
+  // shape. `superRefine` enforces exactly the same columns-together rule the
+  // database CHECK constraints (20260903093800_add_virtual_reward_effect_constraints)
+  // enforce as the backstop — MANUAL_FULFILLMENT carries no effect
+  // parameters at all; VIRTUAL_EFFECT requires effectType plus exactly the
+  // subset that type needs (IMMUNITY: duration only; MULTIPLIER: duration +
+  // charges + multiplier).
+  const RewardBody = z
+    .object({
+      title: z.string().min(1).max(200),
+      description: z.string().max(2000).nullable().default(null),
+      cost: z.number().int().min(1).max(100_000),
+      isActive: z.boolean().default(true),
+      kind: z.enum(['MANUAL_FULFILLMENT', 'VIRTUAL_EFFECT']).default('MANUAL_FULFILLMENT'),
+      effectType: z.enum(['IMMUNITY', 'MULTIPLIER']).nullable().default(null),
+      effectDurationMinutes: z
+        .number()
+        .int()
+        .min(1)
+        .max(60 * 24 * 30)
+        .nullable()
+        .default(null),
+      effectCharges: z.number().int().min(1).max(1000).nullable().default(null),
+      effectMultiplier: z.number().positive().max(100).nullable().default(null),
+    })
+    .superRefine((body, ctx) => {
+      if (body.kind === 'MANUAL_FULFILLMENT') {
+        if (
+          body.effectType !== null ||
+          body.effectDurationMinutes !== null ||
+          body.effectCharges !== null ||
+          body.effectMultiplier !== null
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'MANUAL_FULFILLMENT darf keine Effekt-Parameter tragen.',
+            path: ['effectType'],
+          });
+        }
+        return;
+      }
+
+      // VIRTUAL_EFFECT
+      if (body.effectType === null) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Ein virtueller Effekt benötigt einen effectType.',
+          path: ['effectType'],
+        });
+        return;
+      }
+      if (body.effectDurationMinutes === null) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'effectDurationMinutes ist für virtuelle Effekte erforderlich.',
+          path: ['effectDurationMinutes'],
+        });
+      }
+      if (body.effectType === 'IMMUNITY') {
+        if (body.effectCharges !== null || body.effectMultiplier !== null) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'IMMUNITY kennt keine Ladungen oder Multiplikator.',
+            path: ['effectCharges'],
+          });
+        }
+      } else {
+        // MULTIPLIER
+        if (body.effectCharges === null) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'effectCharges ist für MULTIPLIER erforderlich.',
+            path: ['effectCharges'],
+          });
+        }
+        if (body.effectMultiplier === null) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'effectMultiplier ist für MULTIPLIER erforderlich.',
+            path: ['effectMultiplier'],
+          });
+        }
+      }
+    });
 
   app.post('/admin/rewards', async (request, reply) => {
     const ctx = requireAdmin(request, reply);
@@ -660,7 +739,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         action: 'REWARD_DEFINITION_CREATED',
         entityType: 'RewardDefinition',
         entityId: created.id,
-        payload: { title: created.title, cost: created.cost },
+        payload: { title: created.title, cost: created.cost, kind: created.kind },
       },
     });
     return reply.status(201).send(created);
@@ -683,7 +762,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         action: 'REWARD_DEFINITION_UPDATED',
         entityType: 'RewardDefinition',
         entityId: params.id,
-        payload: { title: body.title, cost: body.cost, isActive: body.isActive },
+        payload: { title: body.title, cost: body.cost, isActive: body.isActive, kind: body.kind },
       },
     });
     return { id: params.id };

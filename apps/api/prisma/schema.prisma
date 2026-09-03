@@ -183,6 +183,13 @@ enum AuditAction {
   REWARD_DEFINITION_UPDATED
   REWARD_PURCHASED
   REWARD_FULFILLED
+
+  /// Virtuelle Gamification-Items (intake "points-shop-virtual-gamification-items"):
+  /// ein `VIRTUAL_EFFECT`-Kauf wurde sofort wirksam — kein Erfüllungsschritt,
+  /// aber ein eigener Audit-Eintrag neben REWARD_PURCHASED, weil "wurde
+  /// gekauft" und "wurde wirksam" hier derselbe Moment sind und beides sichtbar
+  /// sein soll (§23).
+  MEMBER_EFFECT_ACTIVATED
 }
 
 // ───────────────────────── identity plane ─────────────────────────
@@ -291,6 +298,7 @@ model Household {
 
   rewardDefinitions RewardDefinition[]
   rewardRedemptions RewardRedemption[]
+  memberEffects     MemberEffect[]
 
   @@map("households")
 }
@@ -346,6 +354,7 @@ model HouseholdMember {
 
   rewardRedemptions    RewardRedemption[] @relation("RewardBuyer")
   fulfilledRedemptions RewardRedemption[] @relation("RewardFulfiller")
+  effects              MemberEffect[]
 
   @@unique([householdId, userId])
   @@index([householdId, isActive])
@@ -935,19 +944,51 @@ enum RewardRedemptionStatus {
   FULFILLED
 }
 
+/// intake "points-shop-virtual-gamification-items": ein Katalogeintrag ist
+/// entweder eine reale Belohnung (adminseitig erfüllt) oder ein virtueller
+/// Effekt (sofort bei Kauf wirksam, kein Erfüllungsschritt). Der Kauf- und
+/// Ledger-Mechanismus ist für beide identisch — nur was nach dem Debit
+/// passiert, unterscheidet sich (`purchaseReward.ts`).
+enum RewardKind {
+  MANUAL_FULFILLMENT
+  VIRTUAL_EFFECT
+}
+
+/// Die beiden Trank-Typen aus der Spezifikation. Neue Effekte brauchen nur
+/// einen neuen Wert hier plus Auswertungslogik an der einen Stelle, die ihn
+/// konsultiert (`eligibility.ts` für IMMUNITY, `completeTask.ts` für
+/// MULTIPLIER) — kein neuer Katalog-Mechanismus.
+enum EffectType {
+  IMMUNITY
+  MULTIPLIER
+}
+
 /// Der Katalogeintrag — parallel zu TaskDefinition (§27), aber ohne
 /// Wiederholung oder Wert-Lebenszyklus: eine Belohnung hat einen festen Preis,
 /// den ein Admin direkt pflegt, nicht einen currentValue, der durch Freikäufe
 /// steigt.
+///
+/// Die vier `effect*`-Felder sind ausschließlich für `kind = VIRTUAL_EFFECT`
+/// gesetzt — für `MANUAL_FULFILLMENT` bleiben sie NULL. Welche der drei
+/// Effektparameter zusätzlich zu `effectType` Pflicht sind, hängt vom
+/// `EffectType` ab (IMMUNITY nur Dauer; MULTIPLIER Dauer + Ladungen +
+/// Multiplikator) — das prüft server-seitig `RewardBody` in `admin.ts`
+/// (§36: keine client-vertraute Geschäftsregel).
 model RewardDefinition {
-  id          String   @id @default(cuid())
-  householdId String   @map("household_id")
+  id          String     @id @default(cuid())
+  householdId String     @map("household_id")
   title       String
   description String?
   cost        Int
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  kind        RewardKind @default(MANUAL_FULFILLMENT) @map("kind")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  effectType            EffectType? @map("effect_type")
+  effectDurationMinutes Int?        @map("effect_duration_minutes")
+  effectCharges         Int?        @map("effect_charges")
+  effectMultiplier      Float?      @map("effect_multiplier")
 
   household   Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
   redemptions RewardRedemption[]
@@ -978,8 +1019,56 @@ model RewardRedemption {
   fulfilledBy HouseholdMember? @relation("RewardFulfiller", fields: [fulfilledByMemberId], references: [id], onDelete: SetNull)
 
   transactions PointTransaction[]
+  /// intake "points-shop-virtual-gamification-items": genau eine Zeile, wenn
+  /// diese Einlösung ein `VIRTUAL_EFFECT`-Kauf war — angelegt in derselben
+  /// Transaktion wie die Einlösung selbst (`purchaseReward.ts`); sonst leer.
+  effects      MemberEffect[]
 
   @@index([householdId, status, purchasedAt])
   @@index([rewardDefinitionId])
   @@map("reward_redemptions")
+}
+
+/// intake "points-shop-virtual-gamification-items": das generische
+/// "aktiver Mitgliedseffekt"-Substrat, statt zwei ad-hoc-Tabellen für
+/// Immunität und Multiplikator. "Aktiv" bedeutet `expiresAt > now`, und für
+/// MULTIPLIER zusätzlich `chargesRemaining > 0` — nirgendwo sonst ein Status-
+/// Enum, damit Ablauf allein aus Zeit und Ladungen folgt.
+///
+/// `multiplierValue`/`chargesRemaining` sind nur für `type = MULTIPLIER`
+/// gesetzt; für IMMUNITY bleiben beide NULL — `expiresAt` allein trägt die
+/// gesamte Bedeutung dieses Effekts (Regel 8, `eligibility.ts`).
+///
+/// Wird ausschließlich innerhalb einer Transaktion geschrieben, die bereits
+/// das Level-3-Lock auf `memberId` hält (§4.2) — beim Kauf
+/// (`purchaseReward.ts`) und beim Verbrauch einer Ladung (`completeTask.ts`).
+/// Kein eigenes Lock-Level: Schreibzugriffe reiten auf dem Member-Lock, das
+/// der Aufrufer bereits hält.
+model MemberEffect {
+  id                 String     @id @default(cuid())
+  householdId        String     @map("household_id")
+  memberId           String     @map("member_id")
+  type               EffectType
+  rewardRedemptionId String     @map("reward_redemption_id")
+
+  /// MULTIPLIER only.
+  multiplierValue  Float? @map("multiplier_value")
+  /// MULTIPLIER only. Sinkt atomar je qualifizierender freiwilliger Erledigung.
+  chargesRemaining Int?   @map("charges_remaining")
+
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  /// Gesetzt, sobald chargesRemaining 0 erreicht — reine Beobachtbarkeit,
+  /// "aktiv" bleibt weiterhin über expiresAt/chargesRemaining definiert.
+  consumedAt DateTime? @map("consumed_at")
+
+  household  Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  member     HouseholdMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  redemption RewardRedemption @relation(fields: [rewardRedemptionId], references: [id], onDelete: Restrict)
+
+  /// Trägt sowohl die IMMUNITY-Abfrage in `candidates.ts` (householdId, type,
+  /// expiresAt) als auch die MULTIPLIER-Abfrage in `completeTask.ts`
+  /// (householdId, memberId, type, expiresAt, chargesRemaining).
+  @@index([householdId, memberId, type, expiresAt])
+  @@map("member_effects")
 }

@@ -1,6 +1,6 @@
 ---
 title: "Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)"
-status: pending
+status: in-progress
 priority: normal
 target: apps/api/prisma/schema.prisma, apps/api/src/app/rewards/, apps/api/src/app/assignment/candidates.ts, apps/api/src/domain/assignment/eligibility.ts, apps/api/src/app/tasks/completeTask.ts, apps/api/src/domain/points/ledger-math.ts, packages/shared/src/config/schema.ts
 campaign: punkte-shop-virtuelle-gamification-items-mit-zeitlich-begrenzten-effekten-tr-nke

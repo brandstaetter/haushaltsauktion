@@ -329,6 +329,7 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
           memberId: m.id,
           isActive: true,
           isAbsent: false,
+          hasActiveImmunity: false,
           excludedFromTask: false,
           inAllowlist: true,
           categoryExcluded: false,

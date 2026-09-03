@@ -2,15 +2,45 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useMemberMe, usePurchaseReward, useRewardShop } from '../../api/hooks';
 import { ApiError } from '../../api/client';
-import type { RewardShopItemDto } from '@haushaltsauktion/shared';
+import type { MemberEffectDto, RewardShopItemDto } from '@haushaltsauktion/shared';
 import { useStrings } from '../../context/StringsContext';
 import type { Strings } from '../../strings/de';
 import { Button } from '../../components/Button/Button';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { Toast } from '../../components/Toast/Toast';
 import { RewardPurchaseDisclosure } from '../../components/RewardPurchaseDisclosure/RewardPurchaseDisclosure';
-import { formatNumber, interpolate } from '../../utils/format';
+import { formatDurationMinutes, formatNumber, interpolate } from '../../utils/format';
 import styles from './RewardsShopPage.module.css';
+
+/** §31 — what this potion would do, shown on the catalog card before purchase. */
+function effectSummary(reward: RewardShopItemDto, de: Strings): string | null {
+  if (reward.kind !== 'VIRTUAL_EFFECT' || reward.effectType === null) return null;
+  const duration = formatDurationMinutes(reward.effectDurationMinutes ?? 0);
+  if (reward.effectType === 'IMMUNITY') {
+    return interpolate(de.rewards.effectSummary.IMMUNITY, { duration });
+  }
+  return interpolate(de.rewards.effectSummary.MULTIPLIER, {
+    charges: reward.effectCharges ?? 0,
+    multiplier: reward.effectMultiplier ?? 0,
+    duration,
+  });
+}
+
+/** The success toast after a `VIRTUAL_EFFECT` purchase — it became active
+ * immediately, so the message says so instead of "an admin fulfills it". */
+function activatedEffectMessage(effect: MemberEffectDto, de: Strings): string {
+  const duration = formatDurationMinutes(
+    Math.max(0, Math.round((new Date(effect.expiresAt).getTime() - Date.now()) / 60_000)),
+  );
+  if (effect.type === 'IMMUNITY') {
+    return interpolate(de.rewards.purchaseSuccessImmunity, { duration });
+  }
+  return interpolate(de.rewards.purchaseSuccessMultiplier, {
+    charges: effect.chargesRemaining ?? 0,
+    multiplier: effect.multiplierValue ?? 0,
+    duration,
+  });
+}
 
 function rewardApiErrorMessage(err: unknown, de: Strings): string {
   const apiErr = err as { code?: string; details?: { balance?: number; cost?: number } };
@@ -55,9 +85,13 @@ export function RewardsShopPage() {
     if (!confirming) return;
     setError(null);
     purchase.mutate(confirming.id, {
-      onSuccess: () => {
+      onSuccess: (result) => {
         setConfirmingId(null);
-        setMessage(de.rewards.purchaseSuccess);
+        setMessage(
+          result.activatedEffect
+            ? activatedEffectMessage(result.activatedEffect, de)
+            : de.rewards.purchaseSuccess,
+        );
       },
       onError: (err) => setError(rewardApiErrorMessage(err, de)),
     });
@@ -92,7 +126,13 @@ export function RewardsShopPage() {
                 <h2 className={styles.cardTitle}>{reward.title}</h2>
                 <span className={styles.cost}>{formatNumber(reward.cost)}</span>
               </div>
+              {reward.kind === 'VIRTUAL_EFFECT' && (
+                <span className={styles.hint}>{de.rewards.virtualEffectBadge}</span>
+              )}
               {reward.description && <p className={styles.description}>{reward.description}</p>}
+              {effectSummary(reward, de) && (
+                <p className={styles.hint}>{effectSummary(reward, de)}</p>
+              )}
               <Button
                 variant="secondary"
                 onClick={() => openConfirm(reward)}

@@ -46,6 +46,7 @@ const candidate = (
   memberId,
   isActive: true,
   isAbsent: false,
+  hasActiveImmunity: false,
   excludedFromTask: false,
   inAllowlist: true,
   categoryExcluded: false,
@@ -171,6 +172,43 @@ describe('soft rules 6-7 never block a volunteer (§6.9, §5)', () => {
     expect(
       softEligibilityReason(longer, candidate('a', { cyclesSinceLastRandomAssignmentOfTask: 3 }), new Set()),
     ).toBeNull();
+  });
+});
+
+describe('rule 8 — immunity blocks the draw but never volunteering (§6.12)', () => {
+  it('excludes an immune member from hardEligibilityReason\'s caller path (evaluate, via resolveEligibility)', () => {
+    const result = resolveEligibility(
+      cfg,
+      [candidate('anna', { hasActiveImmunity: true }), candidate('paul')],
+      NO_ALLOWLIST,
+    );
+    expect(result.eligible.map((c) => c.memberId)).toEqual(['paul']);
+    expect(result.evaluations.find((e) => e.memberId === 'anna')?.reason).toBe(
+      EligibilityReason.MEMBER_IMMUNE,
+    );
+  });
+
+  it('is never relaxed — the ladder leaves the eligible set empty (T5) rather than including the immune member', () => {
+    // Anna is the only candidate and she is immune. Unlike the cooldown/cap
+    // rungs, there is no ladder step for immunity — it must not be dropped
+    // even though `relaxConstraintsWhenNoCandidates` is on.
+    const result = resolveEligibility(
+      cfg,
+      [candidate('anna', { hasActiveImmunity: true })],
+      NO_ALLOWLIST,
+    );
+    expect(result.eligible).toEqual([]);
+    expect(result.constraintsRelaxed).toEqual([]);
+    expect(result.evaluations[0]?.reason).toBe(EligibilityReason.MEMBER_IMMUNE);
+  });
+
+  it('still lets an immune member volunteer', () => {
+    const immune = candidate('anna', { hasActiveImmunity: true });
+    expect(canVolunteer(immune, NO_ALLOWLIST)).toBe(true);
+    expect(() => assertCanVolunteer(immune, NO_ALLOWLIST)).not.toThrow();
+    // hardEligibilityReason itself — what assertCanVolunteer/canVolunteer
+    // consult — must not even see hasActiveImmunity.
+    expect(hardEligibilityReason(immune, NO_ALLOWLIST)).toBeNull();
   });
 });
 

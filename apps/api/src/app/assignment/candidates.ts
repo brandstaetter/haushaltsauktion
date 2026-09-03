@@ -37,8 +37,8 @@ function daysBetween(earlier: Date, later: Date): number {
 }
 
 /**
- * Load every member of the household together with the seven predicates of
- * §6.9 and the six metrics of §6.8, computed over `cfg.fairness.windowDays`.
+ * Load every member of the household together with the eight predicates of
+ * §6.9/§6.12 and the six metrics of §6.8, computed over `cfg.fairness.windowDays`.
  *
  * One pass per relation rather than a query per member: at 1–20 members the
  * whole household is a handful of rows, and the alternative is an N+1 that
@@ -56,44 +56,53 @@ export async function loadCandidates(
     orderBy: { id: 'asc' },
   });
 
-  const [absences, taskEligibility, categoryExclusions, assignments] = await Promise.all([
-    tx.memberAbsence.findMany({
-      where: {
-        householdId: ctx.householdId,
-        startsAt: { lte: ctx.now },
-        endsAt: { gt: ctx.now },
-      },
-      select: { memberId: true },
-    }),
-    tx.taskDefinitionEligibility.findMany({
-      where: { householdId: ctx.householdId, taskDefinitionId: ctx.taskDefinitionId },
-      select: { memberId: true, mode: true },
-    }),
-    ctx.categoryId === null
-      ? Promise.resolve([] as Array<{ memberId: string }>)
-      : tx.memberCategoryExclusion.findMany({
-          where: { householdId: ctx.householdId, categoryId: ctx.categoryId },
-          select: { memberId: true },
-        }),
-    // Everything the metrics need, in one read. `windowStart` bounds it, so the
-    // cost is a month of household activity rather than the whole history —
-    // which is the point of OQ-7's window in the first place.
-    tx.taskAssignment.findMany({
-      where: { householdId: ctx.householdId, assignedAt: { gte: windowStart } },
-      select: {
-        memberId: true,
-        kind: true,
-        status: true,
-        assignedAt: true,
-        completedAt: true,
-        closedAt: true,
-        taskInstanceId: true,
-        instance: { select: { definition: { select: { estimatedMinutes: true } } } },
-      },
-    }),
-  ]);
+  const [absences, immunities, taskEligibility, categoryExclusions, assignments] =
+    await Promise.all([
+      tx.memberAbsence.findMany({
+        where: {
+          householdId: ctx.householdId,
+          startsAt: { lte: ctx.now },
+          endsAt: { gt: ctx.now },
+        },
+        select: { memberId: true },
+      }),
+      // Rule 8 (§6.12, intake "points-shop-virtual-gamification-items").
+      // Unlocked, the same discipline as the absence read above: the sweep's
+      // own advisory lock (§4.2) is what matters here, not a per-member lock.
+      tx.memberEffect.findMany({
+        where: { householdId: ctx.householdId, type: 'IMMUNITY', expiresAt: { gt: ctx.now } },
+        select: { memberId: true },
+      }),
+      tx.taskDefinitionEligibility.findMany({
+        where: { householdId: ctx.householdId, taskDefinitionId: ctx.taskDefinitionId },
+        select: { memberId: true, mode: true },
+      }),
+      ctx.categoryId === null
+        ? Promise.resolve([] as Array<{ memberId: string }>)
+        : tx.memberCategoryExclusion.findMany({
+            where: { householdId: ctx.householdId, categoryId: ctx.categoryId },
+            select: { memberId: true },
+          }),
+      // Everything the metrics need, in one read. `windowStart` bounds it, so the
+      // cost is a month of household activity rather than the whole history —
+      // which is the point of OQ-7's window in the first place.
+      tx.taskAssignment.findMany({
+        where: { householdId: ctx.householdId, assignedAt: { gte: windowStart } },
+        select: {
+          memberId: true,
+          kind: true,
+          status: true,
+          assignedAt: true,
+          completedAt: true,
+          closedAt: true,
+          taskInstanceId: true,
+          instance: { select: { definition: { select: { estimatedMinutes: true } } } },
+        },
+      }),
+    ]);
 
   const absentIds = new Set(absences.map((a) => a.memberId));
+  const immuneIds = new Set(immunities.map((e) => e.memberId));
   const excludedFromTask = new Set(
     taskEligibility.filter((e) => e.mode === 'EXCLUDED').map((e) => e.memberId),
   );
@@ -151,6 +160,7 @@ export async function loadCandidates(
       memberId: member.id,
       isActive: member.isActive,
       isAbsent: absentIds.has(member.id),
+      hasActiveImmunity: immuneIds.has(member.id),
       excludedFromTask: excludedFromTask.has(member.id),
       inAllowlist: !definitionHasAllowlist || allowlist.has(member.id),
       categoryExcluded: categoryExcluded.has(member.id),
