@@ -144,6 +144,22 @@ export interface NotificationsConfig {
  */
 export interface TodoistIntegrationConfig {
   enabled: boolean;
+  /**
+   * The Sync API's `item_add` `priority` argument, forwarded verbatim by
+   * `todoist-sync.ts` (`args.priority = command.priority`) — no scaling or
+   * inversion happens between this value and the wire.
+   *
+   * **This is Todoist's own API-level numbering, not its UI labels.** Todoist's
+   * UI shows p1 (urgent) through p4 (normal), but the API's `priority` field
+   * runs the opposite direction: 4 = urgent, 1 = normal. So `4` here maps to
+   * the UI's "p1", and `1` maps to "p4". Getting this backwards silently makes
+   * every created task the *opposite* urgency from what an admin intended.
+   *
+   * `null` — the default — means "send no `priority` argument at all", which
+   * is exactly today's (pre-this-feature) behaviour: Todoist applies its own
+   * default (API value 1 / UI p4) when the argument is absent.
+   */
+  priority: number | null;
 }
 
 export interface IntegrationsConfig {

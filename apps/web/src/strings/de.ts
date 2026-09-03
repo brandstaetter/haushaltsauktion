@@ -525,6 +525,14 @@ export const de = {
         'Dieser Server ist für Todoist nicht eingerichtet (fehlender Schlüssel). Solange das so ist, kann sich kein Mitglied verbinden — die Integration lässt sich hier nicht aktivieren.',
       todoistEnabledHint:
         'Jedes Mitglied verbindet danach sein eigenes Todoist-Konto unter „Ich“. Wird die Integration wieder ausgeschaltet, werden offene Todoist-Aufgaben des Haushalts geschlossen; beim erneuten Einschalten werden sie neu angelegt.',
+      todoistPriority: 'Priorität neu angelegter Todoist-Aufgaben',
+      todoistPriorityDefault: 'Kein Wert (Todoist-Standard)',
+      todoistPriorityUrgent: 'Dringend (Todoist P1)',
+      todoistPriorityHigh: 'Hoch (Todoist P2)',
+      todoistPriorityMedium: 'Mittel (Todoist P3)',
+      todoistPriorityNormal: 'Normal (Todoist P4)',
+      todoistPriorityHint:
+        'Gilt für neue Aufgaben, die diese Anwendung in Todoist anlegt. Ohne Auswahl setzt Todoist selbst die Standardpriorität.',
       enabled: 'Aktiviert',
       allowNegativeBalance: 'Negativen Kontostand erlauben',
       minimumBalance: 'Mindestguthaben für Freikauf',

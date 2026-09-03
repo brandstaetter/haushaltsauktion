@@ -50,7 +50,7 @@ const session: SessionDto = {
 function publicConfigFixture(todoistEnabled: boolean): PublicConfigDto {
   const values = toPublicConfig({
     ...cloneDefaultConfig(),
-    integrations: { todoist: { enabled: todoistEnabled } },
+    integrations: { todoist: { enabled: todoistEnabled, priority: null } },
   });
   return { version: 1, values };
 }

@@ -188,7 +188,9 @@ export function AdminSettingsPage() {
             checked={draft.integrations.todoist.enabled}
             disabled={!config.integrationsAvailable.todoist && !draft.integrations.todoist.enabled}
             onChange={(e) =>
-              update('integrations', { todoist: { enabled: e.target.checked } })
+              update('integrations', {
+                todoist: { ...draft.integrations.todoist, enabled: e.target.checked },
+              })
             }
           />
           <span>{de.admin.fields.todoistEnabled}</span>
@@ -197,6 +199,30 @@ export function AdminSettingsPage() {
             switching it off closes every open Todoist task in the household
             rather than freezing them, and switching it back on re-creates them. */}
         <p className={styles.hint}>{de.admin.fields.todoistEnabledHint}</p>
+        <label className={styles.field}>
+          <span>{de.admin.fields.todoistPriority}</span>
+          <select
+            value={draft.integrations.todoist.priority ?? ''}
+            onChange={(e) => {
+              const value = e.target.value === '' ? null : parseInt(e.target.value, 10);
+              update('integrations', {
+                todoist: { ...draft.integrations.todoist, priority: value },
+              });
+            }}
+          >
+            <option value="">{de.admin.fields.todoistPriorityDefault}</option>
+            {/* Raw Todoist *API* values (4=urgent .. 1=normal) — the opposite
+                of Todoist's own p1..p4 UI labels. The option text spells out
+                the UI label so an admin does not have to know the inversion,
+                but the stored/sent number is exactly this API value, with no
+                second scale introduced anywhere in this app. */}
+            <option value={4}>{de.admin.fields.todoistPriorityUrgent}</option>
+            <option value={3}>{de.admin.fields.todoistPriorityHigh}</option>
+            <option value={2}>{de.admin.fields.todoistPriorityMedium}</option>
+            <option value={1}>{de.admin.fields.todoistPriorityNormal}</option>
+          </select>
+        </label>
+        <p className={styles.hint}>{de.admin.fields.todoistPriorityHint}</p>
       </section>
 
       <section className={styles.section}>
