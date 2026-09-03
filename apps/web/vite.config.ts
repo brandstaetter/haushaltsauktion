@@ -9,7 +9,17 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (not 'autoUpdate'): members can keep a tab open for hours
+      // (30s polling, see apps/web/src/api/hooks.ts), and a silently
+      // self-updating service worker would leave that tab running old JS
+      // against a live server until the next navigation — someone could act
+      // on stale task values or point balances without knowing a fix
+      // shipped. `UpdatePrompt` (apps/web/src/components/UpdatePrompt)
+      // surfaces `needRefresh` via `virtual:pwa-register/react` and only
+      // reloads once the member clicks — see intake
+      // "notify-on-new-deploy-and-refresh-cache" for the full reasoning
+      // (supersedes the original autoUpdate decision from the PWA campaign).
+      registerType: 'prompt',
       // App-shell only (CLAUDE.md §30 "PWA-fähig") — the household's task
       // list, point balances, and assignments are live shared state that
       // changes underneath the current viewer (values escalate, offers

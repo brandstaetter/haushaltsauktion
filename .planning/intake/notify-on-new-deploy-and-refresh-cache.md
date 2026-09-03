@@ -1,8 +1,9 @@
 ---
 title: "Notify members when a new deploy is live and let them refresh to it"
-status: pending
+status: completed
 priority: normal
 target: apps/web/vite.config.ts, apps/web/src/main.tsx, apps/web/src/App.tsx (or a new UpdatePrompt component), apps/web/src/strings/de.ts
+campaign: notify-members-when-a-new-deploy-is-live-and-let-them-refresh-to-it
 ---
 
 ## Description

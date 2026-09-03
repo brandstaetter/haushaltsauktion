@@ -1,8 +1,9 @@
 ---
 title: "Todoist project grouping: no household-level default, only per-member manual selection"
-status: pending
+status: completed
 priority: normal
 target: apps/web/src/pages/AccountPage/TodoistSection.tsx, apps/api/src/app/integrations/connectTodoist.ts, packages/shared/src/config/schema.ts, apps/api/src/app/integrations/runReconciliation.ts, apps/web/src/pages/AdminPage/AdminSettingsPage.tsx
+campaign: todoist-project-grouping-no-household-level-default-only-per-member-manual-selec
 ---
 
 ## Description

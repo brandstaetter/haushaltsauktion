@@ -274,6 +274,11 @@ export const de = {
     action: 'Installieren',
     dismiss: 'Nicht jetzt',
   },
+  update: {
+    prompt: 'Eine neue Version ist verfügbar.',
+    action: 'Aktualisieren',
+    dismiss: 'Später',
+  },
   account: {
     title: 'Ich',
     balance: 'Punktestand',
@@ -306,6 +311,8 @@ export const de = {
     testOk: 'Verbindung funktioniert.',
     project: 'Projekt',
     projectInbox: 'Posteingang',
+    projectHint:
+      'Nur in deinem eigenen Todoist-Konto sichtbar. Ein gemeinsames Haushalts-Projekt gibt es nicht — wollt ihr Aufgaben gebündelt sehen, legt jede Person ein Projekt mit demselben Namen im eigenen Konto an und wählt es hier aus.',
     triggers: 'Wann eine Todoist-Aufgabe entsteht',
     triggerRandom: 'Bei zufälliger Zuweisung',
     triggerVoluntary: 'Bei freiwilliger Übernahme',
@@ -613,7 +620,7 @@ export const de = {
       todoistUnavailable:
         'Dieser Server ist für Todoist nicht eingerichtet (fehlender Schlüssel). Solange das so ist, kann sich kein Mitglied verbinden — die Integration lässt sich hier nicht aktivieren.',
       todoistEnabledHint:
-        'Jedes Mitglied verbindet danach sein eigenes Todoist-Konto unter „Ich“. Wird die Integration wieder ausgeschaltet, werden offene Todoist-Aufgaben des Haushalts geschlossen; beim erneuten Einschalten werden sie neu angelegt.',
+        'Jedes Mitglied verbindet danach sein eigenes Todoist-Konto unter „Ich“. Wird die Integration wieder ausgeschaltet, werden offene Todoist-Aufgaben des Haushalts geschlossen; beim erneuten Einschalten werden sie neu angelegt. Ein gemeinsames Haushalts-Projekt gibt es nicht — jedes Konto ist getrennt. Wer Aufgaben trotzdem gebündelt sehen möchte, legt in jedem Konto ein Projekt mit demselben Namen an und wählt es dort einzeln aus.',
       todoistPriority: 'Priorität neu angelegter Todoist-Aufgaben',
       todoistPriorityDefault: 'Kein Wert (Todoist-Standard)',
       todoistPriorityUrgent: 'Dringend (Todoist P1)',
