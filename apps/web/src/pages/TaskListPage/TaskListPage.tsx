@@ -22,7 +22,7 @@ export function TaskListPage() {
   const [tab, setTab] = useState<Tab>('available');
   const available = useAvailableTasks();
   const assigned = useAssignedTasks();
-  const household = useAllHouseholdTasks();
+  const household = useAllHouseholdTasks(tab === 'household');
 
   const active = tab === 'available' ? available : tab === 'mine' ? assigned : household;
   const emptyMessage =

@@ -334,7 +334,14 @@ async function toHouseholdTaskDto(
   instance: LoadedInstance,
   cfg: HouseholdConfig,
 ): Promise<HouseholdTaskDto> {
-  const base = await toAvailableDto(tx, ctx, instance, cfg);
+  // This roster is read-only (no volunteer CTA, see TaskListPage.tsx) and
+  // never renders `canVolunteer`/`ineligibleReason` — so skip the real
+  // eligibility pass (`viewerEligibility()` -> `loadCandidates()`, a
+  // household-wide query) per row, rather than paying its cost for a value
+  // nothing consumes.
+  const base = await toAvailableDto(tx, ctx, instance, cfg, {
+    eligibility: { canVolunteer: false, reason: null },
+  });
   const active = instance.assignments[0] ?? null;
   return {
     ...base,
