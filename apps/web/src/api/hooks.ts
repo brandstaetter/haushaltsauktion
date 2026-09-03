@@ -5,6 +5,7 @@ import type {
   BuyoutRequest,
   BuyoutResultDto,
   CompleteRequest,
+  HouseholdTaskDto,
   MemberDto,
   MemberRole,
   PointTransactionDto,
@@ -142,6 +143,14 @@ export function useAssignedTasks() {
   return useQuery({
     queryKey: ['tasks', 'assigned-to-me'],
     queryFn: () => api<{ items: AvailableTaskDto[] }>('/tasks/assigned-to-me'),
+  });
+}
+
+/** Household-wide "Alle Aufgaben" tab — `GET /tasks/all` (not scoped to the viewer). */
+export function useAllHouseholdTasks() {
+  return useQuery({
+    queryKey: ['tasks', 'all'],
+    queryFn: () => api<{ items: HouseholdTaskDto[] }>('/tasks/all'),
   });
 }
 

@@ -120,6 +120,10 @@ export const de = {
     due: 'fällig {when}',
     estimatedMinutes: 'ca. {minutes} Min',
     assignedTo: 'an {name}',
+    assignmentKind: {
+      VOLUNTARY: 'freiwillig',
+      RANDOM: 'zufällig',
+    },
     since: 'seit {time}',
     status: {
       AVAILABLE: 'verfügbar',
@@ -134,6 +138,8 @@ export const de = {
     noTasks: 'Gerade nichts offen.',
     noAssigned: 'Dir ist gerade nichts zugewiesen.',
     noHeld: 'Du hast gerade keine Aufgabe übernommen.',
+    allHouseholdTasksTab: 'Alle Aufgaben',
+    noHouseholdTasks: 'Gerade ist nichts offen.',
     adminUnassign: {
       trigger: 'Zuweisung aufheben',
       title: 'Zuweisung aufheben',

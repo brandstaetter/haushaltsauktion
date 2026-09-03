@@ -88,6 +88,20 @@ export interface AssignedTaskDto extends AvailableTaskDto {
   assignment: AssignmentSummaryDto;
 }
 
+/** Who holds an `ASSIGNED` task, and how they got it — for the household-wide view. */
+export interface HouseholdTaskAssigneeDto extends MemberRefDto {
+  kind: AssignmentKind;
+}
+
+/**
+ * §20 extended — the "Alle Aufgaben" tab: every `AVAILABLE`/`ASSIGNED` task in
+ * the household, not scoped to the viewer. `assignee` is null for `AVAILABLE`
+ * tasks (there isn't one) and set for `ASSIGNED` ones.
+ */
+export interface HouseholdTaskDto extends AvailableTaskDto {
+  assignee: HouseholdTaskAssigneeDto | null;
+}
+
 export interface TaskInstanceDetailDto extends AvailableTaskDto {
   taskDefinitionId: string;
   scheduledFor: string;

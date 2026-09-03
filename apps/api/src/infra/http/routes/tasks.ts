@@ -15,6 +15,7 @@ import { releaseOrRevokeAssignment } from '../../../app/assignment/reopen.js';
 import { NotFoundError } from '../../../domain/errors.js';
 import { listHistory, loadDashboard, listMembers } from '../../../app/queries/reads.js';
 import {
+  listAllOpenTasks,
   listAssignedToMe,
   listAvailableTasks,
   loadInstanceDetail,
@@ -92,6 +93,18 @@ export async function registerTaskRoutes(app: FastifyInstance, deps: Deps): Prom
       viewerContext(deps, ctx),
       await viewerBalance(deps, ctx),
     );
+    return { items };
+  });
+
+  /**
+   * Household-wide "Alle Aufgaben" tab: every open (`AVAILABLE`/`ASSIGNED`)
+   * instance, not scoped to the caller, each `ASSIGNED` row naming who holds
+   * it. Distinct from `/tasks/board`, which is the dashboard's "mine +
+   * available" panel, not a full household roster.
+   */
+  app.get('/tasks/all', async (request, reply) => {
+    const ctx = requireMember(request, reply);
+    const items = await listAllOpenTasks(deps.db, viewerContext(deps, ctx));
     return { items };
   });
 
