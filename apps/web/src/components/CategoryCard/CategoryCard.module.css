@@ -104,10 +104,13 @@
 }
 
 /* Two roughly equal-width buttons in one row instead of stacking full-width
-   underneath each other. */
+   underneath each other. `margin-top` tops up `.content`'s gap (var(--s-3),
+   12px) to 18px between the fields row and the buttons — 50% more than the
+   other gaps in this column. */
 .actions {
   display: flex;
   gap: var(--s-2);
+  margin-top: calc(var(--s-3) * 0.5);
 }
 
 .actions > * {
