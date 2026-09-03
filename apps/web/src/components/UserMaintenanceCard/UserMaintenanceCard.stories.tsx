@@ -91,3 +91,24 @@ export const WithError: Story = {
     error: 'Es muss mindestens ein Admin verbleiben.',
   },
 };
+
+/**
+ * The card's actual rendered width on an iPhone 13 (390px CSS viewport),
+ * not just the raw device width: `Layout.module.css`'s `.main` and
+ * `AdminPage.module.css`'s `.section` each add `var(--s-4)` (16px) of
+ * padding on both sides below the 900px desktop breakpoint, so the list
+ * of cards only ever gets 390 - 4×16 = 326px to work with.
+ */
+export const OnIPhone13: Story = {
+  args: {
+    member: makeMember(),
+    draft: draftFromMember(makeMember()),
+  },
+  decorators: [
+    (Story) => (
+      <div style={{ width: 326, outline: '1px dashed currentColor', outlineOffset: 4 }}>
+        <Story />
+      </div>
+    ),
+  ],
+};
