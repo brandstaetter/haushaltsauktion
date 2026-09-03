@@ -52,6 +52,7 @@ export async function verifyLedgerIntegrity(
         previousTransactionId: true,
         taskAssignmentId: true,
         assignmentKind: true,
+        rewardRedemptionId: true,
       },
     }),
     db.householdMember.findMany({
@@ -71,6 +72,7 @@ export async function verifyLedgerIntegrity(
     previousTransactionId: r.previousTransactionId,
     taskAssignmentId: r.taskAssignmentId,
     assignmentKind: r.assignmentKind,
+    rewardRedemptionId: r.rewardRedemptionId,
   }));
 
   const findings = verify({

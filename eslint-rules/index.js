@@ -118,6 +118,9 @@ const SCOPED_MODELS = new Set([
   'memberIntegration',
   'integrationOutbox',
   'integrationTaskLink',
+  // Punkte-Shop (intake "points-shop-real-life-rewards").
+  'rewardDefinition',
+  'rewardRedemption',
 ]);
 
 const SCOPED_METHODS =

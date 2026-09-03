@@ -25,6 +25,7 @@ import { registerMemberRoutes } from './routes/members.js';
 import { registerMiscRoutes } from './routes/misc.js';
 import { registerOperatorRoutes } from './routes/operator.js';
 import { registerRegisterRoutes } from './routes/register.js';
+import { registerRewardRoutes } from './routes/rewards.js';
 import { registerTaskRoutes } from './routes/tasks.js';
 
 export interface ServerOptions {
@@ -83,6 +84,7 @@ export async function buildServer(options: ServerOptions): Promise<FastifyInstan
       await registerMemberRoutes(api, deps);
       await registerMiscRoutes(api, deps);
       await registerIntegrationRoutes(api, deps);
+      await registerRewardRoutes(api, deps);
       await registerAdminRoutes(api, deps);
       await registerOperatorRoutes(api, deps, env);
       // Only registered when a setup token is configured — see register.ts's

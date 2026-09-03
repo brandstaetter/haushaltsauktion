@@ -37,6 +37,8 @@ export interface LedgerEntry {
   previousTransactionId: string;
   taskAssignmentId: string | null;
   assignmentKind: AssignmentKind | null;
+  /** Punkte-Shop (intake "points-shop-real-life-rewards"). */
+  rewardRedemptionId: string | null;
 }
 
 export interface LedgerMemberSnapshot {
@@ -74,7 +76,9 @@ export type LedgerViolation =
   | { kind: 'DUPLICATE_REWARD'; assignmentId: string; transactionIds: string[] }
   | { kind: 'DUPLICATE_BUYOUT'; assignmentId: string; transactionIds: string[] }
   | { kind: 'DUPLICATE_STREAK_BONUS'; assignmentId: string; transactionIds: string[] }
+  | { kind: 'DUPLICATE_REDEMPTION_DEBIT'; redemptionId: string; transactionIds: string[] }
   | { kind: 'ORPHAN_WORK_TX'; transactionId: string; type: PointTransactionType }
+  | { kind: 'ORPHAN_REDEMPTION_TX'; transactionId: string }
   | {
       kind: 'BALANCE_BELOW_MINIMUM';
       memberId: string;
@@ -112,6 +116,8 @@ export interface PostingInput {
   type: PointTransactionType;
   taskAssignmentId?: string | null;
   assignmentKind?: AssignmentKind | null;
+  /** Punkte-Shop (intake "points-shop-real-life-rewards"). */
+  rewardRedemptionId?: string | null;
 }
 
 export interface Posting {
@@ -126,6 +132,7 @@ export function signRuleViolated(type: PointTransactionType, amount: number): bo
   if (type === PointTransactionType.VOLUNTARY_TASK_REWARD) return !(amount > 0);
   if (type === PointTransactionType.STREAK_BONUS) return !(amount > 0);
   if (type === PointTransactionType.DECAY) return !(amount <= 0);
+  if (type === PointTransactionType.REWARD_REDEMPTION) return !(amount < 0);
   return false;
 }
 
@@ -174,6 +181,14 @@ export function computePosting(input: PostingInput): Posting {
     throw new ConflictError(
       'INTERNAL_ERROR',
       `${input.type} muss die zugehörige Zuweisung benennen.`,
+    );
+  }
+  // Punkte-Shop: eine Einlösung ist keine TaskAssignment-Zeile, deshalb ein
+  // eigenständiges Feld statt einer Wiederverwendung von taskAssignmentId.
+  if (input.type === PointTransactionType.REWARD_REDEMPTION && !input.rewardRedemptionId) {
+    throw new ConflictError(
+      'INTERNAL_ERROR',
+      `${input.type} muss die zugehörige Einlösung benennen.`,
     );
   }
 
@@ -227,6 +242,7 @@ export function verifyLedgerIntegrity(snapshot: LedgerSnapshot): LedgerIntegrity
   const rewardsByAssignment = new Map<string, string[]>();
   const buyoutsByAssignment = new Map<string, string[]>();
   const streakBonusesByAssignment = new Map<string, string[]>();
+  const redemptionDebitsByRedemption = new Map<string, string[]>();
 
   for (const entry of snapshot.entries) {
     if (entry.amount === 0) violations.push({ kind: 'ZERO_AMOUNT', transactionId: entry.id });
@@ -257,6 +273,13 @@ export function verifyLedgerIntegrity(snapshot: LedgerSnapshot): LedgerIntegrity
 
     if (isWorkTx && entry.taskAssignmentId === null) {
       violations.push({ kind: 'ORPHAN_WORK_TX', transactionId: entry.id, type: entry.type });
+    }
+
+    if (
+      entry.type === PointTransactionType.REWARD_REDEMPTION &&
+      entry.rewardRedemptionId === null
+    ) {
+      violations.push({ kind: 'ORPHAN_REDEMPTION_TX', transactionId: entry.id });
     }
 
     // §44's headline invariant, checked from the data rather than trusted —
@@ -297,6 +320,15 @@ export function verifyLedgerIntegrity(snapshot: LedgerSnapshot): LedgerIntegrity
         else bucket.set(entry.taskAssignmentId, [entry.id]);
       }
     }
+
+    if (
+      entry.type === PointTransactionType.REWARD_REDEMPTION &&
+      entry.rewardRedemptionId !== null
+    ) {
+      const ids = redemptionDebitsByRedemption.get(entry.rewardRedemptionId);
+      if (ids) ids.push(entry.id);
+      else redemptionDebitsByRedemption.set(entry.rewardRedemptionId, [entry.id]);
+    }
   }
 
   for (const [assignmentId, transactionIds] of rewardsByAssignment) {
@@ -312,6 +344,11 @@ export function verifyLedgerIntegrity(snapshot: LedgerSnapshot): LedgerIntegrity
   for (const [assignmentId, transactionIds] of streakBonusesByAssignment) {
     if (transactionIds.length > 1) {
       violations.push({ kind: 'DUPLICATE_STREAK_BONUS', assignmentId, transactionIds });
+    }
+  }
+  for (const [redemptionId, transactionIds] of redemptionDebitsByRedemption) {
+    if (transactionIds.length > 1) {
+      violations.push({ kind: 'DUPLICATE_REDEMPTION_DEBIT', redemptionId, transactionIds });
     }
   }
 

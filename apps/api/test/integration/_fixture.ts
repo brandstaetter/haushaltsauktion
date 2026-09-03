@@ -141,6 +141,10 @@ export async function dropHousehold(db: PrismaClient, ids: FixtureIds): Promise<
   await db.auditEvent.deleteMany({ where: { householdId } });
   await db.taskHistoryEvent.deleteMany({ where: { householdId } });
   await db.pointTransaction.deleteMany({ where: { householdId } });
+  // Punkte-Shop: redemptions must go before their reward definitions
+  // (Restrict), and after point_transactions (which reference them, Restrict).
+  await db.rewardRedemption.deleteMany({ where: { householdId } });
+  await db.rewardDefinition.deleteMany({ where: { householdId } });
   await db.taskAssignment.deleteMany({ where: { householdId } });
   await db.taskInstance.deleteMany({ where: { householdId } });
   await db.taskDefinitionEligibility.deleteMany({ where: { householdId } });

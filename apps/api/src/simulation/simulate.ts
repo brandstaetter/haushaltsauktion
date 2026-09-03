@@ -263,6 +263,7 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
       ),
       taskAssignmentId: assignmentId,
       assignmentKind: kind,
+      rewardRedemptionId: null,
     });
     member.ledgerTailId = id;
     member.balance = posting.balanceAfter;

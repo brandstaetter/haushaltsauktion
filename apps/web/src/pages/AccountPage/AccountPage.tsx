@@ -39,6 +39,13 @@ export function AccountPage() {
             >
               {de.account.ledger}
             </Button>
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/punkte-shop')}
+              fullWidth
+            >
+              {de.account.rewardsShop}
+            </Button>
             {session?.role === 'ADMIN' && (
               <Button
                 variant="secondary"

@@ -115,6 +115,15 @@ const ValueIncreaseSchema = z
   })
   .default(DEFAULT_CONFIG.valueIncrease);
 
+const RewardsSchema = z
+  .strictObject({
+    enabled: z.boolean().default(DEFAULT_CONFIG.rewards.enabled),
+    allowNegativeBalance: z.boolean().default(DEFAULT_CONFIG.rewards.allowNegativeBalance),
+    minimumBalance: z.number().int().default(DEFAULT_CONFIG.rewards.minimumBalance),
+    maximumDebt: z.number().int().min(0).nullable().default(DEFAULT_CONFIG.rewards.maximumDebt),
+  })
+  .default(DEFAULT_CONFIG.rewards);
+
 const CompletionSchema = z
   .strictObject({
     resetStrategy: z.enum(ResetStrategy).default(DEFAULT_CONFIG.completion.resetStrategy),
@@ -207,6 +216,7 @@ const HouseholdConfigShape = z
     buyout: BuyoutSchema,
     valueIncrease: ValueIncreaseSchema,
     completion: CompletionSchema,
+    rewards: RewardsSchema,
     points: PointsSchema,
     streak: StreakSchema,
     fairness: FairnessSchema,
@@ -253,6 +263,22 @@ function crossFieldRules(cfg: HouseholdConfig, ctx: Ctx): void {
     issue(
       ctx,
       ['buyout', 'maximumDebt'],
+      'Bei erlaubtem Negativsaldo muss maximumDebt gesetzt und größer als 0 sein.',
+    );
+  }
+
+  // ── rewards (Punkte-Shop) ──
+  if (!cfg.rewards.allowNegativeBalance && cfg.rewards.minimumBalance < 0) {
+    issue(
+      ctx,
+      ['rewards', 'minimumBalance'],
+      'Ohne erlaubten Negativsaldo darf minimumBalance nicht negativ sein.',
+    );
+  }
+  if (cfg.rewards.allowNegativeBalance && (cfg.rewards.maximumDebt === null || cfg.rewards.maximumDebt <= 0)) {
+    issue(
+      ctx,
+      ['rewards', 'maximumDebt'],
       'Bei erlaubtem Negativsaldo muss maximumDebt gesetzt und größer als 0 sein.',
     );
   }
