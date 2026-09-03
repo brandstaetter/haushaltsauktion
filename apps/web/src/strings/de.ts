@@ -440,7 +440,7 @@ export const de = {
       saveRestrictions: 'Einschränkungen speichern',
       saved: 'Gespeichert.',
       createSuccess: 'Mitglied wurde angelegt.',
-      resetPasswordButton: 'Neues Passwort vergeben',
+      resetPasswordButton: 'Passwort zurücksetzen',
       resetPasswordTitle: 'Neues Passwort für {name}',
       resetPasswordHint: 'Leer lassen für ein zufällig erzeugtes Passwort.',
       resetPasswordNewPassword: 'Neues Passwort (optional)',
