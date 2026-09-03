@@ -10,6 +10,8 @@ export const de = {
     adminTasks: 'Aufgaben',
     adminCategories: 'Kategorien',
     adminRewards: 'Punkte-Shop',
+    maintenance: 'Verwaltung',
+    back: 'Zurück',
   },
   login: {
     title: 'Haushaltsauktion',

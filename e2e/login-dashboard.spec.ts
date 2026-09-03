@@ -71,9 +71,13 @@ test.describe('Dashboard', () => {
   });
 
   test('führt Elke als Administratorin in die Verwaltung', async ({ page }) => {
-    // Der Seed macht Elke zur ADMIN (§25) — die vier Verwaltungs-Navigationspunkte
-    // sind der sichtbare Beweis, dass die Rolle aus der Sitzung stammt.
+    // Der Seed macht Elke zur ADMIN (§25) — der Umschalter "Verwaltung" im
+    // Hauptmenü und die Verwaltungs-Navigationspunkte im Untermenü, das er
+    // öffnet, sind der sichtbare Beweis, dass die Rolle aus der Sitzung stammt.
     const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+    await nav.getByRole('link', { name: 'Verwaltung', exact: true }).click();
+    await expect(page).toHaveURL(/\/verwaltung\/einstellungen$/);
+
     await expect(nav.getByRole('link', { name: 'Einstellungen' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Benutzer' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Kategorien' })).toBeVisible();

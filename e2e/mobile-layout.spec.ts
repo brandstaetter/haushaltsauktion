@@ -95,35 +95,19 @@ test.describe('Mobile Darstellung (390×844)', () => {
       const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
 
       await expect(nav).toBeVisible();
-      // Start, Verlauf, Ich — plus Einstellungen, Benutzer, Aufgaben,
-      // Kategorien, Punkte-Shop für Elke (ADMIN).
-      await expect(nav.getByRole('link')).toHaveCount(8);
+      // Start, Verlauf, Ich — plus der Umschalter "Verwaltung" für Elke
+      // (ADMIN). Die eigentlichen Verwaltungseinträge stecken im Untermenü,
+      // das erst unter /verwaltung/* angezeigt wird (siehe Tests unten).
+      await expect(nav.getByRole('link')).toHaveCount(4);
     });
 
-    test('Admin-Hauptnavigation: kein Label bricht um, alle Einträge bleiben gleich hoch', async ({ page }) => {
-      // 8 Spalten auf 390px sind zu schmal für sichtbaren Text (siehe
-      // Nav.tsx `compact` / Nav.module.css `.compact`) — die Leiste zeigt
-      // dann nur Icons. Die eigentliche Prüfung ist deshalb nicht "bricht
-      // der sichtbare Text um" (er ist gar nicht sichtbar), sondern dass
-      // dadurch kein Eintrag höher wird als seine Nachbarn, UND dass jeder
-      // Link trotzdem weiterhin für Screenreader benannt bleibt.
+    test('Admin-Hauptmenü: kein Label bricht um, alle Einträge bleiben gleich hoch', async ({ page }) => {
       const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
       const links = nav.getByRole('link');
-      await expect(links).toHaveCount(8);
+      await expect(links).toHaveCount(4);
 
-      // Der zugängliche Name bleibt erhalten, obwohl der Text visuell
-      // ausgeblendet ist (nur `clip`/`position`, kein `display: none`).
-      for (const label of [
-        'Start',
-        'Verlauf',
-        'Ich',
-        'Einstellungen',
-        'Benutzer',
-        'Aufgaben',
-        'Kategorien',
-        'Punkte-Shop',
-      ]) {
-        await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
+      for (const label of ['Start', 'Verlauf', 'Ich', 'Verwaltung']) {
+        await expectNoLineWrap(nav.getByRole('link', { name: label, exact: true }));
       }
 
       const heights = await links.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
@@ -132,6 +116,31 @@ test.describe('Mobile Darstellung (390×844)', () => {
         distinctHeights.size,
         `Nav-Einträge sind unterschiedlich hoch, die Leiste ist nicht mehr ausgerichtet: ${heights.join(', ')}`,
       ).toBe(1);
+    });
+
+    test('Verwaltungs-Untermenü: kein Label bricht um, alle Einträge bleiben gleich hoch', async ({ page }) => {
+      await page.getByRole('link', { name: 'Verwaltung', exact: true }).click();
+      await expect(page).toHaveURL(/\/verwaltung\/einstellungen$/);
+
+      const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+      const links = nav.getByRole('link');
+      // Die 5 Verwaltungseinträge plus "Zurück" zum Hauptmenü.
+      await expect(links).toHaveCount(6);
+
+      for (const label of ['Einstellungen', 'Benutzer', 'Aufgaben', 'Kategorien', 'Punkte-Shop', 'Zurück']) {
+        await expectNoLineWrap(nav.getByRole('link', { name: label, exact: true }));
+      }
+
+      const heights = await links.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
+      const distinctHeights = new Set(heights);
+      expect(
+        distinctHeights.size,
+        `Nav-Einträge sind unterschiedlich hoch, die Leiste ist nicht mehr ausgerichtet: ${heights.join(', ')}`,
+      ).toBe(1);
+
+      await nav.getByRole('link', { name: 'Zurück', exact: true }).click();
+      await expect(page).toHaveURL(/\/$/);
+      await expect(nav.getByRole('link')).toHaveCount(4);
     });
   });
 
