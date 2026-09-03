@@ -278,6 +278,23 @@ Die Integrationstests unter `apps/api/test/integration/` brauchen ebenfalls
 eine laufende Postgres-Instanz (`docker compose up -d db`) — sie sind Teil
 von `npm test -w apps/api` und laufen automatisch mit.
 
+### Storybook (Komponenten isoliert entwerfen)
+
+```bash
+npm run storybook -w apps/web         # Dev-Server auf http://localhost:6006
+npm run build-storybook -w apps/web   # statischer Export nach apps/web/storybook-static/
+```
+
+Zeigt Komponenten aus `apps/web/src/components/` einzeln mit ihren
+Prop-Varianten, ohne Backend oder Router (`apps/web/.storybook/`). Läuft mit
+Vite (`@storybook/react-vite`, nicht Webpack) und lädt dieselben
+Design-Tokens (`apps/web/src/styles/global.css`/`tokens.css`) wie die echte App, so
+dass Komponenten dort genauso aussehen. Ein eigenständiges Dev-Werkzeug —
+läuft nicht in `npm run build`, `npm run dev`, `npm test` oder CI mit.
+Story-Dateien (`*.stories.tsx`) liegen neben der jeweiligen Komponente;
+`Button`, `StatusBadge`, `ValueChip`, `CategoryBadge` und `TaskCard` haben
+bereits welche als Vorlage für weitere.
+
 ## Projektstruktur
 
 ```

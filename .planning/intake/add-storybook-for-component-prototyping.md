@@ -1,8 +1,9 @@
 ---
 title: "Storybook für apps/web hinzufügen — Komponenten isoliert entwerfen und prototypen"
-status: pending
+status: completed
 priority: normal
 target: apps/web/package.json, apps/web/.storybook/, apps/web/src/components/**/*.stories.tsx
+campaign: storybook-f-r-apps-web-hinzuf-gen-komponenten-isoliert-entwerfen-und-prototypen
 ---
 
 ## Description
