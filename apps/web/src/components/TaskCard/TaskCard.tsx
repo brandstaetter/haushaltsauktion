@@ -40,21 +40,23 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
   return (
     <article className={styles.card} aria-labelledby={`task-${task.id}-title`}>
       <div className={styles.header}>
-        <h3 id={`task-${task.id}-title`} className={styles.title}>
-          {task.title}
-        </h3>
+        <div className={styles.titleGroup}>
+          <h3 id={`task-${task.id}-title`} className={styles.title}>
+            {task.title}
+          </h3>
+          {task.status !== 'AVAILABLE' && <StatusBadge status={task.status} />}
+          {assignee && (
+            <span className={styles.assignee}>
+              {interpolate(de.task.assignedTo, { name: assignee.displayName })}
+              {' · '}
+              {de.task.assignmentKind[assignee.kind]}
+            </span>
+          )}
+        </div>
         {task.category && (
           <CategoryBadge name={task.category.name} colorHex={task.category.colorHex} />
         )}
       </div>
-      {task.status !== 'AVAILABLE' && <StatusBadge status={task.status} />}
-      {assignee && (
-        <p className={styles.assignee}>
-          {interpolate(de.task.assignedTo, { name: assignee.displayName })}
-          {' · '}
-          {de.task.assignmentKind[assignee.kind]}
-        </p>
-      )}
       {meta.length > 0 && (
         <p className={styles.meta}>
           <Clock size={14} strokeWidth={1.75} aria-hidden="true" />

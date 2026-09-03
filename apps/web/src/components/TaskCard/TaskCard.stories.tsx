@@ -45,7 +45,10 @@ export const Available: Story = {
 
 /** Randomly assigned to the current viewer — CTA switches to "Als erledigt markieren" (§21). */
 export const Assigned: Story = {
-  args: { task: makeTask({ status: 'ASSIGNED', potentialReward: 0 }) },
+  args: {
+    task: makeTask({ status: 'ASSIGNED', potentialReward: 0 }),
+    assignee: { id: 'member-anna', displayName: 'Anna', avatarUrl: null, kind: 'RANDOM' },
+  },
 };
 
 /** Already bought out once — the value has grown per §9's default multiplier. */
