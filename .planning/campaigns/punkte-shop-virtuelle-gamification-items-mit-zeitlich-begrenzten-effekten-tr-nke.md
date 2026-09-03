@@ -1,9 +1,9 @@
 ---
 version: 1
 id: "d84bf251-1721-4e41-8981-4c00544b9a25"
-status: active
+status: completed
 started: "2026-09-03T05:49:21.409Z"
-completed_at: null
+completed_at: "2026-09-03T10:15:00.000Z"
 direction: "Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)"
 phase_count: 4
 current_phase: 4
@@ -13,7 +13,7 @@ worktree_status: null
 
 # Campaign: Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)
 
-Status: active
+Status: completed
 Started: 2026-09-03T05:49:21.409Z
 Direction: Punkte-Shop: virtuelle Gamification-Items mit zeitlich begrenzten Effekten (Tränke)
 
@@ -112,7 +112,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
 | 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
 | 3 | complete | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 4 |  complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
@@ -120,7 +120,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 |---|---|---|---|---|---|---|---|
 | phase:2 | implementation-diff | file_diff | yes | git diff --stat: 25 files changed, 936 insertions(+), 82 deletions(-) | pass | 2 | implement requested change |
 | phase:3 | verification-command | test_result | yes | npm run typecheck (root+web+e2e) clean; npm run test -w apps/api: 305/305 passed (31 files) | pass | 2 | fix verification failures |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/punkte-shop-virtuelle-gamification-items-mit-zeitlich-begrenzten-effekten-tr-nke.md | pending | 2 | package delivery for review |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/52 | resolved | 2 | review pull request |
 
 ## Decision Log
 
