@@ -37,10 +37,16 @@ export function RewardsShopPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const items = data?.items ?? [];
+  // §31 — the disclosure must always show the real current balance, never a
+  // placeholder while it's still loading. Gating the buy flow on this (rather
+  // than defaulting to 0) is what stops a slow connection from letting
+  // someone open the confirm sheet against a wrong preview.
+  const balanceLoaded = me !== undefined;
   const balance = me?.balance ?? 0;
   const confirming = items.find((i) => i.id === confirmingId) ?? null;
 
   const openConfirm = (reward: RewardShopItemDto) => {
+    if (!balanceLoaded) return;
     setError(null);
     setConfirmingId(reward.id);
   };
@@ -65,7 +71,11 @@ export function RewardsShopPage() {
 
       <div className={styles.balanceCard}>
         <span className={styles.balanceLabel}>{de.rewards.balance}</span>
-        <span className={styles.balanceValue}>{formatNumber(balance)}</span>
+        {balanceLoaded ? (
+          <span className={styles.balanceValue}>{formatNumber(balance)}</span>
+        ) : (
+          <div className={styles.spinner} aria-label="Wird geladen" />
+        )}
       </div>
 
       {isLoading ? (
@@ -83,7 +93,12 @@ export function RewardsShopPage() {
                 <span className={styles.cost}>{formatNumber(reward.cost)}</span>
               </div>
               {reward.description && <p className={styles.description}>{reward.description}</p>}
-              <Button variant="secondary" onClick={() => openConfirm(reward)} fullWidth>
+              <Button
+                variant="secondary"
+                onClick={() => openConfirm(reward)}
+                disabled={!balanceLoaded}
+                fullWidth
+              >
                 {de.rewards.buy}
               </Button>
             </li>
