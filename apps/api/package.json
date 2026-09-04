@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "coverage:domain": "vitest run test/domain --coverage --coverage.include=src/domain/**",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:format": "prisma format",
@@ -41,6 +43,7 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "@typescript-eslint/utils": "^8.68.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.39.5",
     "eslint-plugin-import": "^2.32.0",
     "prisma": "^6.19.3",

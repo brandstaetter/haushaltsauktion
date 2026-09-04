@@ -45,6 +45,9 @@ Thumbs.db
 .claude/harness.json
 .planning/telemetry/
 .planning/screenshots/
+.planning/daemon.json
+.planning/daemon-scheduled-restart.ps1
+.planning/handoffs/
 
 # Vendored Citadel runtime (regenerate with /do setup)
 .citadel/scripts/

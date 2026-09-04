@@ -26,5 +26,15 @@ export default defineConfig({
     // argon2id in `beforeAll` plus lock-gated races exceed the 5s default.
     testTimeout: 60_000,
     hookTimeout: 60_000,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.ts'],
+      // `src/simulation` is a dev tool (CLAUDE.md §34), not shipped business
+      // logic — instrumenting it would dilute the domain/app/infra numbers
+      // the coverage gate actually cares about.
+      exclude: ['src/main.ts', 'src/simulation/**'],
+    },
   },
 });

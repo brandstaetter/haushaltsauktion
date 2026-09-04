@@ -60,7 +60,19 @@ jobs:
       # and lint script, but nothing else in CI ran it, so a lint error there
       # never failed a run.
       - run: npm run lint -w apps/web
-      - run: npm run test
+      # `coverage` runs the same suites `test` would (v8 instrumentation is
+      # additive, not a second pass) and prints the text summary straight to
+      # the job log, so this replaces rather than duplicates `npm run test`.
+      - run: npm run coverage
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: coverage-reports
+          path: |
+            apps/api/coverage/
+            apps/web/coverage/
+          retention-days: 14
 
   e2e:
     needs: test
