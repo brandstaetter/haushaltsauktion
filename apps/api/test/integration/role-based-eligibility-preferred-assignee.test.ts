@@ -175,6 +175,32 @@ test(
     });
     expect(paulJoins.statusCode, JSON.stringify(paulJoins.json())).toBe(200);
 
+    // The DTO's canVolunteer hint must already reflect the reservation for
+    // the now-only-remaining slot — a stale `false` (never reserved) here
+    // would show Luise an enabled "Übernehmen" CTA that a POST would then
+    // reject with 403, exactly the false-positive this DTO must not produce.
+    const luiseDetail = await app.inject({
+      method: 'GET',
+      url: `/api/tasks/${instance.id}`,
+      headers: { cookie: luise.cookie },
+    });
+    expect(luiseDetail.statusCode).toBe(200);
+    const luiseDetailBody = luiseDetail.json() as {
+      canVolunteer: boolean;
+      ineligibleReason: string | null;
+    };
+    expect(luiseDetailBody.canVolunteer).toBe(false);
+    expect(luiseDetailBody.ineligibleReason).toBe('ADMIN_SLOT_RESERVED');
+
+    // An admin, by contrast, is still shown as eligible for that same slot.
+    const arthurDetail = await app.inject({
+      method: 'GET',
+      url: `/api/tasks/${instance.id}`,
+      headers: { cookie: arthur.cookie },
+    });
+    const arthurDetailBody = arthurDetail.json() as { canVolunteer: boolean };
+    expect(arthurDetailBody.canVolunteer).toBe(true);
+
     // Slot 2 of 2: now the deficit (1) equals the one remaining slot — a
     // second plain member must be rejected...
     const luiseAttempt = await app.inject({
