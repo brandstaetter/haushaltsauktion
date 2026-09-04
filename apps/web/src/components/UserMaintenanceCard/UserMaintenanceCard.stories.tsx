@@ -37,6 +37,7 @@ const meta = {
     onSave: () => {},
     onOpenRestrictions: () => {},
     onOpenResetPassword: () => {},
+    onOpenAdjustPoints: () => {},
   },
 } satisfies Meta<typeof UserMaintenanceCard>;
 

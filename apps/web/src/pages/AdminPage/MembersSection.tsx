@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import type { MemberRole } from '@haushaltsauktion/shared';
 import {
+  useAdjustMemberPoints,
   useAdminCategories,
   useAdminMembers,
   useCreateMember,
@@ -35,6 +36,29 @@ function memberErrorMessage(err: unknown, de: Strings): string {
   if (apiErr.code === 'VALIDATION_FAILED') return de.admin.members.errors.invalidAbsenceRange;
   if (err instanceof ApiError && err.message) return err.message;
   return de.admin.members.errors.generic;
+}
+
+/**
+ * `adjustPoints` (§14) rejects an empty reason or a zero/non-integer amount
+ * with `VALIDATION_FAILED` and a `fieldErrors` array pinpointing which — the
+ * client mirrors that check up front, but a request can still round-trip
+ * into the same rejection, so both paths resolve to the same specific
+ * message rather than the generic fallback.
+ */
+function adjustPointsErrorMessage(err: unknown, de: Strings): string {
+  const apiErr = err as {
+    code?: string;
+    details?: { fieldErrors?: { path: string; message: string }[] };
+  };
+  if (apiErr.code === 'VALIDATION_FAILED') {
+    const paths = new Set((apiErr.details?.fieldErrors ?? []).map((f) => f.path));
+    if (paths.has('reason')) return de.admin.members.errors.reasonRequired;
+    if (paths.has('amount')) return de.admin.members.errors.invalidAmount;
+
+    if (err instanceof ApiError && err.message) return err.message;
+    return de.admin.members.errors.generic;
+  }
+  return memberErrorMessage(err, de);
 }
 
 // ───────────────────────── restrictions sheet ─────────────────────────
@@ -319,6 +343,75 @@ function ResetPasswordForm({
   );
 }
 
+// ───────────────────────── adjust-points sheet ─────────────────────────
+
+function AdjustPointsForm({
+  member,
+  onClose,
+  onDone,
+}: {
+  member: AdminMemberDto;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { de } = useStrings();
+  const adjustPoints = useAdjustMemberPoints();
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    const parsedAmount = Number(amount.trim());
+    if (amount.trim() === '' || !Number.isInteger(parsedAmount) || parsedAmount === 0) {
+      setError(de.admin.members.errors.invalidAmount);
+      return;
+    }
+    const trimmedReason = reason.trim();
+    if (trimmedReason === '') {
+      setError(de.admin.members.errors.reasonRequired);
+      return;
+    }
+
+    adjustPoints.mutate(
+      { id: member.id, body: { amount: parsedAmount, reason: trimmedReason } },
+      {
+        onSuccess: onDone,
+        onError: (err) => setError(adjustPointsErrorMessage(err, de)),
+      },
+    );
+  };
+
+  return (
+    <form className={styles.restrictionsForm} onSubmit={handleSubmit}>
+      {error && (
+        <div className={styles.message} role="alert">
+          {error}
+        </div>
+      )}
+      <label className={styles.field}>
+        <span>{de.admin.members.adjustAmountLabel}</span>
+        <input type="number" step={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <span className={styles.hint}>{de.admin.members.adjustAmountHint}</span>
+      </label>
+      <label className={styles.field}>
+        <span>{de.admin.members.adjustReasonLabel}</span>
+        <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} />
+      </label>
+      <div className={styles.actions}>
+        <Button type="submit" loading={adjustPoints.isPending}>
+          {de.admin.members.adjustSubmit}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onClose}>
+          {de.admin.members.cancel}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 // ───────────────────────── add-member sheet ─────────────────────────
 
 function AddMemberForm({
@@ -420,6 +513,7 @@ export function MembersSection() {
   const [addOpen, setAddOpen] = useState(false);
   const [restrictionsForId, setRestrictionsForId] = useState<string | null>(null);
   const [resetPasswordForId, setResetPasswordForId] = useState<string | null>(null);
+  const [adjustPointsForId, setAdjustPointsForId] = useState<string | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, UserDraft>>({});
   const [rowErrors, setRowErrors] = useState<Record<string, string | null>>({});
@@ -431,6 +525,7 @@ export function MembersSection() {
   const taskLabels = taskLabelsData?.items ?? [];
   const restrictionsFor = members.find((m) => m.id === restrictionsForId) ?? null;
   const resetPasswordFor = members.find((m) => m.id === resetPasswordForId) ?? null;
+  const adjustPointsFor = members.find((m) => m.id === adjustPointsForId) ?? null;
 
   const query = filter.trim().toLowerCase();
   const filteredMembers =
@@ -503,6 +598,7 @@ export function MembersSection() {
               onSave={() => handleSave(member)}
               onOpenRestrictions={() => setRestrictionsForId(member.id)}
               onOpenResetPassword={() => setResetPasswordForId(member.id)}
+              onOpenAdjustPoints={() => setAdjustPointsForId(member.id)}
             />
           ))}
         </ul>
@@ -564,6 +660,27 @@ export function MembersSection() {
               setResetPasswordForId(null);
               setMessage(de.admin.members.resetPasswordSuccess);
               setTemporaryPassword(newTemporaryPassword);
+            }}
+          />
+        )}
+      </Sheet>
+
+      <Sheet
+        open={adjustPointsFor !== null}
+        onOpenChange={(open) => !open && setAdjustPointsForId(null)}
+        title={
+          adjustPointsFor
+            ? interpolate(de.admin.members.adjustPointsTitle, { name: adjustPointsFor.displayName })
+            : de.admin.members.adjustPointsButton
+        }
+      >
+        {adjustPointsFor && (
+          <AdjustPointsForm
+            member={adjustPointsFor}
+            onClose={() => setAdjustPointsForId(null)}
+            onDone={() => {
+              setAdjustPointsForId(null);
+              setMessage(de.admin.members.adjustSuccess);
             }}
           />
         )}
