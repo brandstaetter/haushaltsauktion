@@ -29,7 +29,7 @@ export async function registerRewardRoutes(app: FastifyInstance, deps: Deps): Pr
       where: { householdId: ctx.householdId, isActive: true },
       // RewardKind is declared MANUAL_FULFILLMENT, VIRTUAL_EFFECT in schema.prisma,
       // so `kind: 'desc'` sorts VIRTUAL_EFFECT (virtual) before MANUAL_FULFILLMENT (real).
-      orderBy: [{ kind: 'desc' }, { cost: 'desc' }, { title: 'asc' }],
+      orderBy: [{ kind: 'desc' }, { cost: 'desc' }, { title: 'asc' }, { id: 'asc' }],
       select: {
         id: true,
         title: true,
