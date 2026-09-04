@@ -10,6 +10,7 @@ import type {
   RecurrenceType,
   TaskInstanceDetailDto,
   TaskStatus,
+  WorkerCountMode,
 } from '@haushaltsauktion/shared';
 
 export interface SessionDto {
@@ -169,6 +170,9 @@ export interface AdminTaskDefinitionDto {
   estimatedMinutes: number | null;
   isActive: boolean;
   buyoutEnabled: boolean;
+  /** Multi-worker-tasks (Phase 4). Default `EXACTLY`/`1` reproduces today's single-worker shape. */
+  workerCountMode: WorkerCountMode;
+  workerCount: number;
   recurrenceType: RecurrenceType;
   recurrenceInterval: number | null;
   recurrenceWeekdays: number[];
@@ -184,16 +188,25 @@ export interface AdminTaskDefinitionDto {
   eligibility: { memberId: string; mode: EligibilityMode }[];
 }
 
-/** One open instance of a definition, as `GET /admin/task-definitions/:id`
- * embeds it — `assignments` holds at most one row (the active assignment). */
+/**
+ * One open instance of a definition, as `GET /admin/task-definitions/:id`
+ * embeds it. `assignments` holds every currently-`ACTIVE` assignment on the
+ * instance, ordered by `slotIndex` (Multi-worker-tasks Phase 3) — for an
+ * `EXACTLY(1)` task this is 0 or 1 rows, same as before this feature.
+ */
 export interface AdminTaskInstanceRowDto {
   id: string;
   status: TaskStatus;
   currentValue: number;
   dueAt: string | null;
+  /** Multi-worker-tasks (Phase 3). See `AvailableTaskDto` for the same triple. */
+  workerCountMode: WorkerCountMode;
+  workerCount: number;
+  activeSlotCount: number;
   assignments: {
     id: string;
     kind: AssignmentKind;
+    slotIndex: number;
     member: { id: string; displayName: string };
   }[];
 }
@@ -218,6 +231,8 @@ export interface TaskDefinitionWriteBody {
   estimatedMinutes: number | null;
   buyoutEnabled: boolean;
   isActive: boolean;
+  workerCountMode: WorkerCountMode;
+  workerCount: number;
   recurrence: RecurrenceDto;
 }
 

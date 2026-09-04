@@ -422,20 +422,28 @@ export async function loadDashboard(
         completedByMemberId: true,
         definition: { select: { title: true } },
         completedBy: { select: { displayName: true } },
-        // At most one assignment per instance ever reaches COMPLETED or
-        // REJECTED — the state machine is terminal, so completion happens
-        // once (§2.1).
+        // Existence check only: "was any slot of this instance ever
+        // rejected". Filtering on REJECTED alone (rather than the previous
+        // `{ in: ['COMPLETED', 'REJECTED'] }`) keeps `take: 1` correct even
+        // for a multi-worker instance, where several assignment rows can
+        // legitimately reach a terminal status (one per slot) — mixing
+        // COMPLETED into the same filter meant `take: 1` could grab an
+        // unrelated COMPLETED slot and silently miss a REJECTED one
+        // (Multi-worker-tasks Phase 3).
         assignments: {
-          where: { status: { in: ['COMPLETED', 'REJECTED'] } },
+          where: { status: 'REJECTED' },
           select: { status: true },
           take: 1,
         },
-        // At most one reward per instance for the same reason — 0 for a
-        // RANDOM completion, which never earns one (§7, §44).
+        // Sum, not `take: 1` (Multi-worker-tasks Phase 3): a multi-slot
+        // instance can have one VOLUNTARY_TASK_REWARD per voluntary
+        // slot-holder (§2/PRD "full value per voluntary completer", not
+        // divided) — `take: 1` would silently drop every reward but the
+        // first. RANDOM completions never earn one (§7, §44), so this is
+        // still 0 for a fully-random instance.
         transactions: {
           where: { type: 'VOLUNTARY_TASK_REWARD' },
           select: { amount: true },
-          take: 1,
         },
       },
     }),
@@ -471,8 +479,11 @@ export async function loadDashboard(
         completedBy: c.completedBy?.displayName ?? null,
         completedByMemberId: c.completedByMemberId,
         value: c.currentValue,
-        pointsAwarded: c.transactions[0]?.amount ?? 0,
-        rejected: c.assignments[0]?.status === 'REJECTED',
+        // Sum across every slot's voluntary reward (Multi-worker-tasks Phase
+        // 3) — for a single-slot instance this is exactly the one reward, as
+        // before.
+        pointsAwarded: c.transactions.reduce((sum, t) => sum + t.amount, 0),
+        rejected: c.assignments.length > 0,
       })),
     },
   };

@@ -186,9 +186,15 @@ export async function registerTaskRoutes(app: FastifyInstance, deps: Deps): Prom
       instanceId: params.instanceId,
       expectedVersion: body.expectedVersion,
     });
+    // Multi-worker-tasks (Phase 3): `activeAssignment` is only the
+    // lowest-slotIndex active assignment, which need not be the slot this
+    // call just claimed once a task can carry more than one. Look the
+    // caller's own slot up by `assignmentId` instead.
+    const assignment =
+      result.instance.activeAssignments.find((a) => a.id === result.assignmentId) ?? null;
     return {
       instance: result.instance,
-      assignment: result.instance.activeAssignment,
+      assignment,
       pointsAwarded: result.pointsAwarded,
     };
   });

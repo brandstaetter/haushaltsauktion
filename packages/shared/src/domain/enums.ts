@@ -71,6 +71,14 @@ export const RecurrenceType = asEnum({
 });
 export type RecurrenceType = (typeof RecurrenceType)[keyof typeof RecurrenceType];
 
+/**
+ * Multi-worker-tasks (Phase 1). How many `ACTIVE` slots a `TaskInstance` is
+ * meant to carry at once. `AT_MOST`'s floor of 1 slot still applies — a task
+ * is never "done" with zero workers (`worker-slots.ts` `minRequired`).
+ */
+export const WorkerCountMode = asEnum({ EXACTLY: 'EXACTLY', AT_LEAST: 'AT_LEAST', AT_MOST: 'AT_MOST' });
+export type WorkerCountMode = (typeof WorkerCountMode)[keyof typeof WorkerCountMode];
+
 export const ActorType = asEnum({ MEMBER: 'MEMBER', ADMIN: 'ADMIN', SYSTEM: 'SYSTEM' });
 export type ActorType = (typeof ActorType)[keyof typeof ActorType];
 

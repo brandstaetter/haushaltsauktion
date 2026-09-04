@@ -71,6 +71,17 @@ enum RecurrenceType {
   MANUAL
 }
 
+/// Multi-worker-tasks (Phase 1, .planning/architecture-multi-worker-tasks.md).
+/// How many ACTIVE slots a TaskInstance is meant to carry at once.
+/// EXACTLY(n)/AT_LEAST(n) both require n; AT_MOST(n) still needs at least one
+/// worker in the end (worker-slots.ts minRequired) — a task is never "done"
+/// with zero workers.
+enum WorkerCountMode {
+  EXACTLY
+  AT_LEAST
+  AT_MOST
+}
+
 enum ActorType {
   MEMBER
   ADMIN
@@ -451,6 +462,12 @@ model TaskDefinition {
   isActive         Boolean @default(true) @map("is_active") // §3.2 Aktivstatus
   buyoutEnabled    Boolean @default(true) @map("buyout_enabled") // §8 "Freikauf bei bestimmten Aufgaben deaktiviert"
 
+  /// Multi-worker-tasks Phase 1: wie viele gleichzeitige ACTIVE-Zuweisungen eine
+  /// Instanz dieser Definition tragen soll. Default EXACTLY(1) ⇒ heutiges
+  /// Ein-Personen-Verhalten unverändert (worker-slots.ts).
+  workerCountMode WorkerCountMode @default(EXACTLY) @map("worker_count_mode")
+  workerCount     Int             @default(1) @map("worker_count")
+
   // §18 Wiederholung — explizite Felder statt RRULE (§1.4).
   recurrenceType       RecurrenceType @default(ONCE) @map("recurrence_type")
   recurrenceInterval   Int?           @map("recurrence_interval") // N, für EVERY_N_DAYS
@@ -513,6 +530,14 @@ model TaskInstance {
   /// laufenden Instanz verschiebt. Reine Anzeigefelder werden NICHT kopiert.
   baseValue Int @map("base_value")
 
+  /// Multi-worker-tasks Phase 1: beim Materialisieren aus TaskDefinition
+  /// kopiert, wie baseValue oben — dieselbe Begründung (§3.2, "Reset-Ziel einer
+  /// laufenden Instanz"). activeSlotCount ist der denormalisierte Zähler
+  /// ACTIVE-Zuweisungen dieser Instanz; in Phase 1 schreibt ihn niemand.
+  workerCountMode WorkerCountMode @default(EXACTLY) @map("worker_count_mode")
+  workerCount     Int             @default(1) @map("worker_count")
+  activeSlotCount Int             @default(0) @map("active_slot_count")
+
   buyoutCount Int @default(0) @map("buyout_count") // §20 "bisherige Freikäufe"; auch Formelvariable
 
   scheduledFor        DateTime  @map("scheduled_for") // die Ausprägung, die diese Instanz repräsentiert
@@ -553,8 +578,9 @@ model TaskInstance {
   @@map("task_instances")
 }
 
-/// Ein angenommenes oder auferlegtes Angebot. Höchstens EINE darf je Instanz
-/// ACTIVE sein — erzwungen durch den Sentinel activeForInstanceId (§1.5).
+/// Ein angenommenes oder auferlegtes Angebot. Je Instanz-Slot höchstens EINE
+/// ACTIVE — erzwungen durch den Sentinel activeSlotKey (§1.5, Multi-worker-
+/// tasks Phase 2).
 model TaskAssignment {
   id             String @id @default(cuid())
   householdId    String @map("household_id")
@@ -565,10 +591,37 @@ model TaskAssignment {
   status   AssignmentStatus   @default(ACTIVE)
   response AssignmentResponse @default(PENDING) // §21 "Aufgabe übernehmen", OQ-3
 
-  /// Sentinel: gleich taskInstanceId, solange ACTIVE; NULL nach dem Schließen.
-  /// UNIQUE ⇒ eine zweite gleichzeitige Zuweisung ist ein 23505, keine
-  /// Doppelbelegung.
+  /// Alter Sentinel, VOR Multi-worker-tasks: gleich taskInstanceId, solange
+  /// ACTIVE; NULL nach dem Schließen; UNIQUE ⇒ eine zweite gleichzeitige
+  /// Zuweisung war ein 23505.
+  ///
+  /// Multi-worker-tasks Phase 2: activeSlotKey hat diese Rolle übernommen.
+  /// Dieses Feld wird nur noch vom slotIndex-0-Halter einer Instanz gesetzt
+  /// (die einzige Zeile, für die "gleich taskInstanceId" noch eindeutig ist,
+  /// da jede Instanz höchstens einen Slot 0 hat) — für EXACTLY(1), also jede
+  /// bestehende Aufgabe, ist das immer die einzige ACTIVE-Zuweisung, also
+  /// unverändertes Verhalten. Migration 20260904060000 hat den CHECK
+  /// "(status = ACTIVE) = (active_for_instance_id IS NOT NULL)" gelockert zu
+  /// "active_for_instance_id IS NULL OR (status = ACTIVE AND ... = taskInstanceId)",
+  /// weil die alte Fassung eine zweite gleichzeitig ACTIVE Zuweisung auf
+  /// DERSELBEN Instanz (andere slotIndex) strukturell unmöglich machte, egal
+  /// was hier geschrieben wird — das genau war der Zweck von activeSlotKey.
+  /// Zwei App-Dateien (reopen.ts, rejectCompletion.ts) lesen/schreiben es
+  /// weiterhin unverändert; siehe HANDOFF für die Begründung, warum das für
+  /// diese Phase ausreicht.
   activeForInstanceId String? @unique @map("active_for_instance_id")
+
+  /// Multi-worker-tasks Phase 1: welcher der workerCount-vielen Plätze diese
+  /// Zuweisung belegt. 0 für alle bestehenden Zeilen (heutiges
+  /// Ein-Personen-Verhalten hatte nur Platz 0).
+  slotIndex Int @default(0) @map("slot_index")
+
+  /// Der künftige Sentinel: `${taskInstanceId}:${slotIndex}`, solange ACTIVE;
+  /// NULL nach dem Schließen. UNIQUE macht eine doppelte Belegung DESSELBEN
+  /// Slots zu einem 23505 — anders als activeForInstanceId erlaubt er mehrere
+  /// gleichzeitig ACTIVE Zuweisungen je Instanz, solange die Slots verschieden
+  /// sind. Wird in Phase 1 von keiner Use-Case-Zeile geschrieben.
+  activeSlotKey String? @unique @map("active_slot_key")
 
   /// Der currentValue der Instanz im Moment der Zuweisung — also genau die Zahl,
   /// die dem Mitglied angezeigt wurde. Basis der Quote-Drift-Erkennung.

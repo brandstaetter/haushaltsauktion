@@ -49,6 +49,13 @@ const RecurrenceBody = z.object({
   dueOffsetMinutes: z.number().int().min(0).max(60 * 24 * 30).nullable().default(null),
 });
 
+/**
+ * Multi-worker-tasks (Phase 3). `workerCount < 1` is rejected for every mode
+ * — `AT_LEAST`/`AT_MOST` need a floor of at least 1 candidate slot just as
+ * much as `EXACTLY` does, so one `.min(1)` covers all three (PRD §"Technical
+ * Decisions"). Default `EXACTLY(1)` reproduces today's single-worker
+ * behavior for a client that never sends these fields.
+ */
 const DefinitionBody = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).nullable().default(null),
@@ -57,6 +64,8 @@ const DefinitionBody = z.object({
   estimatedMinutes: z.number().int().min(0).max(10_000).nullable().default(null),
   buyoutEnabled: z.boolean().default(true),
   isActive: z.boolean().default(true),
+  workerCountMode: z.enum(['AT_LEAST', 'AT_MOST', 'EXACTLY']).default('EXACTLY'),
+  workerCount: z.number().int().min(1).max(20).default(1),
   recurrence: RecurrenceBody,
 });
 
@@ -268,6 +277,8 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         estimatedMinutes: body.estimatedMinutes,
         buyoutEnabled: body.buyoutEnabled,
         isActive: body.isActive,
+        workerCountMode: body.workerCountMode,
+        workerCount: body.workerCount,
         recurrenceType: body.recurrence.type,
         recurrenceInterval: body.recurrence.interval,
         recurrenceWeekdays: body.recurrence.weekdays,
@@ -310,14 +321,22 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
             status: true,
             currentValue: true,
             dueAt: true,
+            // Multi-worker-tasks (Phase 3): so the admin list can show
+            // "N/M besetzt" per open instance, same fields `taskDto.ts`
+            // exposes on the member-facing DTOs.
+            workerCountMode: true,
+            workerCount: true,
+            activeSlotCount: true,
             // Same shape as `INSTANCE_INCLUDE.assignments` in taskDto.ts, minus
-            // the buyout-quote fields the admin list doesn't need — one active
-            // assignment per instance, joined for the member's display name.
+            // the buyout-quote fields the admin list doesn't need — every
+            // active slot per instance, joined for the member's display name.
             assignments: {
               where: { status: 'ACTIVE' },
+              orderBy: { slotIndex: 'asc' },
               select: {
                 id: true,
                 kind: true,
+                slotIndex: true,
                 member: { select: { id: true, displayName: true } },
               },
             },
@@ -355,7 +374,11 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
     const body = parse(DefinitionBody, request.body);
     // §1.4 — changing `baseValue` deliberately does NOT touch open instances:
     // each one snapshotted its reset target at materialization so an edit
-    // mid-cycle cannot move the payout of a chore already in flight.
+    // mid-cycle cannot move the payout of a chore already in flight. The
+    // same reasoning applies to `workerCountMode`/`workerCount`
+    // (Multi-worker-tasks Phase 3, architecture doc "Out of Scope: resizing
+    // mid-flight") — an already-materialized `TaskInstance` copied its own
+    // slot count at creation and keeps it regardless of a later edit here.
     const { count } = await deps.db.taskDefinition.updateMany({
       where: { id: params.id, householdId: ctx.householdId },
       data: {
@@ -366,6 +389,8 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         estimatedMinutes: body.estimatedMinutes,
         buyoutEnabled: body.buyoutEnabled,
         isActive: body.isActive,
+        workerCountMode: body.workerCountMode,
+        workerCount: body.workerCount,
         recurrenceType: body.recurrence.type,
         recurrenceInterval: body.recurrence.interval,
         recurrenceWeekdays: body.recurrence.weekdays,
@@ -543,6 +568,8 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         title: true,
         baseValue: true,
         carriedValue: true,
+        workerCountMode: true,
+        workerCount: true,
         recurrenceType: true,
         recurrenceInterval: true,
         recurrenceWeekdays: true,
@@ -586,6 +613,13 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         status: body.publishImmediately ? 'AVAILABLE' : 'DRAFT',
         currentValue: definition.carriedValue ?? definition.baseValue,
         baseValue: definition.baseValue,
+        // Multi-worker-tasks Phase 3 fix: copied from the definition at
+        // materialization, same rationale as `baseValue` above (architecture
+        // doc, Data Model). Without this, every manually-materialized
+        // instance silently reverted to the schema default EXACTLY(1)
+        // regardless of what the definition was configured for.
+        workerCountMode: definition.workerCountMode,
+        workerCount: definition.workerCount,
         scheduledFor,
         dueAt,
         publishedAt: body.publishImmediately ? now : null,
@@ -1218,18 +1252,72 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
     });
   }
 
+  /**
+   * Multi-worker-tasks: these three admin instance-level actions each used
+   * to grab "the" ACTIVE/COMPLETED assignment via an unordered `findFirst`,
+   * which only worked because `EXACTLY(1)` guarantees at most one candidate.
+   * Once `workerCount > 1` allows several concurrently-ACTIVE (or, before the
+   * unanimous-completion gate closes the instance, concurrently-COMPLETED)
+   * rows, that pick becomes arbitrary. This helper keeps `EXACTLY(1)`
+   * byte-identical (still no `assignmentId` required, still selects the one
+   * candidate) while requiring an explicit `assignmentId` — validated
+   * against this household/instance/status — whenever more than one
+   * candidate exists.
+   */
+  const resolveAssignmentId = async (
+    ctx: { householdId: string },
+    taskInstanceId: string,
+    status: 'ACTIVE' | 'COMPLETED',
+    provided: string | null | undefined,
+    notFoundMessage: string,
+  ): Promise<string> => {
+    if (provided) {
+      const match = await deps.db.taskAssignment.findFirst({
+        where: {
+          id: provided,
+          householdId: ctx.householdId,
+          taskInstanceId,
+          status,
+        },
+        select: { id: true },
+      });
+      if (match === null) throw new NotFoundError(notFoundMessage);
+      return match.id;
+    }
+
+    const candidates = await deps.db.taskAssignment.findMany({
+      where: { householdId: ctx.householdId, taskInstanceId, status },
+      select: { id: true },
+    });
+    const [only, ...rest] = candidates;
+    if (only === undefined) throw new NotFoundError(notFoundMessage);
+    if (rest.length > 0) {
+      throw new ConflictError(
+        'AMBIGUOUS_ASSIGNMENT',
+        'Mehrere aktive Zuweisungen — assignmentId erforderlich.',
+        { candidateCount: candidates.length },
+      );
+    }
+    return only.id;
+  };
+
   app.post('/admin/instances/:id/revoke-assignment', async (request, reply) => {
     const ctx = requireAdmin(request, reply);
     const params = parse(IdParam, request.params);
     const body = parse(
-      z.object({ reason: z.string().max(500).nullable().default(null) }),
+      z.object({
+        reason: z.string().max(500).nullable().default(null),
+        assignmentId: z.string().min(1).max(64).optional(),
+      }),
       request.body ?? {},
     );
-    const active = await deps.db.taskAssignment.findFirst({
-      where: { householdId: ctx.householdId, taskInstanceId: params.id, status: 'ACTIVE' },
-      select: { id: true },
-    });
-    if (active === null) throw new NotFoundError('Keine aktive Zuweisung.');
+    const assignmentId = await resolveAssignmentId(
+      ctx,
+      params.id,
+      'ACTIVE',
+      body.assignmentId,
+      'Keine aktive Zuweisung.',
+    );
 
     return releaseOrRevokeAssignment(deps, {
       householdId: ctx.householdId,
@@ -1237,7 +1325,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       actorMemberId: ctx.memberId,
       actorIsAdmin: true,
       instanceId: params.id,
-      assignmentId: active.id,
+      assignmentId,
       reason: body.reason,
       mode: 'REVOKE',
     });
@@ -1246,11 +1334,17 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
   app.post('/admin/instances/:id/complete', async (request, reply) => {
     const ctx = requireAdmin(request, reply);
     const params = parse(IdParam, request.params);
-    const active = await deps.db.taskAssignment.findFirst({
-      where: { householdId: ctx.householdId, taskInstanceId: params.id, status: 'ACTIVE' },
-      select: { id: true },
-    });
-    if (active === null) throw new NotFoundError('Keine aktive Zuweisung.');
+    const body = parse(
+      z.object({ assignmentId: z.string().min(1).max(64).optional() }),
+      request.body ?? {},
+    );
+    const assignmentId = await resolveAssignmentId(
+      ctx,
+      params.id,
+      'ACTIVE',
+      body.assignmentId,
+      'Keine aktive Zuweisung.',
+    );
 
     return completeTask(deps, {
       householdId: ctx.householdId,
@@ -1258,7 +1352,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       actorMemberId: ctx.memberId,
       actorIsAdmin: true,
       instanceId: params.id,
-      assignmentId: active.id,
+      assignmentId,
     });
   });
 
@@ -1269,21 +1363,24 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       z.object({
         reason: z.string().max(500).nullable().default(null),
         outcome: z.enum(['REASSIGN_TO_MEMBER', 'REOFFER_MARKET']),
+        assignmentId: z.string().min(1).max(64).optional(),
       }),
       request.body ?? {},
     );
-    const completed = await deps.db.taskAssignment.findFirst({
-      where: { householdId: ctx.householdId, taskInstanceId: params.id, status: 'COMPLETED' },
-      select: { id: true },
-    });
-    if (completed === null) throw new NotFoundError('Keine abgeschlossene Zuweisung.');
+    const assignmentId = await resolveAssignmentId(
+      ctx,
+      params.id,
+      'COMPLETED',
+      body.assignmentId,
+      'Keine abgeschlossene Zuweisung.',
+    );
 
     return rejectCompletion(deps, {
       householdId: ctx.householdId,
       timezone: ctx.householdTimezone,
       actorMemberId: ctx.memberId,
       instanceId: params.id,
-      assignmentId: completed.id,
+      assignmentId,
       reason: body.reason,
       outcome: body.outcome,
     });

@@ -59,6 +59,26 @@
   margin: 0;
 }
 
+/* Multi-worker-tasks (Phase 4): one row per active slot when a task has
+   more than one. Each row already spaces its own children (text, fairness
+   trigger, admin action) with the gap below. */
+.assigneeRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+}
+
+.assigneeRow + .assigneeRow {
+  margin-top: var(--s-3);
+}
+
+.hint {
+  color: var(--ink-3);
+  font: var(--t-body-sm);
+  margin: 0;
+}
+
 .actions {
   display: flex;
   flex-direction: column;

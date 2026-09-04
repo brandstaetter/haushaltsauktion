@@ -11,6 +11,7 @@ import type {
   BuyoutCostStrategy,
   TaskStatus,
   ValueIncreaseStrategy,
+  WorkerCountMode,
 } from '../domain/enums.js';
 import type { BuyoutDenialReason, EligibilityReason } from '../domain/reasons.js';
 
@@ -49,6 +50,17 @@ export interface AvailableTaskDto {
   ineligibleReason: EligibilityReason | null;
   /** What the caller would earn by volunteering and completing. */
   potentialReward: number;
+  /**
+   * Multi-worker-tasks (Phase 3). How many concurrent slots this instance
+   * carries (`workerCount`, under `workerCountMode`) and how many are
+   * currently held by an `ACTIVE` assignment (`activeSlotCount`). For every
+   * `EXACTLY(1)` task — the default, i.e. every task predating this feature —
+   * this is `{ workerCountMode: 'EXACTLY', workerCount: 1, activeSlotCount: 0 | 1 }`,
+   * so a client that ignores these fields sees no behavior change.
+   */
+  workerCountMode: WorkerCountMode;
+  workerCount: number;
+  activeSlotCount: number;
 }
 
 /** §31 — everything the user must see before deciding. All server-computed. */
@@ -83,9 +95,15 @@ export interface AssignmentSummaryDto {
   buyoutQuote: BuyoutQuoteDto | null;
 }
 
-/** §21 — the assigned-task screen. */
+/**
+ * §21 — the assigned-task screen. `assignment` stays the caller's *own* slot
+ * (viewer-scoped, as before); `activeAssignments` is new (Phase 3) — every
+ * currently active slot on the instance, so a multi-worker task can show
+ * co-assignees for context even though this DTO answers "what am I on".
+ */
 export interface AssignedTaskDto extends AvailableTaskDto {
   assignment: AssignmentSummaryDto;
+  activeAssignments: AssignmentSummaryDto[];
 }
 
 /** Who holds an `ASSIGNED` task, and how they got it — for the household-wide view. */
@@ -96,12 +114,21 @@ export interface HouseholdTaskAssigneeDto extends MemberRefDto {
 /**
  * §20 extended — the "Alle Aufgaben" tab: every `AVAILABLE`/`ASSIGNED` task in
  * the household, not scoped to the viewer. `assignee` is null for `AVAILABLE`
- * tasks (there isn't one) and set for `ASSIGNED` ones.
+ * tasks (there isn't one) and set to the first active slot (lowest
+ * `slotIndex`) for `ASSIGNED` ones — kept for backward compatibility.
+ * `assignees` (Phase 3) is every currently active slot's holder.
  */
 export interface HouseholdTaskDto extends AvailableTaskDto {
   assignee: HouseholdTaskAssigneeDto | null;
+  assignees: HouseholdTaskAssigneeDto[];
 }
 
+/**
+ * `activeAssignment` is kept for backward compatibility — the first active
+ * slot (lowest `slotIndex`); for an `EXACTLY(1)` task this is the only slot,
+ * so existing callers see no change. `activeAssignments` (Phase 3) is every
+ * currently active slot, ordered by `slotIndex`.
+ */
 export interface TaskInstanceDetailDto extends AvailableTaskDto {
   taskDefinitionId: string;
   scheduledFor: string;
@@ -109,6 +136,7 @@ export interface TaskInstanceDetailDto extends AvailableTaskDto {
   completedAt: string | null;
   completedBy: MemberRefDto | null;
   activeAssignment: AssignmentSummaryDto | null;
+  activeAssignments: AssignmentSummaryDto[];
 }
 
 export interface BuyoutResultDto {

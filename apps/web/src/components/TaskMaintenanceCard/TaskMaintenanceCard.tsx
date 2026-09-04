@@ -109,6 +109,20 @@ export function TaskMaintenanceCard({
           <span>{de.admin.taskDefinitions.buyoutEnabled}</span>
           <span>{definition.buyoutEnabled ? '✓' : '–'}</span>
         </div>
+        {/* Multi-worker-tasks (Phase 4): only shown for a task that wants more
+            than one worker — an EXACTLY(1) task (today's default) renders
+            identically to before this feature. */}
+        {definition.workerCount > 1 && (
+          <div className={styles.field}>
+            <span>{de.admin.taskDefinitions.workerCountMode}</span>
+            <span>
+              {interpolate(de.admin.taskDefinitions.workerCountSummary, {
+                mode: de.admin.taskDefinitions.workerCountModes[definition.workerCountMode],
+                count: definition.workerCount,
+              })}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className={styles.actions}>

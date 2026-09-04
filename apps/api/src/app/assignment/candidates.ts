@@ -19,6 +19,15 @@ export interface CandidateContext {
   categoryId: string | null;
   now: Date;
   cfg: HouseholdConfig;
+  /**
+   * Multi-worker-tasks Phase 2. When set, members who already hold an
+   * `ACTIVE` slot on *this* instance are removed from the returned pool —
+   * generalizes what used to be implicit (an `AVAILABLE` instance never had
+   * an existing holder to exclude, because there was only ever one slot).
+   * Optional so `taskDto.ts`'s DTO-only eligibility pass (Phase 3 scope,
+   * unmodified here) keeps its exact current behavior when it omits this.
+   */
+  instanceId?: string;
 }
 
 interface MemberRow {
@@ -173,7 +182,24 @@ export async function loadCandidates(
     };
   });
 
-  return { candidates, definitionHasAllowlist };
+  // Multi-worker-tasks Phase 2 — exclude every current slot-holder of *this*
+  // instance, not just "the" assignee. Read unlocked: the caller already
+  // holds the level-1 `lockInstance` row lock before reaching here (both
+  // `volunteerForTask` and `runAssignmentSweep`'s fill loop), which is what
+  // makes this read consistent for the duration of the transaction — the same
+  // reasoning the absence/immunity reads above already rely on.
+  if (ctx.instanceId === undefined) {
+    return { candidates, definitionHasAllowlist };
+  }
+  const holders = await tx.taskAssignment.findMany({
+    where: { householdId: ctx.householdId, taskInstanceId: ctx.instanceId, status: 'ACTIVE' },
+    select: { memberId: true },
+  });
+  const alreadyHolding = new Set(holders.map((h) => h.memberId));
+  return {
+    candidates: candidates.filter((c) => !alreadyHolding.has(c.memberId)),
+    definitionHasAllowlist,
+  };
 }
 
 /**

@@ -22,6 +22,9 @@ function taskFixture(overrides: Partial<AvailableTaskDto> = {}): AvailableTaskDt
     canVolunteer: true,
     ineligibleReason: null,
     potentialReward: 6,
+    workerCountMode: 'EXACTLY',
+    workerCount: 1,
+    activeSlotCount: 0,
     ...overrides,
   };
 }
@@ -57,5 +60,15 @@ describe('TaskCard', () => {
     );
     expect(screen.getByText(/an Paul/)).toBeInTheDocument();
     expect(screen.getByText(/freiwillig/)).toBeInTheDocument();
+  });
+
+  it('zeigt "N/M besetzt" für eine Multi-Worker-Aufgabe', () => {
+    render(<TaskCard task={taskFixture({ workerCount: 3, activeSlotCount: 2 })} />);
+    expect(screen.getByText(/2\/3 besetzt/)).toBeInTheDocument();
+  });
+
+  it('zeigt keine Belegungsanzeige für workerCount === 1 (Standardfall)', () => {
+    render(<TaskCard task={taskFixture({ workerCount: 1, activeSlotCount: 1 })} />);
+    expect(screen.queryByText(/besetzt/)).not.toBeInTheDocument();
   });
 });

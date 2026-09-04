@@ -1,0 +1,25 @@
+{
+  "id": "memory-failure-patterns",
+  "type": "failure-patterns",
+  "scope": [
+    "failure-patterns",
+    "quality",
+    "agents",
+    "daemon",
+    "learn"
+  ],
+  "owner": "citadel",
+  "confidence": "medium",
+  "last_verified": "2026-09-04",
+  "sources": [
+    {
+      "path": ".planning/telemetry/hook-errors.jsonl",
+      "reason": "recent hook error evidence"
+    },
+    {
+      "path": ".planning/postmortems/postmortem-multi-worker-tasks-2026-09-04.md",
+      "reason": "postmortem evidence"
+    }
+  ],
+  "body": "- Hung or silent agents need explicit timeout and continuation behavior; never let a workflow block indefinitely without a recovery path.\n- Appending isolated logs does not compound knowledge; compile repeat findings into semantic memory or wiki pages with source links.\n- Verification that only checks happy-path text can miss experiential failures; prefer command gates plus operator-readable summaries."
+}
