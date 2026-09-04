@@ -686,8 +686,10 @@ export const de = {
     auditLog: {
       title: 'Audit-Log',
       empty: 'Noch keine Einträge.',
-      filterLabel: 'Nach Aktion filtern',
-      filterAll: 'Alle Aktionen',
+      filterActionsLabel: 'Nach Aktion filtern',
+      filterActorsLabel: 'Nach Akteur filtern',
+      selectAll: 'Alle auswählen',
+      selectNone: 'Keine auswählen',
       actorSystem: 'System',
       // amount/reason cover POINTS_ADJUSTED (and any future action whose
       // payload happens to carry the same shape) without a bespoke renderer
