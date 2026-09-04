@@ -369,6 +369,14 @@ export interface DashboardDto {
       pointsAwarded: number;
       /** An admin judged this completion unsatisfactory (§32-adjacent moderation). */
       rejected: boolean;
+      /**
+       * Every currently-COMPLETED slot on this instance, so an admin can
+       * target a specific one when rejecting (required once more than one
+       * exists — `POST /admin/instances/:id/reject-completion` disambiguates
+       * by `assignmentId`, Multi-worker-tasks Phase 5). Exactly one entry for
+       * every pre-existing single-worker task.
+       */
+      completions: Array<{ assignmentId: string; memberId: string; memberName: string }>;
     }>;
   };
 }
@@ -422,18 +430,25 @@ export async function loadDashboard(
         completedByMemberId: true,
         definition: { select: { title: true } },
         completedBy: { select: { displayName: true } },
-        // Existence check only: "was any slot of this instance ever
-        // rejected". Filtering on REJECTED alone (rather than the previous
-        // `{ in: ['COMPLETED', 'REJECTED'] }`) keeps `take: 1` correct even
-        // for a multi-worker instance, where several assignment rows can
-        // legitimately reach a terminal status (one per slot) — mixing
-        // COMPLETED into the same filter meant `take: 1` could grab an
-        // unrelated COMPLETED slot and silently miss a REJECTED one
-        // (Multi-worker-tasks Phase 3).
+        // Every REJECTED or COMPLETED slot on this instance, unfiltered by
+        // `take` — needed both for the existence-only "was any slot ever
+        // rejected" check and (Copilot review, this PR) to let an admin
+        // target a *specific* COMPLETED slot's `assignmentId` when rejecting
+        // a multi-worker instance's completion, since
+        // `POST /admin/instances/:id/reject-completion` now returns
+        // `409 AMBIGUOUS_ASSIGNMENT` without one once more than one COMPLETED
+        // assignment exists (Multi-worker-tasks Phase 5 fix). Capped at 20 —
+        // the admin-configured ceiling on `workerCount` (admin.ts) — so this
+        // can never silently drop a slot the way a `take: 1` would.
         assignments: {
-          where: { status: 'REJECTED' },
-          select: { status: true },
-          take: 1,
+          where: { status: { in: ['REJECTED', 'COMPLETED'] } },
+          select: {
+            id: true,
+            status: true,
+            memberId: true,
+            member: { select: { displayName: true } },
+          },
+          take: 20,
         },
         // Sum, not `take: 1` (Multi-worker-tasks Phase 3): a multi-slot
         // instance can have one VOLUNTARY_TASK_REWARD per voluntary
@@ -483,7 +498,14 @@ export async function loadDashboard(
         // 3) — for a single-slot instance this is exactly the one reward, as
         // before.
         pointsAwarded: c.transactions.reduce((sum, t) => sum + t.amount, 0),
-        rejected: c.assignments.length > 0,
+        rejected: c.assignments.some((a) => a.status === 'REJECTED'),
+        completions: c.assignments
+          .filter((a) => a.status === 'COMPLETED')
+          .map((a) => ({
+            assignmentId: a.id,
+            memberId: a.memberId,
+            memberName: a.member.displayName,
+          })),
       })),
     },
   };

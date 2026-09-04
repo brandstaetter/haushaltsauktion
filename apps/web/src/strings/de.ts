@@ -103,6 +103,7 @@ export const de = {
       rejectedBadge: 'abgelehnt',
       title: 'Erledigung ablehnen',
       intro: 'Die Erledigung von „{task}“ durch {member} wird als nicht zufriedenstellend abgelehnt.',
+      whoHeading: 'Wessen Erledigung ablehnen?',
       consequenceWithPoints: 'Dabei werden {points} Punkte von {member} zurückgebucht.',
       consequenceNoPoints: 'Für diese Erledigung wurden keine Punkte vergeben — es gibt nichts zurückzubuchen.',
       outcomeHeading: 'Was passiert mit der Aufgabe?',

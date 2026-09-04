@@ -42,6 +42,8 @@ export interface DashboardDto {
       value: number;
       pointsAwarded: number;
       rejected: boolean;
+      /** Every currently-COMPLETED slot on this instance — see reads.ts. */
+      completions: { assignmentId: string; memberId: string; memberName: string }[];
     }[];
   };
 }

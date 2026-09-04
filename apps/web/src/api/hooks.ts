@@ -341,16 +341,19 @@ export function useRejectCompletion() {
   return useMutation({
     mutationFn: ({
       instanceId,
+      assignmentId,
       reason,
       outcome,
     }: {
       instanceId: string;
+      /** Required once an instance can have more than one COMPLETED slot (multi-worker tasks) — omit only when there is exactly one. */
+      assignmentId?: string;
       reason: string | null;
       outcome: RejectCompletionOutcome;
     }) =>
       api<RejectCompletionResultDto>(`/admin/instances/${instanceId}/reject-completion`, {
         method: 'POST',
-        body: { reason, outcome },
+        body: { assignmentId, reason, outcome },
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: dashboardQueryKey });

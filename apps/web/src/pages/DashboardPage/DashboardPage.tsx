@@ -30,12 +30,28 @@ function RejectCompletionSheet({
   const [reason, setReason] = useState('');
   const [outcome, setOutcome] = useState<RejectCompletionOutcome>('REOFFER_MARKET');
   const [error, setError] = useState<string | null>(null);
-  const member = item.completedBy ?? '';
+  // Multi-worker tasks (Copilot review, this PR): more than one slot can be
+  // COMPLETED on the same instance, and the admin endpoint now requires a
+  // specific assignmentId once that's the case — see reads.ts's `completions`.
+  // For the common single-completer case this picker never renders and the
+  // one candidate is used automatically, matching today's behavior exactly.
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(
+    item.completions[0]?.assignmentId ?? null,
+  );
+  const selectedMember =
+    item.completions.find((c) => c.assignmentId === selectedAssignmentId)?.memberName ??
+    item.completedBy ??
+    '';
 
   const handleSubmit = () => {
     setError(null);
     rejectCompletion.mutate(
-      { instanceId: item.id, reason: reason.trim() === '' ? null : reason.trim(), outcome },
+      {
+        instanceId: item.id,
+        assignmentId: selectedAssignmentId ?? undefined,
+        reason: reason.trim() === '' ? null : reason.trim(),
+        outcome,
+      },
       {
         onSuccess: onClose,
         onError: (err) => setError(rejectErrorMessage(err, de)),
@@ -50,12 +66,28 @@ function RejectCompletionSheet({
           {error}
         </div>
       )}
-      <p>{interpolate(de.dashboard.reject.intro, { task: item.title, member })}</p>
+      {item.completions.length > 1 && (
+        <fieldset className={styles.outcomeGroup}>
+          <legend>{de.dashboard.reject.whoHeading}</legend>
+          {item.completions.map((c) => (
+            <label key={c.assignmentId} className={styles.outcomeOption}>
+              <input
+                type="radio"
+                name="reject-who"
+                checked={selectedAssignmentId === c.assignmentId}
+                onChange={() => setSelectedAssignmentId(c.assignmentId)}
+              />
+              <span>{c.memberName}</span>
+            </label>
+          ))}
+        </fieldset>
+      )}
+      <p>{interpolate(de.dashboard.reject.intro, { task: item.title, member: selectedMember })}</p>
       <p className={styles.hint}>
         {item.pointsAwarded > 0
           ? interpolate(de.dashboard.reject.consequenceWithPoints, {
               points: item.pointsAwarded,
-              member,
+              member: selectedMember,
             })
           : de.dashboard.reject.consequenceNoPoints}
       </p>
@@ -69,9 +101,9 @@ function RejectCompletionSheet({
             onChange={() => setOutcome('REASSIGN_TO_MEMBER')}
           />
           <span>
-            <strong>{interpolate(de.dashboard.reject.outcomeReassign, { member })}</strong>
+            <strong>{interpolate(de.dashboard.reject.outcomeReassign, { member: selectedMember })}</strong>
             <span className={styles.hint}>
-              {interpolate(de.dashboard.reject.outcomeReassignHint, { member })}
+              {interpolate(de.dashboard.reject.outcomeReassignHint, { member: selectedMember })}
             </span>
           </span>
         </label>
