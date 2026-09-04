@@ -33,16 +33,39 @@ export const EligibilityReason = asEnum({
    * relaxation ladder can never drop it.
    */
   MEMBER_IMMUNE: 'MEMBER_IMMUNE',
+  /**
+   * Additional hard rule (intake
+   * "task-role-based-eligibility-and-preferred-assignee"): the definition
+   * restricts this task to one role (`TaskDefinition.requiredRole`) and the
+   * candidate does not have it. Hard and never relaxed, exactly like rules
+   * 1–5 — evaluated alongside them in `hardEligibilityReason`, so it also
+   * gates volunteering, not just the random draw.
+   */
+  ROLE_NOT_ELIGIBLE: 'ROLE_NOT_ELIGIBLE',
+  /**
+   * Additional hard rule (same intake): the definition configures
+   * `minAdminSlots` and every remaining open slot on this instance must go to
+   * an admin for that minimum to still be reachable
+   * (`worker-slots.ts` `adminSlotReservationActive`). Hard and never relaxed;
+   * never evicts an already-active non-admin slot — it only gates the *next*
+   * join, computed fresh before each one.
+   */
+  ADMIN_SLOT_RESERVED: 'ADMIN_SLOT_RESERVED',
 });
 export type EligibilityReason = (typeof EligibilityReason)[keyof typeof EligibilityReason];
 
-/** Rules 1–5. Never relaxed (§6.9) and the only ones that gate volunteering. */
+/**
+ * Rules 1–5, plus the two additional hard rules above. Never relaxed (§6.9)
+ * and the only ones that gate volunteering.
+ */
 export const HARD_ELIGIBILITY_REASONS = Object.freeze([
   EligibilityReason.MEMBER_INACTIVE,
   EligibilityReason.MEMBER_ABSENT,
   EligibilityReason.EXCLUDED_FROM_TASK,
   EligibilityReason.NOT_IN_ALLOWLIST,
   EligibilityReason.CATEGORY_EXCLUDED,
+  EligibilityReason.ROLE_NOT_ELIGIBLE,
+  EligibilityReason.ADMIN_SLOT_RESERVED,
 ] as const);
 
 /** The constraints the relaxation ladder may drop, in the order it drops them. */

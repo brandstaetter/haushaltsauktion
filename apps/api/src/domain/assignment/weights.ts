@@ -29,6 +29,13 @@ export interface WeightTerms extends Record<string, number> {
   randomAssignmentTerm: number;
   voluntaryWorkTerm: number;
   recencyPenaltyTerm: number;
+  /**
+   * Intake "task-role-based-eligibility-and-preferred-assignee":
+   * `fairness.preferredAssigneeWeight` when the candidate is a preferred
+   * assignee of the task definition, `0` otherwise. `WEIGHTED_FAIRNESS` only
+   * — `weightedRandomWeight` below always reports `0` here.
+   */
+  preferredTerm: number;
   /** The sum before the floor is applied. */
   raw: number;
   /** The value actually used in the draw. */
@@ -68,6 +75,7 @@ export function weightedFairnessWeight(
   cfg: HouseholdConfig,
   metrics: FairnessMetrics,
   averages: FairnessAverages,
+  isPreferredAssignee: boolean,
 ): WeightTerms {
   const f = cfg.fairness;
 
@@ -78,11 +86,12 @@ export function weightedFairnessWeight(
     f.voluntaryWorkWeight * (metrics.voluntaryCompletions - averages.avgVoluntaryCompletions);
   const recencyPenaltyTerm =
     -f.recentAssignmentPenalty * recencyFactor(metrics.daysSinceLastRandomAssignment);
+  const preferredTerm = isPreferredAssignee ? f.preferredAssigneeWeight : 0;
 
-  const raw = base + randomAssignmentTerm + voluntaryWorkTerm + recencyPenaltyTerm;
+  const raw = base + randomAssignmentTerm + voluntaryWorkTerm + recencyPenaltyTerm + preferredTerm;
   const weight = Math.max(f.weightFloor, raw);
 
-  return { base, randomAssignmentTerm, voluntaryWorkTerm, recencyPenaltyTerm, raw, weight };
+  return { base, randomAssignmentTerm, voluntaryWorkTerm, recencyPenaltyTerm, preferredTerm, raw, weight };
 }
 
 /**
@@ -113,7 +122,15 @@ export function weightedRandomWeight(
   const raw = base + randomAssignmentTerm + voluntaryWorkTerm + recencyPenaltyTerm;
   const weight = Math.max(f.weightFloor, raw);
 
-  return { base, randomAssignmentTerm, voluntaryWorkTerm, recencyPenaltyTerm, raw, weight };
+  return {
+    base,
+    randomAssignmentTerm,
+    voluntaryWorkTerm,
+    recencyPenaltyTerm,
+    preferredTerm: 0,
+    raw,
+    weight,
+  };
 }
 
 export function metricMaxima(metrics: readonly FairnessMetrics[]): {

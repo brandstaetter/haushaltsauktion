@@ -39,7 +39,11 @@ import {
   offerExpiresAt,
   type RecurrenceRule,
 } from '../../domain/recurrence/next-occurrence.js';
-import { maxAllowed, minRequired } from '../../domain/task/worker-slots.js';
+import {
+  adminSlotReservationActive,
+  maxAllowed,
+  minRequired,
+} from '../../domain/task/worker-slots.js';
 import type { Deps } from '../deps.js';
 import { loadCurrentConfig, loadConfigVersion } from '../config/load.js';
 import { writeAudit, writeHistory } from '../events.js';
@@ -399,7 +403,7 @@ export async function runAssignmentSweep(
       const { version, config } = await loadCurrentConfig(tx, input.householdId);
       const definition = await tx.taskDefinition.findFirst({
         where: { id: instance.taskDefinitionId, householdId: input.householdId },
-        select: { categoryId: true, title: true },
+        select: { categoryId: true, title: true, requiredRole: true, minAdminSlots: true },
       });
       if (definition === null) return null;
 
@@ -412,6 +416,18 @@ export async function runAssignmentSweep(
       );
       let currentCount = existingActive.length;
       const occupied = new Set(existingActive.map((a) => a.slotIndex));
+      // Intake "task-role-based-eligibility-and-preferred-assignee": seed of
+      // the admin headcount already on the instance. Incremented in the fill
+      // loop below as each new slot is drawn — never re-queried, since the
+      // loop's own `candidates` already carry each member's role.
+      const existingHolderRoles =
+        existingActive.length === 0
+          ? []
+          : await tx.householdMember.findMany({
+              where: { householdId: input.householdId, id: { in: existingActive.map((a) => a.memberId) } },
+              select: { role: true },
+            });
+      let currentAdminCount = existingHolderRoles.filter((m) => m.role === 'ADMIN').length;
 
       if (input.dryRun) {
         const { candidates, definitionHasAllowlist } = await loadCandidates(tx, {
@@ -426,7 +442,16 @@ export async function runAssignmentSweep(
         const selection = selectAssignee({
           cfg: config,
           candidates,
-          options: { definitionHasAllowlist },
+          options: {
+            definitionHasAllowlist,
+            requiredRole: definition.requiredRole,
+            adminSlotReserved: adminSlotReservationActive({
+              min,
+              currentCount,
+              currentAdminCount,
+              minAdminSlots: definition.minAdminSlots,
+            }),
+          },
           configVersion: version,
           decidedAt: now.toISOString(),
           rng: deps.rng,
@@ -468,10 +493,24 @@ export async function runAssignmentSweep(
           cfg: config,
           instanceId: instance.id,
         });
+        // Recomputed every iteration (not hoisted above the loop): each fill
+        // changes currentCount/currentAdminCount, and the reservation must
+        // reflect exactly what is still open right now, never a stale
+        // snapshot from before this pass's earlier joins.
+        const adminSlotReserved = adminSlotReservationActive({
+          min,
+          currentCount,
+          currentAdminCount,
+          minAdminSlots: definition.minAdminSlots,
+        });
         const selection = selectAssignee({
           cfg: config,
           candidates,
-          options: { definitionHasAllowlist },
+          options: {
+            definitionHasAllowlist,
+            requiredRole: definition.requiredRole,
+            adminSlotReserved,
+          },
           configVersion: version,
           decidedAt: now.toISOString(),
           rng: deps.rng,
@@ -493,6 +532,13 @@ export async function runAssignmentSweep(
 
         // ── T5: nobody left who may be given this chore ─────────────────
         if (selection.selectedMemberId === null) break;
+
+        // `candidates` already carries each member's role (candidates.ts), so
+        // this is a lookup, not a query — keeps currentAdminCount accurate
+        // for the *next* iteration's adminSlotReservationActive call.
+        if (candidates.find((c) => c.memberId === selection.selectedMemberId)?.role === 'ADMIN') {
+          currentAdminCount += 1;
+        }
 
         const slotIndex = nextFreeSlotIndex(occupied, max);
         occupied.add(slotIndex);

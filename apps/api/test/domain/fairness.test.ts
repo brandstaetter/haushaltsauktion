@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AssignmentStrategy,
   DEFAULT_CONFIG,
+  MemberRole,
   cloneDefaultConfig,
   type FairnessMetrics,
   type HouseholdConfig,
@@ -31,7 +32,7 @@ import {
 } from '../../src/domain/assignment/weights.js';
 
 const cfg = DEFAULT_CONFIG;
-const OPTIONS = { definitionHasAllowlist: false };
+const OPTIONS = { definitionHasAllowlist: false, requiredRole: null, adminSlotReserved: false };
 
 const metrics = (over: Partial<FairnessMetrics> = {}): FairnessMetrics => ({
   randomAssignments: 0,
@@ -48,6 +49,8 @@ const candidate = (
   over: Partial<EligibilityCandidate> = {},
 ): EligibilityCandidate => ({
   memberId,
+  role: MemberRole.MEMBER,
+  isPreferredAssignee: false,
   isActive: true,
   isAbsent: false,
   hasActiveImmunity: false,
@@ -79,10 +82,12 @@ describe('PRD §3E — the WEIGHTED_FAIRNESS formula, term by term', () => {
 
   it('gives a member with no history the full window, so they are not punished', () => {
     const fresh = metrics(); // daysSinceLastRandomAssignment = windowDays = 28
-    const terms = weightedFairnessWeight(cfg, fresh, {
-      avgRandomAssignments: 0,
-      avgVoluntaryCompletions: 0,
-    });
+    const terms = weightedFairnessWeight(
+      cfg,
+      fresh,
+      { avgRandomAssignments: 0, avgVoluntaryCompletions: 0 },
+      false,
+    );
     expect(terms.recencyPenaltyTerm).toBeCloseTo(-1 / 29, 10);
     expect(terms.weight).toBeGreaterThan(0.9);
   });
@@ -100,32 +105,44 @@ describe('PRD §3E — the WEIGHTED_FAIRNESS formula, term by term', () => {
       c.fairness.recentAssignmentPenalty = 1;
     });
 
-    const terms = weightedFairnessWeight(config, person, averages);
+    const terms = weightedFairnessWeight(config, person, averages, false);
     // 1.0 + 1*(2-1) + 0.5*(3-2) - 1*(1/(1+3)) = 1 + 1 + 0.5 - 0.25 = 2.25
     expect(terms.base).toBe(1);
     expect(terms.randomAssignmentTerm).toBe(1);
     expect(terms.voluntaryWorkTerm).toBe(0.5);
     expect(terms.recencyPenaltyTerm).toBe(-0.25);
+    expect(terms.preferredTerm).toBe(0);
     expect(terms.raw).toBeCloseTo(2.25, 10);
     expect(terms.weight).toBeCloseTo(2.25, 10);
   });
 
   it('favours whoever has absorbed less random work', () => {
     const averages = { avgRandomAssignments: 3, avgVoluntaryCompletions: 0 };
-    const light = weightedFairnessWeight(cfg, metrics({ randomAssignments: 0 }), averages);
-    const heavy = weightedFairnessWeight(cfg, metrics({ randomAssignments: 6 }), averages);
+    const light = weightedFairnessWeight(cfg, metrics({ randomAssignments: 0 }), averages, false);
+    const heavy = weightedFairnessWeight(cfg, metrics({ randomAssignments: 6 }), averages, false);
     expect(light.weight).toBeGreaterThan(heavy.weight);
   });
 
   it('never drops below the configured floor', () => {
     const overloaded = metrics({ randomAssignments: 1000, daysSinceLastRandomAssignment: 0 });
-    const terms = weightedFairnessWeight(cfg, overloaded, {
-      avgRandomAssignments: 0,
-      avgVoluntaryCompletions: 0,
-    });
+    const terms = weightedFairnessWeight(
+      cfg,
+      overloaded,
+      { avgRandomAssignments: 0, avgVoluntaryCompletions: 0 },
+      false,
+    );
     expect(terms.raw).toBeLessThan(0);
     expect(terms.weight).toBe(cfg.fairness.weightFloor);
     expect(terms.weight).toBeGreaterThan(0);
+  });
+
+  it('adds preferredAssigneeWeight flat to the raw weight when preferred', () => {
+    const averages = { avgRandomAssignments: 0, avgVoluntaryCompletions: 0 };
+    const plain = weightedFairnessWeight(cfg, metrics(), averages, false);
+    const preferred = weightedFairnessWeight(cfg, metrics(), averages, true);
+    expect(preferred.preferredTerm).toBe(cfg.fairness.preferredAssigneeWeight);
+    expect(preferred.raw).toBeCloseTo(plain.raw + cfg.fairness.preferredAssigneeWeight, 10);
+    expect(preferred.weight).toBeGreaterThan(plain.weight);
   });
 
   it('averages over the candidate set', () => {

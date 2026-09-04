@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Plus } from 'lucide-react';
-import { RecurrenceType, WorkerCountMode } from '@haushaltsauktion/shared';
+import { MemberRole, RecurrenceType, WorkerCountMode } from '@haushaltsauktion/shared';
 import {
   useAdminCategories,
   useAdminMembers,
@@ -64,6 +64,9 @@ interface TaskDefinitionDraft {
   /** Multi-worker-tasks (Phase 4). */
   workerCountMode: WorkerCountMode;
   workerCount: number;
+  /** Intake "task-role-based-eligibility-and-preferred-assignee". */
+  requiredRole: MemberRole | null;
+  minAdminSlots: number | null;
   recurrence: {
     type: RecurrenceType;
     interval: number | null;
@@ -86,6 +89,8 @@ function emptyDraft(): TaskDefinitionDraft {
     // Parity with today's implicit single-worker behavior (§ Phase 4 default).
     workerCountMode: WorkerCountMode.EXACTLY,
     workerCount: 1,
+    requiredRole: null,
+    minAdminSlots: null,
     recurrence: {
       type: RecurrenceType.WEEKLY,
       interval: null,
@@ -108,6 +113,8 @@ function draftFromDefinition(def: AdminTaskDefinitionDto): TaskDefinitionDraft {
     isActive: def.isActive,
     workerCountMode: def.workerCountMode,
     workerCount: def.workerCount,
+    requiredRole: def.requiredRole,
+    minAdminSlots: def.minAdminSlots,
     recurrence: {
       type: def.recurrenceType,
       interval: def.recurrenceInterval,
@@ -129,9 +136,12 @@ function toWriteBody(draft: TaskDefinitionDraft): {
   isActive: boolean;
   workerCountMode: WorkerCountMode;
   workerCount: number;
+  requiredRole: MemberRole | null;
+  minAdminSlots: number | null;
   recurrence: RecurrenceDto;
 } {
   const type = draft.recurrence.type;
+  const workerCount = Math.max(1, draft.workerCount);
   return {
     title: draft.title,
     description: draft.description.trim() === '' ? null : draft.description,
@@ -143,7 +153,11 @@ function toWriteBody(draft: TaskDefinitionDraft): {
     // Client-side floor, mirroring the server's `.min(1)` (§ Phase 4 task):
     // don't let the admin submit an invalid count in the first place.
     workerCountMode: draft.workerCountMode,
-    workerCount: Math.max(1, draft.workerCount),
+    workerCount,
+    requiredRole: draft.requiredRole,
+    // Hidden (and so unreachable) once workerCount drops back to 1 — clear it
+    // rather than silently submit a stale value the admin can no longer see.
+    minAdminSlots: workerCount > 1 ? draft.minAdminSlots : null,
     recurrence: {
       type,
       interval: type === 'EVERY_N_DAYS' ? draft.recurrence.interval : null,
@@ -457,6 +471,44 @@ function TaskDefinitionForm({
           onChange={(e) => update({ workerCount: parseInt(e.target.value, 10) || 0 })}
         />
       </label>
+      {/* Multi-worker-tasks (Phase 4) parity: only meaningful once more than
+          one helper slot exists — hidden otherwise, same as workerCountMode's
+          UI grouping above. */}
+      {draft.workerCount > 1 && (
+        <label className={styles.field}>
+          <span>{de.admin.taskDefinitions.minAdminSlots}</span>
+          <input
+            type="number"
+            min={0}
+            max={20}
+            value={draft.minAdminSlots ?? ''}
+            placeholder="–"
+            onChange={(e) =>
+              update({
+                minAdminSlots: e.target.value === '' ? null : parseInt(e.target.value, 10) || 0,
+              })
+            }
+          />
+          <span className={styles.hint}>{de.admin.taskDefinitions.minAdminSlotsHint}</span>
+        </label>
+      )}
+      <label className={styles.field}>
+        <span>{de.admin.taskDefinitions.requiredRole}</span>
+        <select
+          value={draft.requiredRole ?? ''}
+          onChange={(e) =>
+            update({ requiredRole: e.target.value === '' ? null : (e.target.value as MemberRole) })
+          }
+        >
+          <option value="">{de.admin.taskDefinitions.requiredRoleNone}</option>
+          <option value={MemberRole.MEMBER}>
+            {de.admin.taskDefinitions.requiredRoleValues.MEMBER}
+          </option>
+          <option value={MemberRole.ADMIN}>
+            {de.admin.taskDefinitions.requiredRoleValues.ADMIN}
+          </option>
+        </select>
+      </label>
       <label className={styles.checkbox}>
         <input
           type="checkbox"
@@ -495,12 +547,16 @@ function TaskDefinitionForm({
 interface EligibilityDraft {
   included: string[];
   excluded: string[];
+  /** Intake "task-role-based-eligibility-and-preferred-assignee" — soft, so
+   * kept independent of included/excluded rather than sharing their toggle. */
+  preferred: string[];
 }
 
 function eligibilityDraftFromDefinition(def: AdminTaskDefinitionDto): EligibilityDraft {
   return {
     included: def.eligibility.filter((e) => e.mode === 'INCLUDED').map((e) => e.memberId),
     excluded: def.eligibility.filter((e) => e.mode === 'EXCLUDED').map((e) => e.memberId),
+    preferred: def.preferredAssignees.map((p) => p.memberId),
   };
 }
 
@@ -522,6 +578,7 @@ function EligibilityForm({
 
   const toggleIncluded = (id: string) => {
     setDraft((prev) => ({
+      ...prev,
       included: prev.included.includes(id)
         ? prev.included.filter((m) => m !== id)
         : [...prev.included, id],
@@ -531,10 +588,22 @@ function EligibilityForm({
 
   const toggleExcluded = (id: string) => {
     setDraft((prev) => ({
+      ...prev,
       excluded: prev.excluded.includes(id)
         ? prev.excluded.filter((m) => m !== id)
         : [...prev.excluded, id],
       included: prev.included.filter((m) => m !== id),
+    }));
+  };
+
+  // Independent of included/excluded — a preference is soft and never
+  // exclusive with a hard rule (see EligibilityDraft's comment).
+  const togglePreferred = (id: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      preferred: prev.preferred.includes(id)
+        ? prev.preferred.filter((m) => m !== id)
+        : [...prev.preferred, id],
     }));
   };
 
@@ -584,6 +653,23 @@ function EligibilityForm({
                 type="checkbox"
                 checked={draft.excluded.includes(member.id)}
                 onChange={() => toggleExcluded(member.id)}
+              />
+              <span>{member.displayName}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className={styles.sectionTitle}>{de.admin.taskDefinitions.eligibilityPreferred}</h3>
+        <p className={styles.hint}>{de.admin.taskDefinitions.eligibilityPreferredHint}</p>
+        <div className={styles.checkboxList}>
+          {members.map((member) => (
+            <label key={member.id} className={styles.checkbox}>
+              <input
+                type="checkbox"
+                checked={draft.preferred.includes(member.id)}
+                onChange={() => togglePreferred(member.id)}
               />
               <span>{member.displayName}</span>
             </label>

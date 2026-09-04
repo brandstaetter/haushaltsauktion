@@ -67,6 +67,7 @@ import {
   DEFAULT_CONFIG,
   type FairnessMetrics,
   type HouseholdConfig,
+  MemberRole,
   PointTransactionType,
 } from '@haushaltsauktion/shared';
 
@@ -327,6 +328,12 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
         const last = lastRandomOfferIndex.get(cooldownKey(m.id, task.id));
         return {
           memberId: m.id,
+          // The simulation module has no role/preference concept of its own
+          // (§34 is about assignment-count fairness, not the newer
+          // role/preference intake) — every candidate is a plain, unpreferred
+          // member, reproducing today's simulation exactly.
+          role: MemberRole.MEMBER,
+          isPreferredAssignee: false,
           isActive: true,
           isAbsent: false,
           hasActiveImmunity: false,
@@ -343,7 +350,7 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
       const outcome = selectAssignee({
         cfg,
         candidates,
-        options: { definitionHasAllowlist: false },
+        options: { definitionHasAllowlist: false, requiredRole: null, adminSlotReserved: false },
         configVersion: 1,
         decidedAt: DECIDED_AT,
         rng,

@@ -176,6 +176,11 @@ const FairnessSchema = z
     windowDays: z.number().int().min(7).max(365).default(DEFAULT_CONFIG.fairness.windowDays),
     // PRD §3E: a floor of 0 would make a member unreachable and break ergodicity.
     weightFloor: z.number().gt(0).max(1).default(DEFAULT_CONFIG.fairness.weightFloor),
+    preferredAssigneeWeight: z
+      .number()
+      .min(0)
+      .max(100)
+      .default(DEFAULT_CONFIG.fairness.preferredAssigneeWeight),
   })
   .default(DEFAULT_CONFIG.fairness);
 

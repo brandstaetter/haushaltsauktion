@@ -19,6 +19,7 @@ import type {
 import { AssignmentKind, type HouseholdConfig } from '@haushaltsauktion/shared';
 
 import { canVolunteer, hardEligibilityReason } from '../../domain/assignment/eligibility.js';
+import { adminSlotReservationActive, minRequired } from '../../domain/task/worker-slots.js';
 import { potentialVoluntaryReward, voluntaryReward } from '../../domain/task/value.js';
 import type { PrismaTx } from '../deps.js';
 import { loadCandidates } from '../assignment/candidates.js';
@@ -41,6 +42,13 @@ const INSTANCE_INCLUDE = {
       estimatedMinutes: true,
       buyoutEnabled: true,
       categoryId: true,
+      // Intake "task-role-based-eligibility-and-preferred-assignee":
+      // consulted by viewerEligibility below so the DTO's canVolunteer flag
+      // reflects a role-restricted task, not just the pre-existing rules.
+      requiredRole: true,
+      // Same intake — makes the admin-slot reservation instance-aware below,
+      // rather than the flag that always reported "not reserved".
+      minAdminSlots: true,
       category: { select: { id: true, name: true, colorHex: true } },
     },
   },
@@ -112,7 +120,28 @@ async function viewerEligibility(
   });
   const mine = candidates.find((c) => c.memberId === ctx.memberId);
   if (mine === undefined) return { canVolunteer: false, reason: null };
-  const options = { definitionHasAllowlist };
+
+  // Instance-aware, unlike the `instanceId`-less `loadCandidates` call above:
+  // a stale/approximate `false` here would make the UI show "Übernehmen" for
+  // a slot actually reserved for an admin, followed by a 403 from
+  // `volunteerForTask` — a misleading hint, not just an overly conservative
+  // one (§31). `candidates` already carries every member's role, so this is a
+  // lookup against the instance's currently active assignments, not a query.
+  const currentCount = instance.assignments.length;
+  const currentAdminCount = instance.assignments.filter(
+    (a) => candidates.find((c) => c.memberId === a.memberId)?.role === 'ADMIN',
+  ).length;
+  const adminSlotReserved = adminSlotReservationActive({
+    min: minRequired(instance.workerCountMode as never, instance.workerCount),
+    currentCount,
+    currentAdminCount,
+    minAdminSlots: instance.definition.minAdminSlots,
+  });
+  const options = {
+    definitionHasAllowlist,
+    requiredRole: instance.definition.requiredRole,
+    adminSlotReserved,
+  };
   return {
     canVolunteer: canVolunteer(mine, options),
     reason: hardEligibilityReason(mine, options),

@@ -82,3 +82,41 @@ export function slotOutcome(input: SlotOutcomeInput): SlotOutcome {
     isBelowMin: nextActiveSlotCount < input.min,
   };
 }
+
+export interface AdminSlotReservationInput {
+  /** `minRequired(mode, count)` — the point at which the instance is staffed. */
+  min: number;
+  /** How many `ACTIVE` slots the instance holds right now. */
+  currentCount: number;
+  /** How many of those current holders are `ADMIN`. */
+  currentAdminCount: number;
+  /** `TaskDefinition.minAdminSlots`. `null`/`<= 0` means no reservation ever applies. */
+  minAdminSlots: number | null;
+}
+
+/**
+ * Intake "task-role-based-eligibility-and-preferred-assignee" — whether the
+ * *next* slot to be filled must go to an admin for `minAdminSlots` to still be
+ * reachable by the time the instance reaches `min` (fully staffed).
+ *
+ * Deliberately conservative: it only forces admin-only once every remaining
+ * slot is needed to close the deficit (`deficit >= remainingToMin`). While
+ * there is still slack, anyone may take the open slot — the deficit can be
+ * closed by a later join. This is what keeps the guarantee from ever needing
+ * to evict an already-active non-admin slot: the reservation only ever gates
+ * a join that has not happened yet, computed fresh before each one.
+ *
+ * Once `currentCount` reaches `min`, staffing is complete and no further slot
+ * carries the constraint — `AT_LEAST` may still recruit past `min` up to
+ * `max`, but those extra joins have no admin-reservation requirement of their
+ * own; the guarantee was already met (or, if it was mathematically
+ * impossible from the start — more open slots demanded than admins existed
+ * — is left unmet rather than deadlocking the task, same as any other T5).
+ */
+export function adminSlotReservationActive(input: AdminSlotReservationInput): boolean {
+  if (input.minAdminSlots === null || input.minAdminSlots <= 0) return false;
+  const remainingToMin = input.min - input.currentCount;
+  if (remainingToMin <= 0) return false;
+  const deficit = Math.max(0, input.minAdminSlots - input.currentAdminCount);
+  return deficit > 0 && deficit >= remainingToMin;
+}

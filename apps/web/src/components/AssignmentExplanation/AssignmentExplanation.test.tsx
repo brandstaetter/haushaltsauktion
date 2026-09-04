@@ -117,6 +117,60 @@ describe('AssignmentExplanation', () => {
     expect(within(dialog).queryByText(/IMMEDIATE_REASSIGNMENT_BLOCKED/)).toBeNull();
   });
 
+  it(
+    'zeigt eine rollenbasierte/admin-slot Ablehnung mit deutschem Text und eine "bevorzugt"-Markierung',
+    async () => {
+      const user = userEvent.setup();
+      mockedApi.mockResolvedValue(
+        explanationFixture({
+          candidates: [
+            {
+              memberId: 'm-luise',
+              displayName: 'Luise',
+              included: false,
+              exclusionReason: 'ROLE_NOT_ELIGIBLE',
+              weightTerms: null,
+              weight: null,
+              probability: null,
+              selected: false,
+            },
+            {
+              memberId: 'm-paul',
+              displayName: 'Paul',
+              included: true,
+              exclusionReason: null,
+              weightTerms: { base: 1, preferredTerm: 1 },
+              weight: 2,
+              probability: 1,
+              selected: true,
+            },
+          ],
+        }),
+      );
+
+      renderExplanation();
+      await user.click(screen.getByRole('button', { name: de.fairness.trigger }));
+
+      const dialog = await screen.findByRole('dialog');
+      expect(
+        within(dialog).getByText('ausgeschlossen: hat nicht die für diese Aufgabe erforderliche Rolle'),
+      ).toBeInTheDocument();
+      expect(within(dialog).queryByText(/ROLE_NOT_ELIGIBLE/)).toBeNull();
+      expect(within(dialog).getByText(de.fairness.preferredBadge)).toBeInTheDocument();
+    },
+  );
+
+  it('zeigt keine "bevorzugt"-Markierung, wenn preferredTerm 0 oder fehlt', async () => {
+    const user = userEvent.setup();
+    mockedApi.mockResolvedValue(explanationFixture());
+
+    renderExplanation();
+    await user.click(screen.getByRole('button', { name: de.fairness.trigger }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByText(de.fairness.preferredBadge)).toBeNull();
+  });
+
   it('zeigt die Lockerungs-Notiz, wenn eine Regel aufgeweicht wurde', async () => {
     const user = userEvent.setup();
     mockedApi.mockResolvedValue(

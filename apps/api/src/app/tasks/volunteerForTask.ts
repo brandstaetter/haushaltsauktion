@@ -45,7 +45,12 @@ import { AssignmentKind, RewardTiming, type TaskInstanceDetailDto } from '@haush
 import { assertCanVolunteer } from '../../domain/assignment/eligibility.js';
 import { ConflictError, NotFoundError } from '../../domain/errors.js';
 import { resolve, TaskEvent } from '../../domain/task/state-machine.js';
-import { maxAllowed, minRequired, slotOutcome } from '../../domain/task/worker-slots.js';
+import {
+  adminSlotReservationActive,
+  maxAllowed,
+  minRequired,
+  slotOutcome,
+} from '../../domain/task/worker-slots.js';
 import { voluntaryReward } from '../../domain/task/value.js';
 import { loadCandidates } from '../assignment/candidates.js';
 import { ConfigDecision, configFor } from '../config/load.js';
@@ -171,9 +176,27 @@ export async function volunteerForTask(
 
     const definition = await tx.taskDefinition.findFirst({
       where: { id: locked.taskDefinitionId, householdId: input.householdId },
-      select: { categoryId: true, title: true },
+      select: { categoryId: true, title: true, requiredRole: true, minAdminSlots: true },
     });
     if (definition === null) throw new NotFoundError('Aufgabendefinition nicht gefunden.');
+
+    // Intake "task-role-based-eligibility-and-preferred-assignee": whether
+    // the slot this volunteer would take is one of the ones reserved to
+    // guarantee `minAdminSlots`, computed from the roles of who already
+    // holds a slot right now — never from a stale/cached count.
+    const holderRoles =
+      activeAssignments.length === 0
+        ? []
+        : await tx.householdMember.findMany({
+            where: { householdId: input.householdId, id: { in: activeAssignments.map((a) => a.memberId) } },
+            select: { role: true },
+          });
+    const adminSlotReserved = adminSlotReservationActive({
+      min,
+      currentCount,
+      currentAdminCount: holderRoles.filter((m) => m.role === 'ADMIN').length,
+      minAdminSlots: definition.minAdminSlots,
+    });
 
     // Pinned to the instance for the offer, current for eligibility (§5.5).
     const current = await configFor(tx, input.householdId, ConfigDecision.ELIGIBILITY_CAPS);
@@ -190,9 +213,15 @@ export async function volunteerForTask(
     const mine = candidates.find((c) => c.memberId === input.memberId);
     if (mine === undefined) throw new NotFoundError('Mitglied nicht gefunden.');
 
-    // §6.9: volunteering checks rules 1–5 only. Caps and cooldowns protect
-    // people from being *given* work; they must never stop someone offering.
-    assertCanVolunteer(mine, { definitionHasAllowlist });
+    // §6.9: volunteering checks rules 1–5 plus the two additional hard rules
+    // (role restriction, admin-slot reservation) only. Caps and cooldowns
+    // protect people from being *given* work; they must never stop someone
+    // offering.
+    assertCanVolunteer(mine, {
+      definitionHasAllowlist,
+      requiredRole: definition.requiredRole,
+      adminSlotReserved,
+    });
 
     const member = await tx.householdMember.findFirst({
       where: { id: input.memberId, householdId: input.householdId },

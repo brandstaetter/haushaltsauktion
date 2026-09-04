@@ -1,16 +1,25 @@
 /**
  * Eligibility filter and relaxation ladder (Architektur §6.9, §6.12, PRD §3D).
  *
- * Eight ordered predicates. Rules 1–5 are **hard**: they are never relaxed, and
- * they are the only ones that gate volunteering — assigning a chore to someone
- * on holiday or explicitly excluded is worse than leaving it unassigned.
- * Rules 6 and 7 are fairness protections against being *given* work, so they
- * never block someone who wants the task. Rule 8 (intake
- * "points-shop-virtual-gamification-items") is hard for the random draw but,
- * unlike rules 1–5, does not gate volunteering — an immunity potion buys out
- * of being *drawn*, not out of *choosing* to help. It is evaluated separately
- * from `hardEligibilityReason` for exactly that reason: folding it into rules
- * 1–5 would also block volunteering, which the intake explicitly forbids.
+ * Eight ordered predicates, plus two more added by intake
+ * "task-role-based-eligibility-and-preferred-assignee". Rules 1–5 are
+ * **hard**: they are never relaxed, and they are the only ones that gate
+ * volunteering — assigning a chore to someone on holiday or explicitly
+ * excluded is worse than leaving it unassigned. Rules 6 and 7 are fairness
+ * protections against being *given* work, so they never block someone who
+ * wants the task. Rule 8 (intake "points-shop-virtual-gamification-items")
+ * is hard for the random draw but, unlike rules 1–5, does not gate
+ * volunteering — an immunity potion buys out of being *drawn*, not out of
+ * *choosing* to help. It is evaluated separately from `hardEligibilityReason`
+ * for exactly that reason: folding it into rules 1–5 would also block
+ * volunteering, which the intake explicitly forbids.
+ *
+ * `ROLE_NOT_ELIGIBLE` (a definition-level role restriction) and
+ * `ADMIN_SLOT_RESERVED` (a multi-worker admin-headcount guarantee) are
+ * evaluated *inside* `hardEligibilityReason`, alongside rules 1–5 — they are
+ * hard and gate volunteering exactly like the original five, they are just
+ * newer and configured differently (per-definition scalar / per-fill-attempt
+ * boolean rather than a per-member join row).
  *
  * Pure: no Prisma, no `Date`, no `Math.random` (§7.2). "Now" arrives already
  * folded into `isAbsent` and `hasActiveImmunity`; the caller resolved the
@@ -19,6 +28,7 @@
 
 import {
   EligibilityReason,
+  MemberRole,
   RelaxableConstraint,
   type FairnessMetrics,
   type HouseholdConfig,
@@ -29,6 +39,15 @@ import { ForbiddenError } from '../errors.js';
 
 export interface EligibilityCandidate {
   memberId: string;
+  /** Intake "task-role-based-eligibility-and-preferred-assignee". */
+  role: MemberRole;
+  /**
+   * Intake "task-role-based-eligibility-and-preferred-assignee" — a
+   * `TaskDefinitionPreferredAssignee` row exists for this member and task.
+   * Consulted only by `weights.ts`' `WEIGHTED_FAIRNESS` term, never by
+   * eligibility itself: a preference is soft and must never exclude anyone.
+   */
+  isPreferredAssignee: boolean;
   /** rule 1 — `HouseholdMember.isActive` */
   isActive: boolean;
   /** rule 2 — an absence window covers the decision instant */
@@ -62,6 +81,22 @@ export interface EligibilityCandidate {
 /** Rule 4 is only meaningful when the definition actually has an allowlist. */
 export interface EligibilityOptions {
   definitionHasAllowlist: boolean;
+  /**
+   * Intake "task-role-based-eligibility-and-preferred-assignee" —
+   * `TaskDefinition.requiredRole`. `null` = no role filter (default, every
+   * pre-existing definition behaves exactly as before this feature).
+   */
+  requiredRole: MemberRole | null;
+  /**
+   * Intake "task-role-based-eligibility-and-preferred-assignee" — true when
+   * every remaining open slot on this instance must go to an admin for
+   * `TaskDefinition.minAdminSlots` to still be reachable
+   * (`worker-slots.ts` `adminSlotReservationActive`). Computed fresh by the
+   * caller before *each* fill attempt — never a static, once-per-instance
+   * value — so an already-filled non-admin slot is never retroactively
+   * evicted, only the *next* join is gated.
+   */
+  adminSlotReserved: boolean;
 }
 
 export interface EligibilityEvaluation {
@@ -83,6 +118,15 @@ export function hardEligibilityReason(
     return EligibilityReason.NOT_IN_ALLOWLIST;
   }
   if (candidate.categoryExcluded) return EligibilityReason.CATEGORY_EXCLUDED;
+  // Additional hard rules (intake
+  // "task-role-based-eligibility-and-preferred-assignee"), evaluated after
+  // rules 1-5 but with the same never-relaxed, gates-volunteering semantics.
+  if (options.requiredRole !== null && candidate.role !== options.requiredRole) {
+    return EligibilityReason.ROLE_NOT_ELIGIBLE;
+  }
+  if (options.adminSlotReserved && candidate.role !== MemberRole.ADMIN) {
+    return EligibilityReason.ADMIN_SLOT_RESERVED;
+  }
   return null;
 }
 

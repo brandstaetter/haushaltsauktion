@@ -271,7 +271,13 @@ export const de = {
       IMMEDIATE_REASSIGNMENT_BLOCKED: 'hat diese Aufgabe zuletzt erledigt',
       /** rule 8, intake "points-shop-virtual-gamification-items". */
       MEMBER_IMMUNE: 'hat gerade einen Immunitätstrank aktiv',
+      /** intake "task-role-based-eligibility-and-preferred-assignee". */
+      ROLE_NOT_ELIGIBLE: 'hat nicht die für diese Aufgabe erforderliche Rolle',
+      ADMIN_SLOT_RESERVED: 'dieser Platz ist für einen Admin reserviert',
     },
+    /** Same intake — shown next to a candidate's weight when their preference
+     * actually raised it (weightTerms.preferredTerm > 0). */
+    preferredBadge: 'bevorzugt',
     /** Deckt `RelaxableConstraint` aus packages/shared/src/domain/reasons.ts ab. */
     constraints: {
       IMMEDIATE_REASSIGNMENT: 'keine sofortige Wiederzuweisung',
@@ -495,6 +501,16 @@ export const de = {
       },
       workerCount: 'Anzahl Helfer',
       workerCountSummary: '{mode} {count}',
+      /** Intake "task-role-based-eligibility-and-preferred-assignee". */
+      requiredRole: 'Rollenbeschränkung',
+      requiredRoleNone: 'Keine',
+      requiredRoleValues: {
+        MEMBER: 'Nur Mitglieder',
+        ADMIN: 'Nur Admins',
+      },
+      minAdminSlots: 'Mindestanzahl Admin-Slots',
+      minAdminSlotsHint:
+        'Mindestens so viele der besetzten Helfer-Slots müssen von Admins gehalten werden. Leer lassen für kein Minimum.',
       save: 'Speichern',
       create: 'Anlegen',
       cancel: 'Abbrechen',
@@ -520,6 +536,12 @@ export const de = {
       eligibilityIncluded: 'Nur diese Mitglieder zulassen',
       eligibilityIncludedEmpty: 'Keine Einschränkung — alle aktiven Mitglieder sind zulässig.',
       eligibilityExcluded: 'Diese Mitglieder ausschließen',
+      /** Intake "task-role-based-eligibility-and-preferred-assignee" — soft
+       * preference, not a third hard rule; kept in the same sheet since it's
+       * the same per-member picker pattern as included/excluded above. */
+      eligibilityPreferred: 'Bevorzugte Zuweisung',
+      eligibilityPreferredHint:
+        'Erhöht bei der Zufallsvergabe die Gewichtung dieser Personen, schließt aber niemand anderen aus und blockiert nie eine freiwillige Übernahme.',
       saveEligibility: 'Berechtigung speichern',
       recurrence: {
         title: 'Wiederholung',

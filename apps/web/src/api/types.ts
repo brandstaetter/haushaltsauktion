@@ -175,6 +175,10 @@ export interface AdminTaskDefinitionDto {
   /** Multi-worker-tasks (Phase 4). Default `EXACTLY`/`1` reproduces today's single-worker shape. */
   workerCountMode: WorkerCountMode;
   workerCount: number;
+  /** Intake "task-role-based-eligibility-and-preferred-assignee". `null` = no role filter. */
+  requiredRole: MemberRole | null;
+  /** Same intake. `null` = no minimum. Only meaningful when `workerCount > 1`. */
+  minAdminSlots: number | null;
   recurrenceType: RecurrenceType;
   recurrenceInterval: number | null;
   recurrenceWeekdays: number[];
@@ -188,6 +192,8 @@ export interface AdminTaskDefinitionDto {
   createdAt: string;
   updatedAt: string;
   eligibility: { memberId: string; mode: EligibilityMode }[];
+  /** Same intake — soft preference, kept separate from `eligibility` above. */
+  preferredAssignees: { memberId: string }[];
 }
 
 /**
@@ -235,6 +241,8 @@ export interface TaskDefinitionWriteBody {
   isActive: boolean;
   workerCountMode: WorkerCountMode;
   workerCount: number;
+  requiredRole: MemberRole | null;
+  minAdminSlots: number | null;
   recurrence: RecurrenceDto;
 }
 

@@ -77,7 +77,7 @@ const leastAssignedFirst: StrategyFn = (candidates) => {
 const weightedFairness: StrategyFn = (candidates, cfg) => {
   const averages = fairnessAverages(candidates.map((c) => c.metrics));
   return candidates.map((c) => {
-    const terms = weightedFairnessWeight(cfg, c.metrics, averages);
+    const terms = weightedFairnessWeight(cfg, c.metrics, averages, c.isPreferredAssignee);
     return { memberId: c.memberId, weight: terms.weight, weightTerms: terms };
   });
 };

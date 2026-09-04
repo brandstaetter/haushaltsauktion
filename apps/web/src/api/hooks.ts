@@ -559,7 +559,7 @@ export function useUpdateTaskEligibility() {
       body,
     }: {
       id: string;
-      body: { included: string[]; excluded: string[] };
+      body: { included: string[]; excluded: string[]; preferred: string[] };
     }) => api<{ id: string }>(`/admin/task-definitions/${id}/eligibility`, { method: 'PUT', body }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: adminTaskDefinitionsQueryKey }),
   });
