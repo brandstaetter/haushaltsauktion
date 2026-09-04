@@ -72,4 +72,43 @@ describe('VersionMismatchOverlay', () => {
     await waitFor(() => expect(updateServiceWorker).toHaveBeenCalledWith(true));
     await waitFor(() => expect(reload).toHaveBeenCalled());
   });
+
+  it('räumt Service-Worker-Registrierungen und Cache Storage auf, bevor neu geladen wird', async () => {
+    // Regression for the flickering-reload bug: the old service worker's
+    // Workbox navigation-fallback route would keep serving the stale
+    // precached shell after a plain reload, so the overlay must unregister
+    // every service worker and clear all caches first.
+    const unregister = vi.fn().mockResolvedValue(true);
+    const getRegistrations = vi.fn().mockResolvedValue([{ unregister }]);
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { getRegistrations },
+      writable: true,
+      configurable: true,
+    });
+
+    const deleteCache = vi.fn().mockResolvedValue(true);
+    const keys = vi.fn().mockResolvedValue(['workbox-precache-v1']);
+    Object.defineProperty(window, 'caches', {
+      value: { keys, delete: deleteCache },
+      writable: true,
+      configurable: true,
+    });
+
+    render(<VersionMismatchOverlay />);
+
+    act(() => {
+      checkVersionHeader(mismatchedResponse());
+    });
+    await screen.findByText(de.update.overlayTitle);
+
+    await waitFor(() => expect(getRegistrations).toHaveBeenCalled());
+    await waitFor(() => expect(unregister).toHaveBeenCalled());
+    await waitFor(() => expect(keys).toHaveBeenCalled());
+    await waitFor(() => expect(deleteCache).toHaveBeenCalledWith('workbox-precache-v1'));
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+
+    // Reload must happen after the purge settles, not racing ahead of it.
+    expect(unregister.mock.invocationCallOrder[0]).toBeLessThan(reload.mock.invocationCallOrder[0]);
+    expect(deleteCache.mock.invocationCallOrder[0]).toBeLessThan(reload.mock.invocationCallOrder[0]);
+  });
 });

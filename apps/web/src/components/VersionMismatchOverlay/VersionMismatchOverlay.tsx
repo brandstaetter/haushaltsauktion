@@ -14,13 +14,28 @@
  *
  * Still tries `updateServiceWorker(true)` first (best-effort, bounded): if a
  * new service worker happened to already be waiting, this lets it activate
- * before the reload lands, so the reloaded tab gets fully-fresh precached
- * assets instead of needing a second reload. The reload itself never
- * depends on that succeeding — under `registerType: 'prompt'`,
- * `updateServiceWorker()` only sends a skip-waiting message and does not
- * reload the page on its own when nothing was waiting yet (vite-plugin-pwa's
- * `client/build/register.js`), so relying on it alone would silently do
- * nothing in the exact case this overlay exists for.
+ * before the reload lands. The reload itself never depends on that
+ * succeeding — under `registerType: 'prompt'`, `updateServiceWorker()` only
+ * sends a skip-waiting message and does not reload the page on its own when
+ * nothing was waiting yet (vite-plugin-pwa's `client/build/register.js`), so
+ * relying on it alone would silently do nothing in the exact case this
+ * overlay exists for.
+ *
+ * Bugfix "forced-reload-cache-bypass": a plain `location.reload()` was
+ * flickering back into this same overlay instead of landing on the new
+ * build. `vite.config.ts`'s Workbox `generateSW` setup precaches the app
+ * shell and serves it via a navigation-fallback route that intercepts every
+ * non-`/api/` navigation from Cache Storage — independent of the browser's
+ * own HTTP cache, and independent of any cache-busting query string, since
+ * the route matches on `request.mode === 'navigate'`, not the URL. If the
+ * new service worker hadn't finished taking control within the grace period
+ * (a real race — install/activate/claim isn't instant), the reload landed
+ * back on the *old* worker's stale precache, re-triggering the same version
+ * mismatch. Unregistering every service worker and clearing all Cache
+ * Storage entries right before reloading removes that intercepting layer
+ * entirely, so the reload is a genuine network fetch of the new deploy's
+ * shell; the freshly loaded page re-registers its own (now current) service
+ * worker on the next load.
  */
 
 import * as Dialog from '@radix-ui/react-dialog';
@@ -48,6 +63,22 @@ export function VersionMismatchOverlay() {
   useEffect(() => {
     if (!mismatch) return;
     let cancelled = false;
+
+    // Removes the Workbox navigation-fallback route (see the file-level
+    // comment) so the reload below can't be served from the old build's
+    // precache no matter how the skip-waiting race above played out.
+    const purgeCachesAndReload = async () => {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations().catch(() => []);
+        await Promise.all(registrations.map((registration) => registration.unregister().catch(() => {})));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys().catch(() => []);
+        await Promise.all(keys.map((key) => caches.delete(key).catch(() => {})));
+      }
+      if (!cancelled) window.location.reload();
+    };
+
     // `updateServiceWorker` is only a real Promise-returning function in a
     // built/registered service worker (vite-plugin-pwa's production
     // register.js); its dev-mode stub (client/dev/react.js, used whenever
@@ -56,7 +87,7 @@ export function VersionMismatchOverlay() {
     // never throws on the un-awaited return value.
     void Promise.resolve(updateServiceWorker(true)).catch(() => {});
     const timer = setTimeout(() => {
-      if (!cancelled) window.location.reload();
+      void purgeCachesAndReload();
     }, SKIP_WAITING_GRACE_MS);
     return () => {
       cancelled = true;
