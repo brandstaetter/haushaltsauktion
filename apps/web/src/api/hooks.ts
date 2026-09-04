@@ -791,6 +791,24 @@ export function useUpdateMemberRestrictions() {
   });
 }
 
+export function useAdjustMemberPoints() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: { amount: number; reason: string };
+    }) =>
+      api<{ id: string; amount: number; balanceAfter: number }>(
+        `/admin/members/${id}/points/adjust`,
+        { method: 'POST', body },
+      ),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: adminMembersQueryKey }),
+  });
+}
+
 const notificationsQueryKey = ['notifications'] as const;
 
 /**

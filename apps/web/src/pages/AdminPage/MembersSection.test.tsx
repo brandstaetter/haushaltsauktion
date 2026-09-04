@@ -198,6 +198,107 @@ describe('MembersSection', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(de.admin.members.errors.lastAdmin);
   });
 
+  it('erlaubt einem Admin, Punkte mit Begründung anzupassen, und aktualisiert den Punktestand ohne Reload', async () => {
+    const user = userEvent.setup();
+    let member = memberFixture({ pointsCache: 10 });
+
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string; body?: unknown }) => {
+      if (path === '/admin/members' && (options?.method ?? 'GET') === 'GET') {
+        return { items: [member] };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/task-definitions') return { items: [] };
+      if (path === `/admin/members/${member.id}/points/adjust` && options?.method === 'POST') {
+        const body = options.body as { amount: number; reason: string };
+        member = { ...member, pointsCache: member.pointsCache + body.amount };
+        return { id: 'tx-1', amount: body.amount, balanceAfter: member.pointsCache };
+      }
+      throw new Error(`unerwarteter Aufruf: ${path} ${options?.method ?? 'GET'}`);
+    });
+
+    renderSection();
+
+    expect(await screen.findByText('Anna')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: de.admin.members.adjustPointsButton }));
+
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText(de.admin.members.adjustAmountLabel, { exact: false }), '5');
+    await user.type(
+      within(dialog).getByLabelText(de.admin.members.adjustReasonLabel),
+      'Vorab erledigt, keine Aufgabe dafür',
+    );
+    await user.click(within(dialog).getByRole('button', { name: de.admin.members.adjustSubmit }));
+
+    expect(await screen.findByText(de.admin.members.adjustSuccess)).toBeInTheDocument();
+    expect(await screen.findByText('15')).toBeInTheDocument();
+  });
+
+  it('lehnt eine Punkteanpassung ohne Begründung ab, ohne die API aufzurufen', async () => {
+    const user = userEvent.setup();
+    const member = memberFixture();
+
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string }) => {
+      if (path === '/admin/members' && (options?.method ?? 'GET') === 'GET') {
+        return { items: [member] };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/task-definitions') return { items: [] };
+      throw new Error(`unerwarteter Aufruf: ${path} ${options?.method ?? 'GET'}`);
+    });
+
+    renderSection();
+
+    expect(await screen.findByText('Anna')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: de.admin.members.adjustPointsButton }));
+
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText(de.admin.members.adjustAmountLabel, { exact: false }), '5');
+    await user.click(within(dialog).getByRole('button', { name: de.admin.members.adjustSubmit }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(de.admin.members.errors.reasonRequired);
+    expect(mockedApi).not.toHaveBeenCalledWith(
+      `/admin/members/${member.id}/points/adjust`,
+      expect.anything(),
+    );
+  });
+
+  it('zeigt eine spezifische Meldung, wenn der Server die Anpassung als Validierungsfehler ablehnt', async () => {
+    const user = userEvent.setup();
+    const member = memberFixture();
+
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string }) => {
+      if (path === '/admin/members' && (options?.method ?? 'GET') === 'GET') {
+        return { items: [member] };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/task-definitions') return { items: [] };
+      if (path === `/admin/members/${member.id}/points/adjust` && options?.method === 'POST') {
+        throw Object.assign(new Error('Der Betrag muss eine ganze Zahl ungleich 0 sein.'), {
+          status: 422,
+          code: 'VALIDATION_FAILED',
+          details: { fieldErrors: [{ path: 'amount', message: 'Ganzzahl ungleich 0 erforderlich.' }] },
+        });
+      }
+      throw new Error(`unerwarteter Aufruf: ${path} ${options?.method ?? 'GET'}`);
+    });
+
+    renderSection();
+
+    expect(await screen.findByText('Anna')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: de.admin.members.adjustPointsButton }));
+
+    // Amount and reason both pass client-side validation, so the mocked
+    // VALIDATION_FAILED / fieldErrors response below is what actually drives
+    // the displayed message — proving the server-error path independently
+    // of the client's own pre-check.
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText(de.admin.members.adjustAmountLabel, { exact: false }), '5');
+    await user.type(within(dialog).getByLabelText(de.admin.members.adjustReasonLabel), 'Test');
+    await user.click(within(dialog).getByRole('button', { name: de.admin.members.adjustSubmit }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(de.admin.members.errors.invalidAmount);
+  });
+
   it('filtert die Mitgliederliste nach Anzeigename oder E-Mail und zeigt einen eigenen Leerzustand', async () => {
     const user = userEvent.setup();
     const anna = memberFixture({ id: 'member-1', displayName: 'Anna', user: { email: 'anna@demo.local', isActive: true } });

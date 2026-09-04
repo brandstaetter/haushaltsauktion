@@ -37,6 +37,7 @@ interface UserMaintenanceCardProps {
   onSave: () => void;
   onOpenRestrictions: () => void;
   onOpenResetPassword: () => void;
+  onOpenAdjustPoints: () => void;
 }
 
 /**
@@ -54,6 +55,7 @@ export function UserMaintenanceCard({
   onSave,
   onOpenRestrictions,
   onOpenResetPassword,
+  onOpenAdjustPoints,
 }: UserMaintenanceCardProps) {
   const { de } = useStrings();
   const dirty = !sameDraft(draft, draftFromMember(member));
@@ -123,6 +125,9 @@ export function UserMaintenanceCard({
         </Button>
         <Button size="sm" variant="secondary" onClick={onOpenResetPassword}>
           {de.admin.members.resetPasswordButton}
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onOpenAdjustPoints}>
+          {de.admin.members.adjustPointsButton}
         </Button>
       </div>
     </li>
