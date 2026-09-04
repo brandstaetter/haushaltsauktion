@@ -72,6 +72,25 @@ async function createReward(
   return (res.json() as { id: string }).id;
 }
 
+async function createVirtualReward(body: { title: string; cost: number }): Promise<string> {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/admin/rewards',
+    headers: authHeaders(elke),
+    payload: {
+      title: body.title,
+      description: null,
+      cost: body.cost,
+      isActive: true,
+      kind: 'VIRTUAL_EFFECT',
+      effectType: 'IMMUNITY',
+      effectDurationMinutes: 30,
+    },
+  });
+  expect(res.statusCode).toBe(201);
+  return (res.json() as { id: string }).id;
+}
+
 beforeAll(async () => {
   db = testDb();
   await dropHousehold(db, ids);
@@ -275,6 +294,42 @@ test(
       select: { status: true },
     });
     expect(row.status).toBe('FULFILLED');
+  },
+  30_000,
+);
+
+test(
+  'shop ordering: virtual items before real ones, cost descending, title as tiebreak',
+  async () => {
+    const virtualCheap2Id = await createVirtualReward({ title: 'Zzz-Sort-V-Guenstig-B', cost: 5 });
+    const virtualCheap1Id = await createVirtualReward({ title: 'Zzz-Sort-V-Guenstig-A', cost: 5 });
+    const virtualExpensiveId = await createVirtualReward({ title: 'Zzz-Sort-V-Teuer', cost: 10 });
+    const realCheapId = await createReward({ title: 'Zzz-Sort-R-Guenstig', cost: 3 });
+    const realExpensiveId = await createReward({ title: 'Zzz-Sort-R-Teuer', cost: 9 });
+
+    const shop = await app.inject({
+      method: 'GET',
+      url: '/api/rewards',
+      headers: { cookie: paul.cookie },
+    });
+    expect(shop.statusCode).toBe(200);
+    const items = (shop.json() as { items: { id: string }[] }).items;
+    const ourIds = new Set([
+      virtualCheap2Id,
+      virtualCheap1Id,
+      virtualExpensiveId,
+      realCheapId,
+      realExpensiveId,
+    ]);
+    const ordered = items.filter((i) => ourIds.has(i.id)).map((i) => i.id);
+
+    expect(ordered).toEqual([
+      virtualExpensiveId,
+      virtualCheap1Id,
+      virtualCheap2Id,
+      realExpensiveId,
+      realCheapId,
+    ]);
   },
   30_000,
 );
