@@ -15,6 +15,7 @@ import { AdminMembersPage } from './pages/AdminPage/AdminMembersPage';
 import { AdminTasksPage } from './pages/AdminPage/AdminTasksPage';
 import { AdminCategoriesPage } from './pages/AdminPage/AdminCategoriesPage';
 import { AdminRewardsPage } from './pages/AdminPage/AdminRewardsPage';
+import { AdminAuditLogPage } from './pages/AdminPage/AdminAuditLogPage';
 import { RewardsShopPage } from './pages/RewardsShopPage/RewardsShopPage';
 import { OperatorLoginPage } from './pages/OperatorDashboardPage/OperatorLoginPage';
 import { OperatorDashboardPage } from './pages/OperatorDashboardPage/OperatorDashboardPage';
@@ -161,6 +162,14 @@ export const router = createBrowserRouter([
             element: (
               <AdminRoute>
                 <AdminRewardsPage />
+              </AdminRoute>
+            ),
+          },
+          {
+            path: 'verwaltung/audit-log',
+            element: (
+              <AdminRoute>
+                <AdminAuditLogPage />
               </AdminRoute>
             ),
           },

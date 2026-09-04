@@ -10,6 +10,7 @@ export const de = {
     adminTasks: 'Aufgaben',
     adminCategories: 'Kategorien',
     adminRewards: 'Punkte-Shop',
+    adminAuditLog: 'Audit-Log',
     maintenance: 'Verwaltung',
     back: 'Zurück',
   },
@@ -407,6 +408,7 @@ export const de = {
       categories: 'Kategorien',
       rewards: 'Punkte-Shop',
       redemptions: 'Einlösungen',
+      auditLog: 'Audit-Log',
     },
     members: {
       title: 'Mitglieder',
@@ -632,6 +634,66 @@ export const de = {
       errors: {
         alreadyHandled: 'Diese Einlösung wurde bereits bearbeitet.',
         generic: 'Das hat nicht funktioniert.',
+      },
+    },
+    /**
+     * §23 admin-only audit log (intake
+     * "manual-point-adjustment-missing-from-shared-history"): the first UI
+     * surface for `AuditEvent`, which existed server-side but was never
+     * rendered anywhere — the manual points-adjustment gap that started this
+     * ticket was only ever *symptom* of that missing surface.
+     */
+    auditLog: {
+      title: 'Audit-Log',
+      empty: 'Noch keine Einträge.',
+      filterLabel: 'Nach Aktion filtern',
+      filterAll: 'Alle Aktionen',
+      actorSystem: 'System',
+      // amount/reason cover POINTS_ADJUSTED (and any future action whose
+      // payload happens to carry the same shape) without a bespoke renderer
+      // per action — the same generic-placeholder idiom HistoryPage.tsx uses.
+      amount: 'Betrag {value}',
+      reason: 'Begründung: {reason}',
+      /** Deckt exakt `AuditAction` aus packages/shared/src/domain/enums.ts ab. */
+      actions: {
+        HOUSEHOLD_REGISTERED: 'Haushalt registriert',
+        LOGIN_SUCCEEDED: 'Anmeldung erfolgreich',
+        LOGIN_FAILED: 'Anmeldung fehlgeschlagen',
+        CONFIG_UPDATED: 'Konfiguration geändert',
+        MEMBER_CREATED: 'Mitglied angelegt',
+        MEMBER_UPDATED: 'Mitglied geändert',
+        MEMBER_DEACTIVATED: 'Mitglied deaktiviert',
+        ROLE_CHANGED: 'Rolle geändert',
+        RESTRICTIONS_UPDATED: 'Einschränkungen geändert',
+        POINTS_ADJUSTED: 'Punkte manuell angepasst',
+        LEDGER_CACHE_REPAIRED: 'Punktestand-Cache repariert',
+        CATEGORY_CREATED: 'Kategorie angelegt',
+        CATEGORY_UPDATED: 'Kategorie geändert',
+        TASK_DEFINITION_CREATED: 'Aufgabe angelegt',
+        TASK_DEFINITION_UPDATED: 'Aufgabe geändert',
+        TASK_DEFINITION_ARCHIVED: 'Aufgabe archiviert',
+        TASK_DEFINITION_REACTIVATED: 'Aufgabe reaktiviert',
+        INSTANCE_MATERIALIZED: 'Instanz erstellt',
+        INSTANCE_PUBLISHED: 'Instanz angeboten',
+        INSTANCE_CANCELLED: 'Instanz abgebrochen',
+        INSTANCE_PAUSED: 'Instanz pausiert',
+        INSTANCE_RESUMED: 'Instanz fortgesetzt',
+        INSTANCE_EXPIRED: 'Instanz abgelaufen',
+        ASSIGNMENT_SWEEP_RUN: 'Zuweisungslauf ausgeführt',
+        RANDOM_SELECTION: 'Zufallsauswahl',
+        ASSIGNMENT_REVOKED: 'Zuweisung aufgehoben',
+        BUYOUT_EXECUTED: 'Freikauf durchgeführt',
+        TASK_COMPLETED: 'Aufgabe erledigt',
+        TASK_COMPLETION_REJECTED: 'Erledigung abgelehnt',
+        PASSWORD_RESET: 'Passwort zurückgesetzt',
+        INTEGRATION_CONNECTED: 'Integration verbunden',
+        INTEGRATION_DISCONNECTED: 'Integration getrennt',
+        INTEGRATION_SETTINGS_UPDATED: 'Integrationseinstellungen geändert',
+        REWARD_DEFINITION_CREATED: 'Belohnung angelegt',
+        REWARD_DEFINITION_UPDATED: 'Belohnung geändert',
+        REWARD_PURCHASED: 'Belohnung gekauft',
+        REWARD_FULFILLED: 'Belohnung erfüllt',
+        MEMBER_EFFECT_ACTIVATED: 'Effekt aktiviert',
       },
     },
     fields: {

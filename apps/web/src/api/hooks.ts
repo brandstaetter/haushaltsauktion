@@ -17,6 +17,7 @@ import type {
 } from '@haushaltsauktion/shared';
 import { api, setCsrfToken } from './client';
 import type {
+  AdminAuditEventDto,
   AdminConfigDto,
   AdminMemberDto,
   AdminRedemptionDto,
@@ -48,6 +49,7 @@ const adminTaskDefinitionsQueryKey = ['admin', 'task-definitions'] as const;
 const rewardShopQueryKey = ['rewards'] as const;
 const adminRewardsQueryKey = ['admin', 'rewards'] as const;
 const adminRedemptionsQueryKey = ['admin', 'rewards', 'redemptions'] as const;
+const adminAuditEventsQueryKey = ['admin', 'audit-events'] as const;
 
 export function useSession() {
   return useQuery({
@@ -723,6 +725,23 @@ export function useFulfillRedemption() {
     mutationFn: (id: string) =>
       api<{ id: string }>(`/admin/rewards/redemptions/${id}/fulfill`, { method: 'POST' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: adminRedemptionsQueryKey }),
+  });
+}
+
+/**
+ * §23 admin-only audit log (intake
+ * "manual-point-adjustment-missing-from-shared-history"). `limit: 100` is
+ * the endpoint's own ceiling (`admin.ts` `/admin/audit-events`) — it does not
+ * yet support cursor pagination past that, matching what the route actually
+ * implements today rather than promising a "load more" this call can't honor.
+ */
+export function useAdminAuditEvents(action?: string) {
+  return useQuery({
+    queryKey: [...adminAuditEventsQueryKey, action ?? 'all'],
+    queryFn: () =>
+      api<{ items: AdminAuditEventDto[] }>(
+        `/admin/audit-events?limit=100${action ? `&action=${encodeURIComponent(action)}` : ''}`,
+      ),
   });
 }
 
