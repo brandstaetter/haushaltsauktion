@@ -154,6 +154,32 @@
   overflow-y: auto;
 }
 
+/* 3-4 columns depending on available width, same auto-fit idiom as
+   `.memberFields`/`.absenceRow` above — used for the audit-log action and
+   actor filter grids, which are too numerous (37 actions) for `.checkboxList`'s
+   single column. */
+.checkboxGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--s-2) var(--s-3);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.filterHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
 .absenceRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

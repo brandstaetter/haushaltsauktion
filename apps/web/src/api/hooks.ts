@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
-  AuditAction,
   AvailableTaskDto,
   BuyoutQuoteDto,
   BuyoutRequest,
@@ -777,14 +776,18 @@ export function useFulfillRedemption() {
  * the endpoint's own ceiling (`admin.ts` `/admin/audit-events`) — it does not
  * yet support cursor pagination past that, matching what the route actually
  * implements today rather than promising a "load more" this call can't honor.
+ *
+ * Always fetches the full unfiltered page: action/actor filtering
+ * (intake "admin-audit-log-checkbox-grid-filters") is multi-select, which the
+ * route's single-value `action`/`memberId` query params can't express, and at
+ * this page's scale (§43: admin-only, 1–20 members) re-filtering 100 already-
+ * fetched rows client-side is simpler than adding `action[]`/`actorType`
+ * params to the route.
  */
-export function useAdminAuditEvents(action?: AuditAction) {
+export function useAdminAuditEvents() {
   return useQuery({
-    queryKey: [...adminAuditEventsQueryKey, action ?? 'all'],
-    queryFn: () =>
-      api<{ items: AdminAuditEventDto[] }>(
-        `/admin/audit-events?limit=100${action ? `&action=${encodeURIComponent(action)}` : ''}`,
-      ),
+    queryKey: adminAuditEventsQueryKey,
+    queryFn: () => api<{ items: AdminAuditEventDto[] }>('/admin/audit-events?limit=100'),
   });
 }
 

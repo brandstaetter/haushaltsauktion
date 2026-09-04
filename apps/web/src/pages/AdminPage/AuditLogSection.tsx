@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AuditAction } from '@haushaltsauktion/shared';
-import { useAdminAuditEvents } from '../../api/hooks';
+import { useAdminAuditEvents, useMembers } from '../../api/hooks';
 import { useStrings } from '../../context/StringsContext';
 import { formatDate, interpolate, signedNumber } from '../../utils/format';
+import { Button } from '../../components/Button/Button';
 import styles from './AdminPage.module.css';
 
 /**
@@ -18,36 +19,159 @@ import styles from './AdminPage.module.css';
  * idiom `HistoryPage.tsx`'s `renderEvent` uses), which covers
  * `POINTS_ADJUSTED` — this ticket's actual complaint — without a 38-way
  * switch over every action's payload shape.
+ *
+ * Filtering (intake "admin-audit-log-checkbox-grid-filters") is multi-select
+ * over both action and actor, done client-side against the one unfiltered
+ * page `useAdminAuditEvents` fetches: the route's `action`/`memberId` query
+ * params only accept one value each, and at this page's scale (§43,
+ * admin-only, capped at 100 rows) re-filtering client-side is simpler than
+ * adding `action[]`/`actorType` params to the route. An empty selection
+ * means "no filter", matching the old dropdown's "Alle Aktionen" default.
  */
+
+const FILTERS_STORAGE_KEY = 'hh-audit-log-filters';
+const SYSTEM_ACTOR_KEY = 'SYSTEM';
+
+interface StoredFilters {
+  actions: string[];
+  actors: string[];
+}
+
+function readStoredFilters(): StoredFilters {
+  try {
+    const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (!raw) return { actions: [], actors: [] };
+    const parsed = JSON.parse(raw) as Partial<StoredFilters>;
+    return {
+      actions: Array.isArray(parsed.actions) ? parsed.actions : [],
+      actors: Array.isArray(parsed.actors) ? parsed.actors : [],
+    };
+  } catch {
+    // Private mode / storage disabled / corrupt value — just start unfiltered.
+    return { actions: [], actors: [] };
+  }
+}
+
+function writeStoredFilters(filters: StoredFilters): void {
+  try {
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+  } catch {
+    // Worst case: filters don't survive a reload. Not worth failing over.
+  }
+}
+
 export function AuditLogSection() {
   const { de } = useStrings();
-  const [action, setAction] = useState<AuditAction | ''>('');
-  const { data, isLoading } = useAdminAuditEvents(action || undefined);
+  const { data, isLoading } = useAdminAuditEvents();
+  const { data: membersData } = useMembers();
   const events = data?.items ?? [];
+  const members = membersData?.items ?? [];
+  const allActions = useMemo(() => Object.values(AuditAction), []);
+
+  const initialFilters = useMemo(readStoredFilters, []);
+  const [selectedActions, setSelectedActions] = useState<Set<AuditAction>>(
+    () => new Set(initialFilters.actions as AuditAction[]),
+  );
+  const [selectedActors, setSelectedActors] = useState<Set<string>>(
+    () => new Set(initialFilters.actors),
+  );
+
+  useEffect(() => {
+    writeStoredFilters({ actions: [...selectedActions], actors: [...selectedActors] });
+  }, [selectedActions, selectedActors]);
+
+  const toggleAction = (action: AuditAction) => {
+    setSelectedActions((prev) => {
+      const next = new Set(prev);
+      if (next.has(action)) next.delete(action);
+      else next.add(action);
+      return next;
+    });
+  };
+
+  const toggleActor = (key: string) => {
+    setSelectedActors((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const filteredEvents = events.filter((event) => {
+    const actionMatches = selectedActions.size === 0 || selectedActions.has(event.action);
+    const actorKey = event.actorType === 'SYSTEM' ? SYSTEM_ACTOR_KEY : (event.actorMemberId ?? '');
+    const actorMatches = selectedActors.size === 0 || selectedActors.has(actorKey);
+    return actionMatches && actorMatches;
+  });
 
   return (
     <section className={styles.section}>
       <h2 className={styles.sectionTitle}>{de.admin.sections.auditLog}</h2>
 
-      <label className={styles.field}>
-        <span className="visually-hidden">{de.admin.auditLog.filterLabel}</span>
-        <select value={action} onChange={(e) => setAction(e.target.value as AuditAction | '')}>
-          <option value="">{de.admin.auditLog.filterAll}</option>
-          {Object.values(AuditAction).map((a) => (
-            <option key={a} value={a}>
-              {de.admin.auditLog.actions[a]}
-            </option>
+      <div className={styles.filterGroup}>
+        <div className={styles.filterHeader}>
+          <span>{de.admin.auditLog.filterActionsLabel}</span>
+          <div className={styles.actions}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedActions(new Set(allActions))}
+            >
+              {de.admin.auditLog.selectAll}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedActions(new Set())}
+            >
+              {de.admin.auditLog.selectNone}
+            </Button>
+          </div>
+        </div>
+        <div className={styles.checkboxGrid}>
+          {allActions.map((a) => (
+            <label key={a} className={styles.checkbox}>
+              <input type="checkbox" checked={selectedActions.has(a)} onChange={() => toggleAction(a)} />
+              <span>{de.admin.auditLog.actions[a]}</span>
+            </label>
           ))}
-        </select>
-      </label>
+        </div>
+      </div>
+
+      <div className={styles.filterGroup}>
+        <span>{de.admin.auditLog.filterActorsLabel}</span>
+        <div className={styles.checkboxGrid}>
+          <label className={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={selectedActors.has(SYSTEM_ACTOR_KEY)}
+              onChange={() => toggleActor(SYSTEM_ACTOR_KEY)}
+            />
+            <span>{de.admin.auditLog.actorSystem}</span>
+          </label>
+          {members.map((member) => (
+            <label key={member.id} className={styles.checkbox}>
+              <input
+                type="checkbox"
+                checked={selectedActors.has(member.id)}
+                onChange={() => toggleActor(member.id)}
+              />
+              <span>{member.displayName}</span>
+            </label>
+          ))}
+        </div>
+      </div>
 
       {isLoading ? (
         <div className={styles.spinner} aria-label="Wird geladen" />
-      ) : events.length === 0 ? (
+      ) : filteredEvents.length === 0 ? (
         <p className={styles.hint}>{de.admin.auditLog.empty}</p>
       ) : (
         <ul className={styles.list}>
-          {events.map((event) => {
+          {filteredEvents.map((event) => {
             const reason = typeof event.payload['reason'] === 'string' ? event.payload['reason'] : null;
             const amount = typeof event.payload['amount'] === 'number' ? event.payload['amount'] : null;
             return (

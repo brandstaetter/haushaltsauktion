@@ -1,12 +1,32 @@
 ---
-title: "Admin-Audit-Log: Dropdown durch Checkbox-Grid ersetzen, Multi-Select + Akteur-Filter + Session-Merken"
+version: 1
+id: "a2753c77-eb1b-491d-9da0-eb4e05276af1"
 status: completed
-priority: high
-target: apps/web/src/pages/AdminPage/AuditLogSection.tsx, apps/web/src/api/hooks.ts, apps/web/src/strings/de.ts
-campaign: admin-audit-log-dropdown-durch-checkbox-grid-ersetzen-multi-select-akteur-filter
+started: "2026-09-04T18:30:01.473Z"
+completed_at: null
+direction: "Admin-Audit-Log: Dropdown durch Checkbox-Grid ersetzen, Multi-Select + Akteur-Filter + Session-Merken"
+phase_count: 4
+current_phase: 2
+branch: null
+worktree_status: null
 ---
 
-## Description
+# Campaign: Admin-Audit-Log: Dropdown durch Checkbox-Grid ersetzen, Multi-Select + Akteur-Filter + Session-Merken
+
+Status: completed
+Started: 2026-09-04T18:30:01.473Z
+Direction: Admin-Audit-Log: Dropdown durch Checkbox-Grid ersetzen, Multi-Select + Akteur-Filter + Session-Merken
+
+## Claimed Scope
+- apps/web/src/pages/AdminPage/AuditLogSection.tsx, apps/web/src/api/hooks.ts, apps/web/src/strings/de.ts
+
+## Intake Source
+
+- File: .planning/intake/admin-audit-log-checkbox-grid-filters.md
+- Priority: high
+- Initial Status: pending
+
+## Delivery Brief
 
 `AuditLogSection.tsx` (`apps/web/src/pages/AdminPage/AuditLogSection.tsx:22-42`)
 filtert das Audit-Log aktuell über ein einzelnes `<select>` — genau eine
@@ -78,3 +98,63 @@ Briefing, falls sich daraus doch Pagination-Probleme ergeben sollten.
   berechnete Filterergebnisse — falls Filterung serverseitig erfolgt, muss
   die Route weiterhin nur householdeigene Events zurückgeben
   (`requireAdmin` + `householdId`-Scoping bleibt unverändert).
+
+## Map Context
+
+No map index available. Run `node scripts/map-index.js --generate --root .` before delegation.
+
+## Phases
+
+| # | Status | Type | Phase | Done When |
+|---|--------|------|-------|-----------|
+| 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
+| 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
+| 3 | complete | verify | Run verification | npm run test passes |
+| 4 |   complete | package | Package for review | PR link or local review package is recorded |
+
+## Exit Evidence
+
+| Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
+|---|---|---|---|---|---|---|---|
+| phase:2 | implementation-diff | file_diff | yes | git diff --stat: 6 files changed, 286 insertions(+), 70 deletions(-) | pass | 2 | implement requested change |
+| phase:3 | verification-command | test_result | yes | npm run test --workspaces: 144+371+155 tests passed, 0 failed | pass | 2 | fix verification failures |
+| phase:4 | review-package | review_package | yes | .planning/review-packages/admin-audit-log-dropdown-durch-checkbox-grid-ersetzen-multi-select-akteur-filter.md | resolved | 2 | review local handoff package |
+
+## Decision Log
+
+- 2026-09-04T18:30:01.473Z: Created delivery campaign from intake preflight.
+  Reason: Convert intake into an evidence-backed delivery loop before implementation.
+- 2026-09-04: Chose option (b) from the brief's open design question: client-side
+  multi-select filtering over one unfiltered fetch (`limit=100`), instead of adding
+  `action[]`/`actorType` query params to `GET /admin/audit-events`.
+  Reason: the route already caps at 100 rows and is admin-only (§43 scale); no
+  API change needed, and `requireAdmin` + household scoping stays untouched
+  (§36 unaffected — filtering is display-only, never trust-bearing).
+
+## Active Context
+
+Phase 2 (build) and Phase 3 (verify) complete. `useAdminAuditEvents()` now
+fetches unconditionally; `AuditLogSection.tsx` renders a checkbox grid per
+`AuditAction` (with "Alle auswählen"/"Keine auswählen"), a second checkbox
+grid per household member plus "System", and persists both selections to
+`localStorage` (`hh-audit-log-filters`) using the same
+try/catch-wrapped direct-localStorage idiom as `InstallPrompt.tsx`. Full
+workspace test suite (`npm run test --workspaces`) passes: 144 + 371 + 155
+tests. Typecheck and lint clean on all changed files. Next action: Phase 4,
+package for review.
+
+## Continuation State
+
+Phase: 4
+Sub-step: implementation and verification done, packaging not started
+Files modified: apps/web/src/api/hooks.ts, apps/web/src/pages/AdminPage/AuditLogSection.tsx,
+  apps/web/src/pages/AdminPage/AuditLogSection.test.tsx, apps/web/src/pages/AdminPage/AdminPage.module.css,
+  apps/web/src/strings/de.ts
+Blocking: none
+
+## Completion Record
+
+- Completed At: 2026-09-04T18:37:44.517Z
+- Outcome: review-package
+- Verification: npm run test --workspaces: 144+371+155 tests passed
+- Note: Checkbox-grid multi-select action filter + actor filter (members + System) + localStorage persistence. Client-side filtering, no API changes.
