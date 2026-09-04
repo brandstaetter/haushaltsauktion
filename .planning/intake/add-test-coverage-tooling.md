@@ -1,8 +1,9 @@
 ---
 title: "Keine Code-Coverage-Messung für apps/api oder apps/web"
-status: pending
+status: completed
 priority: normal
 target: apps/api/vitest.config.ts, apps/web/vitest.config.ts, apps/api/package.json, apps/web/package.json, package.json, .github/workflows/deploy.yml
+campaign: keine-code-coverage-messung-f-r-apps-api-oder-apps-web
 ---
 
 ## Description
