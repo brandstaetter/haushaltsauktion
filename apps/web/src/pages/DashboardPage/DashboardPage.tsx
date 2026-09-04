@@ -30,7 +30,7 @@ function RejectCompletionSheet({
   const [reason, setReason] = useState('');
   const [outcome, setOutcome] = useState<RejectCompletionOutcome>('REOFFER_MARKET');
   const [error, setError] = useState<string | null>(null);
-  // Multi-worker tasks (Copilot review, this PR): more than one slot can be
+  // Multi-worker tasks: more than one slot can be
   // COMPLETED on the same instance, and the admin endpoint now requires a
   // specific assignmentId once that's the case — see reads.ts's `completions`.
   // For the common single-completer case this picker never renders and the

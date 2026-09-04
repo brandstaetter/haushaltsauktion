@@ -432,7 +432,7 @@ export async function loadDashboard(
         completedBy: { select: { displayName: true } },
         // Every REJECTED or COMPLETED slot on this instance, unfiltered by
         // `take` — needed both for the existence-only "was any slot ever
-        // rejected" check and (Copilot review, this PR) to let an admin
+        // rejected" check and to let an admin
         // target a *specific* COMPLETED slot's `assignmentId` when rejecting
         // a multi-worker instance's completion, since
         // `POST /admin/instances/:id/reject-completion` now returns
