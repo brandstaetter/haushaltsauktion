@@ -58,6 +58,17 @@ export async function buildServer(options: ServerOptions): Promise<FastifyInstan
 
   registerErrorHandler(app);
 
+  // Bugfix "reliable-update-check-forced-reload-overlay": every response —
+  // success or error, `/api/*` or not — carries the deploy's version so the
+  // web client can detect a stale build on its very next call instead of
+  // waiting on the service worker's own (unreliable) update lifecycle.
+  // `onSend` runs for every reply Fastify sends, unlike a route-scoped
+  // header.
+  app.addHook('onSend', async (_request, reply, payload) => {
+    reply.header('x-app-version', env.APP_VERSION);
+    return payload;
+  });
+
   app.addHook('preHandler', makeContextPreHandler(db, () => deps.clock.now()));
   // Independent of the household hook above: attaches `request.operatorCtx`
   // from a *different* cookie (`operator_session`), never `request.ctx`.

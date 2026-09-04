@@ -74,6 +74,21 @@ const EnvSchema = z.object({
    * member disconnecting on that instance still gets a best-effort close flush.
    */
   TODOIST_INTERVAL_SECONDS: z.coerce.number().int().min(0).default(60),
+
+  /**
+   * Baked into the Docker image at build time (Dockerfile `ARG`/`ENV`,
+   * `.github/workflows/deploy.yml`'s `build-and-push` job passes the same
+   * short Git SHA it tags the image with) — not a runtime-environment
+   * override, so every replica of one deployed image reports the same
+   * value, and it only changes on an actual redeploy. `server.ts` sends it
+   * on every response as `X-App-Version`; the web client compares it on
+   * every call instead of waiting on the service worker's own update
+   * lifecycle (intake "reliable-update-check-forced-reload-overlay").
+   * Defaults to `'dev'` for local/dev runs where no image build set it —
+   * the web bundle's own build-time default is the same string, so the two
+   * sides trivially agree and never false-trigger outside a real deploy.
+   */
+  APP_VERSION: z.string().default('dev'),
 });
 
 export type AppEnv = z.infer<typeof EnvSchema>;

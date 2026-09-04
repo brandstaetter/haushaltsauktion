@@ -38,6 +38,14 @@ RUN npm run build -w @haushaltsauktion/shared
 # the actual built image, not the dev server.
 ARG VITE_DEMO_LOGIN=false
 ENV VITE_DEMO_LOGIN=$VITE_DEMO_LOGIN
+# Bugfix "reliable-update-check-forced-reload-overlay": Vite bakes this into
+# the built JS at compile time (must be a `VITE_`-prefixed name to be
+# exposed via `import.meta.env`), so it has to be set here in the build
+# stage, unlike the API's runtime-stage `APP_VERSION`. deploy.yml's
+# build-and-push job passes the same short Git SHA it tags the image with;
+# defaults to `dev` for a plain local build.
+ARG VITE_APP_VERSION=dev
+ENV VITE_APP_VERSION=$VITE_APP_VERSION
 RUN npm run build -w @haushaltsauktion/web
 
 FROM nginx:1.27-alpine AS runtime
