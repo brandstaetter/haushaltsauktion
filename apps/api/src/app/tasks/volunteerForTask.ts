@@ -117,14 +117,6 @@ export async function volunteerForTask(
       });
     }
 
-    if (input.expectedVersion !== undefined && input.expectedVersion !== locked.version) {
-      // Distinct from TASK_NOT_AVAILABLE on purpose (§4.6): "your screen is
-      // stale" gets a silent refetch, "someone beat you" gets a message.
-      throw new ConflictError('STALE_VIEW', 'Die Ansicht ist nicht mehr aktuell.', {
-        currentVersion: locked.version,
-      });
-    }
-
     // ── guard 1 continued: the slots themselves, level 2 ─────────────────
     const activeAssignments = await lockActiveAssignmentsOfInstance(
       tx,
@@ -152,9 +144,28 @@ export async function volunteerForTask(
         },
         select: { member: { select: { displayName: true } } },
       });
+      // Checked before the version guard below on purpose (CI fix,
+      // multi-worker-tasks): a task that is actually full must always report
+      // TASK_NOT_AVAILABLE, even when the caller's `expectedVersion` is also
+      // stale — the winner's commit bumps `version` on every join, so for an
+      // EXACTLY(1) race the loser's version is *always* stale too, and
+      // showing "someone beat you" is strictly more informative than "your
+      // screen is stale" when the reason it's stale is exactly that someone
+      // beat you.
       throw new ConflictError('TASK_NOT_AVAILABLE', 'Diese Aufgabe ist nicht mehr verfügbar.', {
         currentStatus: locked.status,
         heldBy: holder?.member.displayName ?? null,
+      });
+    }
+
+    if (input.expectedVersion !== undefined && input.expectedVersion !== locked.version) {
+      // Distinct from TASK_NOT_AVAILABLE on purpose (§4.6): "your screen is
+      // stale" gets a silent refetch, "someone beat you" gets a message. Only
+      // reached once we know a slot is actually still open — a version bump
+      // from an unrelated join (e.g. a co-slot filling on a multi-worker
+      // task) is a genuine "just refetch" case, not a lost race.
+      throw new ConflictError('STALE_VIEW', 'Die Ansicht ist nicht mehr aktuell.', {
+        currentVersion: locked.version,
       });
     }
 
