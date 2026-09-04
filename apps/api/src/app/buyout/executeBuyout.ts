@@ -15,6 +15,29 @@
  * config and rejects with `409 QUOTE_STALE` carrying the fresh quote if either
  * differs. The submitted numbers are only ever *compared* — never used in the
  * computation — so echoing them does not trust the client (§36).
+ *
+ * Multi-worker-tasks Phase 2 (.planning/architecture-multi-worker-tasks.md,
+ * "Slot-aware use cases"): a buyout always closes exactly the ONE targeted
+ * slot and always raises `currentValue` (unconditional — the value increase
+ * is per-instance, not per-slot). Whether the *instance* also drops back to
+ * `AVAILABLE` and gets a fresh offer window depends on whether the release
+ * pushes `activeSlotCount` below `minRequired`:
+ *
+ *   - below `min` → behaves exactly like today's single-slot buyout: the
+ *     instance transitions `ASSIGNED → BUYOUT → AVAILABLE` (the one state-
+ *     machine call this file makes), gets a new `offerExpiresAt`, and a
+ *     `RE_OFFERED` history event is written.
+ *   - still `>= min` (only reachable under `AT_LEAST`/`AT_MOST` with more
+ *     than one active slot) → the instance stays `ASSIGNED`, co-assignees'
+ *     rows are untouched, and no `RE_OFFERED` event fires — nothing was
+ *     "re-offered" if the instance never left `ASSIGNED`. `EXACTLY(1)` can
+ *     never reach this branch (`min === max === 1`, so any release always
+ *     drops the count to `0 < 1`), which is what makes this a pure
+ *     generalization rather than a parallel path.
+ *
+ * Like `volunteerForTask`, the slot count driving this decision is the live
+ * `lockActiveAssignmentsOfInstance` read, not the `TaskInstance.activeSlotCount`
+ * cache — see that use-case's docstring for why.
  */
 
 import type { BuyoutResultDto } from '@haushaltsauktion/shared';
@@ -22,12 +45,14 @@ import type { BuyoutResultDto } from '@haushaltsauktion/shared';
 import { assertBuyoutAllowed } from '../../domain/buyout/rules.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../domain/errors.js';
 import { resolve, TaskEvent } from '../../domain/task/state-machine.js';
+import { minRequired } from '../../domain/task/worker-slots.js';
 import { ConfigDecision, configFor } from '../config/load.js';
 import type { Deps } from '../deps.js';
 import { writeAudit, writeHistory } from '../events.js';
 import { postTransaction } from '../points/postTransaction.js';
 import { buildInstanceDetail, findInstance } from '../queries/taskDto.js';
 import {
+  lockActiveAssignmentsOfInstance,
   lockAssignment,
   lockInstance,
   lockMember,
@@ -85,7 +110,14 @@ export async function executeBuyout(deps: Deps, input: BuyoutInput): Promise<Buy
         event: TaskEvent.BUYOUT,
       });
     }
-    resolve(instance.status as never, TaskEvent.BUYOUT);
+
+    // Every other currently active slot on this instance (level 2, same as
+    // the specific-assignment lock just taken above — not a lock-order
+    // violation). Includes `assignment` itself, since it is still ACTIVE.
+    const allActive = await lockActiveAssignmentsOfInstance(tx, input.householdId, instance.id);
+    const min = minRequired(instance.workerCountMode as never, instance.workerCount);
+    const remainingAfterRelease = allActive.length - 1;
+    const staysStaffed = remainingAfterRelease >= min;
 
     // ── level 3 ─────────────────────────────────────────────────────────
     const member = await lockMember(tx, input.householdId, input.memberId);
@@ -179,6 +211,7 @@ export async function executeBuyout(deps: Deps, input: BuyoutInput): Promise<Buy
         status: 'BOUGHT_OUT',
         closedAt: now,
         activeForInstanceId: null,
+        activeSlotKey: null,
         buyoutCost: quote.cost,
         valueBeforeBuyout: instance.currentValue,
         valueAfterBuyout: quote.newValue,
@@ -190,32 +223,61 @@ export async function executeBuyout(deps: Deps, input: BuyoutInput): Promise<Buy
       });
     }
 
-    // §10 — the new offer cycle. The instance goes back to AVAILABLE at the
-    // raised value, and the raised value is simultaneously the reward a later
-    // volunteer earns (§44).
-    const offerExpires = new Date(
-      now.getTime() + pinned.config.assignment.offerDurationMinutes * 60_000,
-    );
-    const reopened = await tx.taskInstance.updateMany({
-      where: {
-        id: instance.id,
-        householdId: input.householdId,
-        status: 'ASSIGNED',
-        version: instance.version,
-      },
-      data: {
-        status: 'AVAILABLE',
-        currentValue: quote.newValue,
-        buyoutCount: { increment: 1 },
-        offerExpiresAt: offerExpires,
-        version: { increment: 1 },
-      },
-    });
-    if (reopened.count === 0) {
-      throw new ConflictError('TASK_NOT_AVAILABLE', 'Die Aufgabe hat sich zwischenzeitlich geändert.', {
-        currentStatus: instance.status,
-        heldBy: null,
+    // §10 — the new offer cycle, only when the release actually leaves the
+    // instance under-staffed. Still-staffed multi-slot instances keep their
+    // existing offer window: nothing was "re-offered", the freed slot is
+    // simply open again (`activeSlotCount < max`, checked independently of
+    // `status` by `volunteerForTask`/`runAssignmentSweep`).
+    let offerExpires: Date | null = null;
+    if (staysStaffed) {
+      const reopened = await tx.taskInstance.updateMany({
+        where: {
+          id: instance.id,
+          householdId: input.householdId,
+          status: 'ASSIGNED',
+          version: instance.version,
+        },
+        data: {
+          currentValue: quote.newValue,
+          buyoutCount: { increment: 1 },
+          activeSlotCount: remainingAfterRelease,
+          version: { increment: 1 },
+        },
       });
+      if (reopened.count === 0) {
+        throw new ConflictError(
+          'TASK_NOT_AVAILABLE',
+          'Die Aufgabe hat sich zwischenzeitlich geändert.',
+          { currentStatus: instance.status, heldBy: null },
+        );
+      }
+    } else {
+      offerExpires = new Date(
+        now.getTime() + pinned.config.assignment.offerDurationMinutes * 60_000,
+      );
+      const reopened = await tx.taskInstance.updateMany({
+        where: {
+          id: instance.id,
+          householdId: input.householdId,
+          status: 'ASSIGNED',
+          version: instance.version,
+        },
+        data: {
+          status: resolve(instance.status as never, TaskEvent.BUYOUT) as never,
+          currentValue: quote.newValue,
+          buyoutCount: { increment: 1 },
+          activeSlotCount: remainingAfterRelease,
+          offerExpiresAt: offerExpires,
+          version: { increment: 1 },
+        },
+      });
+      if (reopened.count === 0) {
+        throw new ConflictError(
+          'TASK_NOT_AVAILABLE',
+          'Die Aufgabe hat sich zwischenzeitlich geändert.',
+          { currentStatus: instance.status, heldBy: null },
+        );
+      }
     }
 
     await writeHistory(tx, [
@@ -244,12 +306,16 @@ export async function executeBuyout(deps: Deps, input: BuyoutInput): Promise<Buy
           multiplier: pinned.config.valueIncrease.multiplier,
         },
       },
-      {
-        householdId: input.householdId,
-        taskInstanceId: instance.id,
-        type: 'RE_OFFERED',
-        payload: { value: quote.newValue, offerExpiresAt: offerExpires.toISOString() },
-      },
+      ...(offerExpires !== null
+        ? [
+            {
+              householdId: input.householdId,
+              taskInstanceId: instance.id,
+              type: 'RE_OFFERED',
+              payload: { value: quote.newValue, offerExpiresAt: offerExpires.toISOString() },
+            },
+          ]
+        : []),
     ]);
 
     await writeAudit(tx, {
@@ -265,8 +331,8 @@ export async function executeBuyout(deps: Deps, input: BuyoutInput): Promise<Buy
         valueAfter: quote.newValue,
         configVersion: pinned.version,
         transactionId: debit.id,
+        slotsRemainingAfter: remainingAfterRelease,
       },
-      ipAddress: input.ipAddress ?? null,
     });
 
     // §24 — the household learns the chore just got more valuable, which is

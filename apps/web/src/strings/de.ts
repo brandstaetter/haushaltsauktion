@@ -103,6 +103,7 @@ export const de = {
       rejectedBadge: 'abgelehnt',
       title: 'Erledigung ablehnen',
       intro: 'Die Erledigung von „{task}“ durch {member} wird als nicht zufriedenstellend abgelehnt.',
+      whoHeading: 'Wessen Erledigung ablehnen?',
       consequenceWithPoints: 'Dabei werden {points} Punkte von {member} zurückgebucht.',
       consequenceNoPoints: 'Für diese Erledigung wurden keine Punkte vergeben — es gibt nichts zurückzubuchen.',
       outcomeHeading: 'Was passiert mit der Aufgabe?',
@@ -134,6 +135,8 @@ export const de = {
       VOLUNTARY: 'freiwillig',
       RANDOM: 'zufällig',
     },
+    /** Multi-worker-tasks (Phase 4). Only shown when `workerCount > 1`. */
+    slotsOccupied: '{occupied}/{total} besetzt',
     since: 'seit {time}',
     status: {
       AVAILABLE: 'verfügbar',
@@ -150,6 +153,10 @@ export const de = {
     noHeld: 'Du hast gerade keine Aufgabe übernommen.',
     allHouseholdTasksTab: 'Alle Aufgaben',
     noHouseholdTasks: 'Gerade ist nichts offen.',
+    assignedYou: 'Dir zugewiesen',
+    assignedOther: 'Jemandem sonst zugewiesen',
+    /** Multi-worker-tasks (Phase 4): per co-assignee row when >1 active slot. */
+    assignedNamed: '{name} zugewiesen',
     adminUnassign: {
       trigger: 'Zuweisung aufheben',
       title: 'Zuweisung aufheben',
@@ -470,6 +477,15 @@ export const de = {
       estimatedMinutes: 'Geschätzte Dauer',
       buyoutEnabled: 'Freikauf erlaubt',
       active: 'Aktiv',
+      /** Multi-worker-tasks (Phase 4): how many people can hold this task at once. */
+      workerCountMode: 'Helfer-Modus',
+      workerCountModes: {
+        EXACTLY: 'Genau',
+        AT_LEAST: 'Mindestens',
+        AT_MOST: 'Höchstens',
+      },
+      workerCount: 'Anzahl Helfer',
+      workerCountSummary: '{mode} {count}',
       save: 'Speichern',
       create: 'Anlegen',
       cancel: 'Abbrechen',

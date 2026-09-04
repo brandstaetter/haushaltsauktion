@@ -283,7 +283,15 @@ export async function rejectCompletion(
           kind: AssignmentKind.VOLUNTARY,
           status: 'ACTIVE',
           response: 'ACCEPTED',
-          activeForInstanceId: instance.id,
+          // Multi-worker-tasks Phase 2: the redo reclaims the SAME slot the
+          // rejected completion held, not always slot 0 — for EXACTLY(1) that
+          // is always slot 0 anyway (unchanged behavior), but reusing
+          // `assignment.slotIndex` is what keeps a multi-slot instance's
+          // OTHER active slots from ever colliding with this one on
+          // `activeSlotKey`'s unique constraint.
+          activeForInstanceId: assignment.slotIndex === 0 ? instance.id : null,
+          slotIndex: assignment.slotIndex,
+          activeSlotKey: `${instance.id}:${assignment.slotIndex}`,
           valueAtAssignment: instance.currentValue,
           configVersion: current.version,
           assignedAt: now,

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import type { AssignmentSummaryDto } from '@haushaltsauktion/shared';
 import {
   useTaskDetail,
   useVolunteer,
@@ -9,6 +10,7 @@ import {
   useAcceptAssignment,
   useAssignmentQuote,
   useMemberMe,
+  useMembers,
   useRevokeAssignment,
 } from '../../api/hooks';
 import { ApiError } from '../../api/client';
@@ -32,11 +34,18 @@ function unassignErrorMessage(err: unknown, de: Strings): string {
 
 function UnassignForm({
   instanceId,
+  assignmentId,
   taskTitle,
   assigneeLabel,
   onClose,
 }: {
   instanceId: string;
+  /**
+   * Multi-worker-tasks: the specific co-assignee's slot to release. Always
+   * sent — the backend requires it once an instance has more than one
+   * active slot, and accepts (but doesn't need) it for `EXACTLY(1)` too.
+   */
+  assignmentId: string;
   taskTitle: string;
   assigneeLabel: string;
   onClose: () => void;
@@ -49,7 +58,7 @@ function UnassignForm({
   const handleSubmit = () => {
     setError(null);
     revoke.mutate(
-      { instanceId, reason: reason.trim() === '' ? null : reason.trim() },
+      { instanceId, assignmentId, reason: reason.trim() === '' ? null : reason.trim() },
       {
         onSuccess: onClose,
         onError: (err) => setError(unassignErrorMessage(err, de)),
@@ -92,12 +101,21 @@ export function TaskDetailPage() {
   const buyout = useBuyout();
   const accept = useAcceptAssignment();
   const { data: me } = useMemberMe();
+  // Multi-worker-tasks (Phase 4): `activeAssignments` only carries
+  // `memberId`, not a display name — resolved here from the household
+  // member list (already small, 1-20 members) so co-assignees can be shown
+  // by name.
+  const { data: membersData } = useMembers();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [unassignOpen, setUnassignOpen] = useState(false);
+  const [unassignTarget, setUnassignTarget] = useState<AssignmentSummaryDto | null>(null);
 
-  const assignmentId = task?.activeAssignment?.id;
-  const { data: quote } = useAssignmentQuote(assignmentId);
+  const activeAssignments = task?.activeAssignments ?? [];
+  const multiSlot = activeAssignments.length > 1;
+  // A member can hold at most one active slot per instance, so `find` (not
+  // `filter`) is correct here.
+  const myAssignment = activeAssignments.find((a) => a.memberId === me?.id) ?? null;
+  const { data: quote } = useAssignmentQuote(myAssignment?.id);
 
   if (isLoading) return <div className={styles.spinner} aria-label="Wird geladen" />;
   if (isError || !task || !id) {
@@ -109,10 +127,11 @@ export function TaskDetailPage() {
     );
   }
 
-  const isAssignedToMe = task.activeAssignment?.memberId === me?.id;
-  const isPendingDecision =
-    task.activeAssignment?.response === 'PENDING' &&
-    task.status === 'ASSIGNED';
+  const isAssignedToMe = myAssignment !== null;
+  const isPendingDecision = myAssignment?.response === 'PENDING' && task.status === 'ASSIGNED';
+
+  const memberName = (memberId: string): string | null =>
+    (membersData?.items ?? []).find((m) => m.id === memberId)?.displayName ?? null;
 
   async function run<T>(promise: Promise<T>, onSuccess?: () => void) {
     setBusy(true);
@@ -151,27 +170,47 @@ export function TaskDetailPage() {
             </p>
           )}
           {task.estimatedMinutes && <p>ca. {task.estimatedMinutes} Min</p>}
+          {task.workerCount > 1 && (
+            <p>
+              {interpolate(de.task.slotsOccupied, {
+                occupied: task.activeSlotCount,
+                total: task.workerCount,
+              })}
+            </p>
+          )}
         </div>
       </div>
 
-      {task.activeAssignment && (
+      {activeAssignments.length > 0 && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Zugewiesen</h2>
-          <p className={styles.assignee}>
-            {task.activeAssignment.memberId === me?.id
-              ? 'Dir'
-              : 'Jemandem sonst'}
-            {' '}
-            zugewiesen
-          </p>
-          {task.activeAssignment.kind === 'RANDOM' && !isPendingDecision && (
-            <AssignmentExplanation assignmentId={task.activeAssignment.id} />
-          )}
-          {me?.role === 'ADMIN' && (
-            <button className={styles.adminAction} onClick={() => setUnassignOpen(true)}>
-              {de.task.adminUnassign.trigger}
-            </button>
-          )}
+          {activeAssignments.map((a) => {
+            const mine = a.memberId === me?.id;
+            const rowPending = a.response === 'PENDING';
+            // §21/§32 parity: for a single-slot task, the "someone else"
+            // case never showed a name before this feature — only a
+            // multi-slot task (where distinguishing co-assignees actually
+            // matters) resolves and shows one.
+            const resolvedName = multiSlot ? memberName(a.memberId) : null;
+            const label = mine
+              ? de.task.assignedYou
+              : resolvedName !== null
+                ? interpolate(de.task.assignedNamed, { name: resolvedName })
+                : de.task.assignedOther;
+            return (
+              <div key={a.id} className={styles.assigneeRow}>
+                <p className={styles.assignee}>{label}</p>
+                {a.kind === 'RANDOM' && !rowPending && (
+                  <AssignmentExplanation assignmentId={a.id} />
+                )}
+                {me?.role === 'ADMIN' && (
+                  <button className={styles.adminAction} onClick={() => setUnassignTarget(a)}>
+                    {de.task.adminUnassign.trigger}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </section>
       )}
 
@@ -200,7 +239,7 @@ export function TaskDetailPage() {
                 run(
                   complete.mutateAsync({
                     id,
-                    body: { assignmentId: task.activeAssignment!.id, expectedVersion: task.version },
+                    body: { assignmentId: myAssignment!.id, expectedVersion: task.version },
                   }),
                 )
               }
@@ -214,7 +253,7 @@ export function TaskDetailPage() {
                 onClick={() =>
                   run(
                     buyout.mutateAsync({
-                      assignmentId: task.activeAssignment!.id,
+                      assignmentId: myAssignment!.id,
                       body: {
                         acceptedCost: quote.cost,
                         acceptedNewValue: quote.taskValueAfter,
@@ -233,7 +272,7 @@ export function TaskDetailPage() {
                 run(
                   release.mutateAsync({
                     instanceId: id,
-                    assignmentId: task.activeAssignment!.id,
+                    assignmentId: myAssignment!.id,
                   }),
                 )
               }
@@ -250,12 +289,12 @@ export function TaskDetailPage() {
                 the one place §31 explicitly forbids nudging one option over
                 the other. Both branches share `variant="secondary"` so
                 neither reads as the recommended default. */}
-            {task.activeAssignment!.kind === 'RANDOM' && (
-              <AssignmentExplanation assignmentId={task.activeAssignment!.id} />
+            {myAssignment!.kind === 'RANDOM' && (
+              <AssignmentExplanation assignmentId={myAssignment!.id} />
             )}
             <Button
               variant="secondary"
-              onClick={() => run(accept.mutateAsync(task.activeAssignment!.id))}
+              onClick={() => run(accept.mutateAsync(myAssignment!.id))}
               loading={busy}
             >
               {de.action.accept}
@@ -266,7 +305,7 @@ export function TaskDetailPage() {
                 onClick={() =>
                   run(
                     buyout.mutateAsync({
-                      assignmentId: task.activeAssignment!.id,
+                      assignmentId: myAssignment!.id,
                       body: {
                         acceptedCost: quote.cost,
                         acceptedNewValue: quote.taskValueAfter,
@@ -285,18 +324,27 @@ export function TaskDetailPage() {
 
       {quote && <BuyoutDisclosure quote={quote} />}
 
-      {task.activeAssignment && (
+      {activeAssignments.length > 0 && (
         <Sheet
-          open={unassignOpen}
-          onOpenChange={setUnassignOpen}
+          open={unassignTarget !== null}
+          onOpenChange={(open) => !open && setUnassignTarget(null)}
           title={de.task.adminUnassign.title}
         >
-          <UnassignForm
-            instanceId={id}
-            taskTitle={task.title}
-            assigneeLabel={isAssignedToMe ? 'dir' : 'einer anderen Person'}
-            onClose={() => setUnassignOpen(false)}
-          />
+          {unassignTarget && (
+            <UnassignForm
+              instanceId={id}
+              assignmentId={unassignTarget.id}
+              taskTitle={task.title}
+              assigneeLabel={
+                unassignTarget.memberId === me?.id
+                  ? 'dir'
+                  : multiSlot
+                    ? memberName(unassignTarget.memberId) ?? 'einer anderen Person'
+                    : 'einer anderen Person'
+              }
+              onClose={() => setUnassignTarget(null)}
+            />
+          )}
         </Sheet>
       )}
     </div>

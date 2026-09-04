@@ -47,6 +47,11 @@ const INSTANCE_INCLUDE = {
   completedBy: { select: { id: true, displayName: true, avatarUrl: true } },
   assignments: {
     where: { status: 'ACTIVE' as const },
+    // Multi-worker-tasks (Phase 3): deterministic slot order so "the first
+    // active assignment" (kept for backward compatibility, see
+    // `TaskInstanceDetailDto.activeAssignment`) always means the lowest slot,
+    // not database insertion order.
+    orderBy: { slotIndex: 'asc' as const },
     select: {
       id: true,
       kind: true,
@@ -56,6 +61,7 @@ const INSTANCE_INCLUDE = {
       valueAtAssignment: true,
       configVersion: true,
       memberId: true,
+      slotIndex: true,
       // Additive: `toAssignmentSummary` still reads `memberId` only. Joined
       // here (same shape as admin.ts's `/admin/task-definitions/:id` instance
       // list) so the household-wide view can show a name without a second
@@ -151,6 +157,9 @@ async function toAvailableDto(
     canVolunteer: instance.status === 'AVAILABLE' && eligibility.canVolunteer,
     ineligibleReason: eligibility.reason,
     potentialReward: potentialVoluntaryReward(cfg, instance.currentValue),
+    workerCountMode: instance.workerCountMode,
+    workerCount: instance.workerCount,
+    activeSlotCount: instance.activeSlotCount,
   };
 }
 
@@ -227,7 +236,6 @@ export async function buildInstanceDetail(
   viewerBalance: number,
 ): Promise<TaskInstanceDetailDto> {
   const base = await toAvailableDto(tx, ctx, instance, cfg);
-  const active = instance.assignments[0] ?? null;
 
   const completedBy: MemberRefDto | null = instance.completedBy
     ? {
@@ -237,6 +245,14 @@ export async function buildInstanceDetail(
       }
     : null;
 
+  // Multi-worker-tasks (Phase 3): every currently active slot, not just the
+  // first. `activeAssignment` is kept as the lowest-`slotIndex` entry — for
+  // an EXACTLY(1) task that is the only slot, so existing callers see no
+  // change.
+  const activeAssignments = await Promise.all(
+    instance.assignments.map((a) => toAssignmentSummary(tx, ctx, instance, a, viewerBalance)),
+  );
+
   return {
     ...base,
     taskDefinitionId: instance.taskDefinitionId,
@@ -244,10 +260,8 @@ export async function buildInstanceDetail(
     publishedAt: instance.publishedAt?.toISOString() ?? null,
     completedAt: instance.completedAt?.toISOString() ?? null,
     completedBy,
-    activeAssignment:
-      active === null
-        ? null
-        : await toAssignmentSummary(tx, ctx, instance, active, viewerBalance),
+    activeAssignment: activeAssignments[0] ?? null,
+    activeAssignments,
   };
 }
 
@@ -309,13 +323,17 @@ export async function listAssignedToMe(
 
   const dtos: AssignedTaskDto[] = [];
   for (const instance of instances) {
-    const active = instance.assignments[0];
-    if (active === undefined) continue;
+    // Multi-worker-tasks (Phase 3): the `where` above only guarantees *some*
+    // active slot on this instance belongs to the viewer — with more than one
+    // concurrent slot, that need not be `assignments[0]` (lowest slotIndex)
+    // any more, so it must be looked up by memberId rather than assumed.
     const base = await toAvailableDto(tx, ctx, instance, config);
-    dtos.push({
-      ...base,
-      assignment: await toAssignmentSummary(tx, ctx, instance, active, viewerBalance),
-    });
+    const activeAssignments = await Promise.all(
+      instance.assignments.map((a) => toAssignmentSummary(tx, ctx, instance, a, viewerBalance)),
+    );
+    const mine = activeAssignments.find((a) => a.memberId === ctx.memberId);
+    if (mine === undefined) continue;
+    dtos.push({ ...base, assignment: mine, activeAssignments });
   }
   return dtos;
 }
@@ -342,18 +360,19 @@ async function toHouseholdTaskDto(
   const base = await toAvailableDto(tx, ctx, instance, cfg, {
     eligibility: { canVolunteer: false, reason: null },
   });
-  const active = instance.assignments[0] ?? null;
+  // Multi-worker-tasks (Phase 3): every active slot's holder, not just the
+  // first. `assignee` is kept as the lowest-`slotIndex` entry for backward
+  // compatibility — for an EXACTLY(1) task that is the only slot.
+  const assignees = instance.assignments.map((a) => ({
+    id: a.member.id,
+    displayName: a.member.displayName,
+    avatarUrl: a.member.avatarUrl,
+    kind: a.kind,
+  }));
   return {
     ...base,
-    assignee:
-      active === null
-        ? null
-        : {
-            id: active.member.id,
-            displayName: active.member.displayName,
-            avatarUrl: active.member.avatarUrl,
-            kind: active.kind,
-          },
+    assignee: assignees[0] ?? null,
+    assignees,
   };
 }
 

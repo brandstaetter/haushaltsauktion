@@ -44,6 +44,8 @@ function definitionFixture(overrides: Partial<AdminTaskDefinitionDto> = {}): Adm
     estimatedMinutes: null,
     isActive: true,
     buyoutEnabled: true,
+    workerCountMode: 'EXACTLY',
+    workerCount: 1,
     recurrenceType: 'WEEKLY',
     recurrenceInterval: null,
     recurrenceWeekdays: [],
@@ -150,6 +152,64 @@ describe('TaskDefinitionsSection', () => {
     );
 
     expect(await screen.findByText('Staubsaugen')).toBeInTheDocument();
+  });
+
+  it('legt eine Aufgabe standardmäßig als EXACTLY(1) an, kann aber auf AT_LEAST(2) gesetzt werden', async () => {
+    const user = userEvent.setup();
+    let capturedBody: { workerCountMode?: string; workerCount?: number } | null = null;
+    let definitions: AdminTaskDefinitionDto[] = [definitionFixture()];
+
+    mockedApi.mockImplementation(
+      async (path: string, options?: { method?: string; body?: unknown }) => {
+        const method = options?.method ?? 'GET';
+        if (path === '/admin/task-definitions' && method === 'GET') {
+          return { items: definitions };
+        }
+        if (path === '/admin/categories') return { items: [] };
+        if (path === '/admin/members') return { items: [] };
+        if (path === '/auth/me') return sessionFixture;
+        if (path === '/admin/task-definitions' && method === 'POST') {
+          capturedBody = options?.body as { workerCountMode?: string; workerCount?: number };
+          const created = definitionFixture({ id: 'def-2', title: 'Keller aufräumen' });
+          definitions = [...definitions, created];
+          return created;
+        }
+        throw new Error(`unerwarteter Aufruf: ${path} ${method}`);
+      },
+    );
+
+    renderSection();
+
+    expect(await screen.findByText('Bad putzen')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: de.admin.taskDefinitions.addButton }));
+
+    const dialog = await screen.findByRole('dialog');
+    // Parity default: EXACTLY(1), matching today's implicit single-worker form.
+    expect(within(dialog).getByLabelText(de.admin.taskDefinitions.workerCountMode)).toHaveValue(
+      'EXACTLY',
+    );
+    expect(within(dialog).getByLabelText(de.admin.taskDefinitions.workerCount)).toHaveValue(1);
+
+    await user.type(
+      within(dialog).getByLabelText(de.admin.taskDefinitions.titleField),
+      'Keller aufräumen',
+    );
+    await user.selectOptions(
+      within(dialog).getByLabelText(de.admin.taskDefinitions.workerCountMode),
+      'AT_LEAST',
+    );
+    const countInput = within(dialog).getByLabelText(de.admin.taskDefinitions.workerCount);
+    await user.clear(countInput);
+    await user.type(countInput, '2');
+
+    await user.click(
+      within(dialog).getByRole('button', { name: de.admin.taskDefinitions.create }),
+    );
+
+    expect(await screen.findByText('Keller aufräumen')).toBeInTheDocument();
+    expect(capturedBody).toEqual(
+      expect.objectContaining({ workerCountMode: 'AT_LEAST', workerCount: 2 }),
+    );
   });
 
   it('zeigt die HAS_OPEN_INSTANCES-Meldung, wenn eine Aufgabe mit offenen Instanzen archiviert werden soll', async () => {
@@ -259,8 +319,11 @@ describe('TaskDefinitionsSection', () => {
           status: 'ASSIGNED',
           currentValue: 9,
           dueAt: null,
+          workerCountMode: 'EXACTLY',
+          workerCount: 1,
+          activeSlotCount: 1,
           assignments: [
-            { id: 'asg-1', kind: 'RANDOM', member: { id: 'mem-1', displayName: 'Anna' } },
+            { id: 'asg-1', kind: 'RANDOM', slotIndex: 0, member: { id: 'mem-1', displayName: 'Anna' } },
           ],
         },
         {
@@ -268,6 +331,9 @@ describe('TaskDefinitionsSection', () => {
           status: 'AVAILABLE',
           currentValue: 6,
           dueAt: null,
+          workerCountMode: 'EXACTLY',
+          workerCount: 1,
+          activeSlotCount: 0,
           assignments: [],
         },
       ],
@@ -308,5 +374,66 @@ describe('TaskDefinitionsSection', () => {
     expect(
       within(dialog).getByText(de.admin.taskDefinitions.instances.unassigned),
     ).toBeInTheDocument();
+  });
+
+  it('zeigt "N/M besetzt" und alle Zuweisungen für eine Multi-Worker-Instanz, aber nicht für EXACTLY(1)', async () => {
+    const user = userEvent.setup();
+    const definition = definitionFixture({ workerCountMode: 'AT_LEAST', workerCount: 2 });
+    const detail: AdminTaskDefinitionDetailDto = {
+      ...definition,
+      instances: [
+        {
+          id: 'inst-1',
+          status: 'ASSIGNED',
+          currentValue: 9,
+          dueAt: null,
+          workerCountMode: 'AT_LEAST',
+          workerCount: 2,
+          activeSlotCount: 1,
+          assignments: [
+            { id: 'asg-1', kind: 'RANDOM', slotIndex: 0, member: { id: 'mem-1', displayName: 'Anna' } },
+          ],
+        },
+        {
+          id: 'inst-2',
+          status: 'AVAILABLE',
+          currentValue: 6,
+          dueAt: null,
+          workerCountMode: 'EXACTLY',
+          workerCount: 1,
+          activeSlotCount: 0,
+          assignments: [],
+        },
+      ],
+      marketValue: { averageVoluntaryTakeoverValue: null, sampleSize: 0 },
+    };
+
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string }) => {
+      const method = options?.method ?? 'GET';
+      if (path === '/admin/task-definitions' && method === 'GET') {
+        return { items: [definition] };
+      }
+      if (path === '/admin/categories') return { items: [] };
+      if (path === '/admin/members') return { items: [] };
+      if (path === '/auth/me') return sessionFixture;
+      if (path === `/admin/task-definitions/${definition.id}` && method === 'GET') {
+        return detail;
+      }
+      throw new Error(`unerwarteter Aufruf: ${path} ${method}`);
+    });
+
+    renderSection();
+
+    expect(await screen.findByText('Bad putzen')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: de.admin.taskDefinitions.edit }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByText(
+        interpolate(de.task.slotsOccupied, { occupied: 1, total: 2 }),
+      ),
+    ).toBeInTheDocument();
+    // inst-2 is EXACTLY(1) — unchanged rendering, no occupancy text for it.
+    expect(within(dialog).getAllByText(new RegExp(`^${1}/${2} besetzt$`))).toHaveLength(1);
   });
 });

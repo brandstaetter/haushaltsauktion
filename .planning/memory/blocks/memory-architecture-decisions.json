@@ -1,0 +1,16 @@
+{
+  "id": "memory-architecture-decisions",
+  "type": "architecture-decisions",
+  "scope": [
+    "architecture",
+    "codex",
+    "fleet",
+    "worktree",
+    "telemetry"
+  ],
+  "owner": "citadel",
+  "confidence": "high",
+  "last_verified": "2026-09-04",
+  "sources": [],
+  "body": "- Citadel owns durable campaign memory, discovery relay, scope claims, policy, and evidence even when Codex supplies native execution primitives.\n- Fleet work is dependency-aware: ready work, blocked work, readiness-blocked work, and merge-order blockers are separate operator states.\n- Telemetry and artifact records now carry lineage IDs plus `_hash`; optional HMAC signing upgrades integrity without breaking old legacy records."
+}

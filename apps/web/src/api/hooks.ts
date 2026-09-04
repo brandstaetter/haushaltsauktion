@@ -341,16 +341,19 @@ export function useRejectCompletion() {
   return useMutation({
     mutationFn: ({
       instanceId,
+      assignmentId,
       reason,
       outcome,
     }: {
       instanceId: string;
+      /** Required once an instance can have more than one COMPLETED slot (multi-worker tasks) — omit only when there is exactly one. */
+      assignmentId?: string;
       reason: string | null;
       outcome: RejectCompletionOutcome;
     }) =>
       api<RejectCompletionResultDto>(`/admin/instances/${instanceId}/reject-completion`, {
         method: 'POST',
-        body: { reason, outcome },
+        body: { assignmentId, reason, outcome },
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: dashboardQueryKey });
@@ -365,10 +368,23 @@ export function useRejectCompletion() {
 export function useRevokeAssignment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ instanceId, reason }: { instanceId: string; reason: string | null }) =>
+    mutationFn: ({
+      instanceId,
+      reason,
+      assignmentId,
+    }: {
+      instanceId: string;
+      reason: string | null;
+      /**
+       * Multi-worker-tasks: required whenever the instance has more than one
+       * currently active slot, so the backend can target the specific
+       * co-assignee's row instead of rejecting with `AMBIGUOUS_ASSIGNMENT`.
+       */
+      assignmentId?: string;
+    }) =>
       api<RevokeAssignmentResultDto>(`/admin/instances/${instanceId}/revoke-assignment`, {
         method: 'POST',
-        body: { reason },
+        body: { reason, ...(assignmentId ? { assignmentId } : {}) },
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: dashboardQueryKey });

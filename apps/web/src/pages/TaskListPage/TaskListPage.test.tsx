@@ -45,6 +45,9 @@ function availableTaskFixture(overrides: Partial<AvailableTaskDto> = {}): Availa
     canVolunteer: true,
     ineligibleReason: null,
     potentialReward: 6,
+    workerCountMode: 'EXACTLY',
+    workerCount: 1,
+    activeSlotCount: 0,
     ...overrides,
   };
 }
@@ -53,6 +56,7 @@ function householdTaskFixture(overrides: Partial<HouseholdTaskDto> = {}): Househ
   return {
     ...availableTaskFixture(),
     assignee: null,
+    assignees: [],
     ...overrides,
   };
 }

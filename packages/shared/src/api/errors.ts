@@ -37,6 +37,14 @@ export const ErrorCode = Object.freeze({
   CONFIG_VERSION_CONFLICT: 'CONFIG_VERSION_CONFLICT',
   HAS_OPEN_INSTANCES: 'HAS_OPEN_INSTANCES',
   CATEGORY_IN_USE: 'CATEGORY_IN_USE',
+  /**
+   * Multi-worker-tasks: an admin instance-level action (revoke-assignment,
+   * complete, reject-completion) found more than one candidate assignment
+   * row (e.g. two co-assignees on an `AT_LEAST(2)` instance) and no
+   * `assignmentId` was given to disambiguate. `EXACTLY(1)` never produces
+   * this — at most one candidate ever exists there.
+   */
+  AMBIGUOUS_ASSIGNMENT: 'AMBIGUOUS_ASSIGNMENT',
   EMAIL_ALREADY_REGISTERED: 'EMAIL_ALREADY_REGISTERED',
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   CONFIG_INVALID: 'CONFIG_INVALID',
@@ -91,6 +99,7 @@ export interface ErrorDetailsByCode {
   CONFIG_VERSION_CONFLICT: { currentVersion: number };
   HAS_OPEN_INSTANCES: { count: number };
   CATEGORY_IN_USE: { count: number };
+  AMBIGUOUS_ASSIGNMENT: { candidateCount: number };
   EMAIL_ALREADY_REGISTERED: Record<string, never>;
   VALIDATION_FAILED: { fieldErrors: FieldError[] };
   CONFIG_INVALID: { fieldErrors: FieldError[]; formulaErrors: FieldError[] };

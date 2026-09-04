@@ -12,17 +12,31 @@
  * turn "volunteer, then release" into a way to farm points. The reversal is a
  * `CORRECTION` ledger row (PRD §3C), never a deletion — §14 forbids making
  * points disappear without a trace.
+ *
+ * Multi-worker-tasks (.planning/campaigns/multi-worker-tasks.md, corrective
+ * fix): mirrors `executeBuyout.ts`'s per-slot gating exactly. Closing this one
+ * slot always happens; whether the *instance* also drops back to `AVAILABLE`
+ * with a fresh offer window depends on whether the release pushes
+ * `activeSlotCount` below `minRequired` — see that file's docstring for the
+ * two-branch reasoning. `EXACTLY(1)` can never reach the still-staffed branch
+ * (`min === max === 1`), so this is a pure generalization, not a parallel path.
  */
 
 import { RewardTiming } from '@haushaltsauktion/shared';
 
 import { ConflictError, ForbiddenError, NotFoundError } from '../../domain/errors.js';
 import { resolve, TaskEvent } from '../../domain/task/state-machine.js';
+import { minRequired } from '../../domain/task/worker-slots.js';
 import { ConfigDecision, configFor } from '../config/load.js';
 import type { Deps } from '../deps.js';
 import { writeAudit, writeHistory } from '../events.js';
 import { clawback } from '../points/clawback.js';
-import { lockAssignment, lockInstance, withTransaction } from '../tx.js';
+import {
+  lockActiveAssignmentsOfInstance,
+  lockAssignment,
+  lockInstance,
+  withTransaction,
+} from '../tx.js';
 
 export interface ReleaseInput {
   householdId: string;
@@ -56,16 +70,29 @@ export async function releaseOrRevokeAssignment(
 
     await deps.hooks?.afterLock?.();
 
-    if (instance.status !== 'ASSIGNED') {
+    // Multi-worker-tasks corrective fix (found via the Phase 5 live UI smoke
+    // check, not by any automated test — see the campaign's Decision Log):
+    // `AVAILABLE` is a legitimate state to hold an ACTIVE slot in once a task
+    // can recruit more than one worker. An `AT_LEAST`/`AT_MOST(n>1)` instance
+    // with a single early volunteer stays `AVAILABLE` (still recruiting,
+    // `activeSlotCount < minRequired` — see volunteerForTask.ts) until enough
+    // people join. Gating this call on `status === 'ASSIGNED'` trapped that
+    // volunteer: they could never back out of their own free slot while the
+    // instance was still recruiting, even though releasing is supposed to be
+    // free and unconditional (§3B). `EXACTLY(1)`/`AT_MOST(1)` can never reach
+    // `AVAILABLE` with an active slot — the first join always meets `min`
+    // immediately (volunteerForTask.ts) — so this is a pure generalization.
+    if (instance.status !== 'ASSIGNED' && instance.status !== 'AVAILABLE') {
       throw new ConflictError('ILLEGAL_TRANSITION', 'Die Aufgabe ist nicht zugewiesen.', {
         from: instance.status,
         event: input.mode === 'RELEASE' ? TaskEvent.RELEASE : TaskEvent.REVOKE,
       });
     }
-    resolve(
-      instance.status as never,
-      input.mode === 'RELEASE' ? TaskEvent.RELEASE : TaskEvent.REVOKE,
-    );
+    // The legality pre-check this used to do unconditionally is now folded
+    // into the branch below that actually decides the resulting status: it is
+    // only meaningful — and only ever called — when `instance.status` is
+    // `ASSIGNED`, the one case where releasing might trigger a real
+    // state-machine transition.
 
     // ── level 2 ─────────────────────────────────────────────────────────
     const assignment = await lockAssignment(tx, input.householdId, input.assignmentId);
@@ -77,6 +104,14 @@ export async function releaseOrRevokeAssignment(
         currentStatus: assignment.status,
       });
     }
+
+    // Every other currently active slot on this instance (level 2, same as
+    // the specific-assignment lock just taken above — not a lock-order
+    // violation). Includes `assignment` itself, since it is still ACTIVE.
+    const allActive = await lockActiveAssignmentsOfInstance(tx, input.householdId, instance.id);
+    const min = minRequired(instance.workerCountMode as never, instance.workerCount);
+    const remainingAfterRelease = allActive.length - 1;
+    const staysStaffed = remainingAfterRelease >= min;
 
     const pinned = await configFor(tx, input.householdId, ConfigDecision.CLAWBACK, {
       assignmentConfigVersion: assignment.configVersion,
@@ -107,6 +142,15 @@ export async function releaseOrRevokeAssignment(
         status: input.mode === 'RELEASE' ? 'RELEASED' : 'REVOKED',
         closedAt: now,
         activeForInstanceId: null,
+        // Multi-worker-tasks Phase 2: `activeSlotKey` (added in Phase 1) has
+        // no writer yet in this file. Left set, a later volunteer for the
+        // same slot on this instance (`volunteerForTask.ts`, which now sets
+        // this column) would collide with this closed row's stale key under
+        // the `@unique` constraint — a real regression this fix prevents,
+        // not a cosmetic one. `activeSlotCount` on `TaskInstance` (the
+        // denormalized cache, not this assignment row) is brought back in
+        // sync below, once `remainingAfterRelease` is known.
+        activeSlotKey: null,
       },
     });
     if (closed.count === 0) {
@@ -130,24 +174,89 @@ export async function releaseOrRevokeAssignment(
           })
         : null;
 
-    const offerExpires = new Date(
-      now.getTime() + pinned.config.assignment.offerDurationMinutes * 60_000,
-    );
-    const reopened = await tx.taskInstance.updateMany({
-      where: {
-        id: instance.id,
-        householdId: input.householdId,
-        status: 'ASSIGNED',
-        version: instance.version,
-      },
-      // No value change on either path (PRD §3B): only a buyout raises a value.
-      data: { status: 'AVAILABLE', offerExpiresAt: offerExpires, version: { increment: 1 } },
-    });
-    if (reopened.count === 0) {
-      throw new ConflictError('TASK_NOT_AVAILABLE', 'Die Aufgabe hat sich zwischenzeitlich geändert.', {
-        currentStatus: instance.status,
-        heldBy: null,
+    // §10 — the new offer cycle, only when the release actually leaves the
+    // instance under-staffed. Still-staffed multi-slot instances keep their
+    // existing offer window: nothing was "re-offered", the freed slot is
+    // simply open again (`activeSlotCount < max`, checked independently of
+    // `status` by `volunteerForTask`/`runAssignmentSweep`). No value change
+    // on either path (PRD §3B): only a buyout raises a value.
+    let offerExpires: Date | null = null;
+    if (staysStaffed) {
+      const reopened = await tx.taskInstance.updateMany({
+        where: {
+          id: instance.id,
+          householdId: input.householdId,
+          status: 'ASSIGNED',
+          version: instance.version,
+        },
+        data: {
+          activeSlotCount: remainingAfterRelease,
+          version: { increment: 1 },
+        },
       });
+      if (reopened.count === 0) {
+        throw new ConflictError(
+          'TASK_NOT_AVAILABLE',
+          'Die Aufgabe hat sich zwischenzeitlich geändert.',
+          { currentStatus: instance.status, heldBy: null },
+        );
+      }
+    } else if (instance.status === 'ASSIGNED') {
+      offerExpires = new Date(
+        now.getTime() + pinned.config.assignment.offerDurationMinutes * 60_000,
+      );
+      const reopened = await tx.taskInstance.updateMany({
+        where: {
+          id: instance.id,
+          householdId: input.householdId,
+          status: 'ASSIGNED',
+          version: instance.version,
+        },
+        data: {
+          status: resolve(
+            instance.status as never,
+            input.mode === 'RELEASE' ? TaskEvent.RELEASE : TaskEvent.REVOKE,
+          ) as never,
+          activeSlotCount: remainingAfterRelease,
+          offerExpiresAt: offerExpires,
+          version: { increment: 1 },
+        },
+      });
+      if (reopened.count === 0) {
+        throw new ConflictError(
+          'TASK_NOT_AVAILABLE',
+          'Die Aufgabe hat sich zwischenzeitlich geändert.',
+          { currentStatus: instance.status, heldBy: null },
+        );
+      }
+    } else {
+      // `instance.status === 'AVAILABLE'` (the only other option the guard
+      // above admits): an AT_LEAST/AT_MOST(n>1) instance that never reached
+      // `minRequired` yet. Closing this slot keeps it AVAILABLE — there is no
+      // state-machine transition to make (AVAILABLE has no RELEASE/REVOKE
+      // transition defined, and none is needed: it never stopped recruiting).
+      // Nothing was "re-offered" either, for the same reason `executeBuyout`'s
+      // still-staffed branch skips that event — the offer window this
+      // instance was published with is untouched.
+      const reopened = await tx.taskInstance.updateMany({
+        where: {
+          id: instance.id,
+          householdId: input.householdId,
+          status: 'AVAILABLE',
+          version: instance.version,
+        },
+        data: {
+          activeSlotCount: remainingAfterRelease,
+          version: { increment: 1 },
+        },
+      });
+      if (reopened.count === 0) {
+        throw new ConflictError(
+          'TASK_NOT_AVAILABLE',
+          'Die Aufgabe hat sich zwischenzeitlich geändert.',
+          { currentStatus: instance.status, heldBy: null },
+        );
+      }
     }
 
     const member = await tx.householdMember.findFirst({
@@ -184,12 +293,16 @@ export async function releaseOrRevokeAssignment(
             },
           ]
         : []),
-      {
-        householdId: input.householdId,
-        taskInstanceId: instance.id,
-        type: 'RE_OFFERED',
-        payload: { value: instance.currentValue, offerExpiresAt: offerExpires.toISOString() },
-      },
+      ...(offerExpires !== null
+        ? [
+            {
+              householdId: input.householdId,
+              taskInstanceId: instance.id,
+              type: 'RE_OFFERED',
+              payload: { value: instance.currentValue, offerExpiresAt: offerExpires.toISOString() },
+            },
+          ]
+        : []),
     ]);
 
     if (input.mode === 'REVOKE') {
@@ -206,7 +319,7 @@ export async function releaseOrRevokeAssignment(
 
     return {
       instanceId: instance.id,
-      status: 'AVAILABLE',
+      status: staysStaffed ? 'ASSIGNED' : 'AVAILABLE',
       currentValue: instance.currentValue,
       clawedBack: reversed?.reward?.amount ?? 0,
     };

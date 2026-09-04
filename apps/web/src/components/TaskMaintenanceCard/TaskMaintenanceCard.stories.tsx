@@ -14,6 +14,8 @@ function makeDefinition(overrides: Partial<AdminTaskDefinitionDto> = {}): AdminT
     estimatedMinutes: 30,
     isActive: true,
     buyoutEnabled: true,
+    workerCountMode: 'EXACTLY',
+    workerCount: 1,
     recurrenceType: RecurrenceType.WEEKLY,
     recurrenceInterval: null,
     recurrenceWeekdays: [6],
@@ -102,6 +104,17 @@ export const DailyNoBuyout: Story = {
       buyoutEnabled: false,
       recurrenceType: RecurrenceType.DAILY,
       recurrenceWeekdays: [],
+    }),
+  },
+};
+
+/** Multi-worker-tasks (Phase 4): a task wanting at least 2 helpers at once. */
+export const MultiWorker: Story = {
+  args: {
+    definition: makeDefinition({
+      title: 'Keller aufräumen',
+      workerCountMode: 'AT_LEAST',
+      workerCount: 2,
     }),
   },
 };

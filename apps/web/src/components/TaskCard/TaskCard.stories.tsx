@@ -21,6 +21,9 @@ function makeTask(overrides: Partial<AvailableTaskDto> = {}): AvailableTaskDto {
     canVolunteer: true,
     ineligibleReason: null,
     potentialReward: 6,
+    workerCountMode: 'EXACTLY',
+    workerCount: 1,
+    activeSlotCount: 0,
     ...overrides,
   };
 }

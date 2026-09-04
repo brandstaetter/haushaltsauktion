@@ -18,6 +18,22 @@
  *
  * Locks 1 → 2 → 3, the same order as the buyout, so the two cannot deadlock.
  * Level 3 is only entered when there is actually something to credit.
+ *
+ * Multi-worker-tasks Phase 2 (.planning/architecture-multi-worker-tasks.md,
+ * "Per-slot completion vs. instance-level completion"): every slot that
+ * completes pays its own assignee (full value for `VOLUNTARY`, 0 for
+ * `RANDOM` — unchanged, already per-assignment) and closes its own
+ * `TaskAssignment` row unconditionally. The **instance-level** effects —
+ * `TaskInstance.status → COMPLETED`, the value reset, the recurrence's
+ * `nextDueAt` advance, and the household-wide `TASK_COMPLETED` notification —
+ * only fire when this is the *last* active slot (`slotsRemainingAfter === 0`),
+ * computed from a live lock of every currently-ACTIVE assignment on the
+ * instance (`lockActiveAssignmentsOfInstance`), not from the
+ * `TaskInstance.activeSlotCount` cache — see `volunteerForTask.ts`'s
+ * docstring for why that cache is not trusted for gating decisions this
+ * phase. For `EXACTLY(1)` there is always exactly one slot, so
+ * `slotsRemainingAfter` is always `0` and every branch below degenerates to
+ * exactly today's unconditional behavior.
  */
 
 import type { CompletionResultDto } from '@haushaltsauktion/shared';
@@ -27,14 +43,20 @@ import { ConflictError, ForbiddenError, NotFoundError } from '../../domain/error
 import { applyRewardMultiplier } from '../../domain/effects/multiplier.js';
 import { nextOccurrence } from '../../domain/recurrence/next-occurrence.js';
 import { resolve, TaskEvent } from '../../domain/task/state-machine.js';
-import { carriedValueAfterCompletion, resetValue, voluntaryReward } from '../../domain/task/value.js';
 import { applyCompletionToStreak } from '../../domain/streak/streak.js';
+import { carriedValueAfterCompletion, resetValue, voluntaryReward } from '../../domain/task/value.js';
 import { ConfigDecision, configFor } from '../config/load.js';
 import type { Deps } from '../deps.js';
 import { writeAudit, writeHistory } from '../events.js';
 import { postTransaction } from '../points/postTransaction.js';
 import { buildInstanceDetail, findInstance } from '../queries/taskDto.js';
-import { lockAssignment, lockInstance, lockMember, withTransaction } from '../tx.js';
+import {
+  lockActiveAssignmentsOfInstance,
+  lockAssignment,
+  lockInstance,
+  lockMember,
+  withTransaction,
+} from '../tx.js';
 
 export interface CompleteInput {
   householdId: string;
@@ -71,7 +93,6 @@ export async function completeTask(
         event: TaskEvent.COMPLETE,
       });
     }
-    resolve(instance.status as never, TaskEvent.COMPLETE);
 
     // ── level 2 ─────────────────────────────────────────────────────────
     const assignment = await lockAssignment(tx, input.householdId, input.assignmentId);
@@ -86,6 +107,12 @@ export async function completeTask(
     if (assignment.memberId !== input.actorMemberId && !input.actorIsAdmin) {
       throw new ForbiddenError('NOT_ASSIGNEE', 'Diese Zuweisung gehört dir nicht.');
     }
+
+    // Every currently active slot on this instance, `assignment` included —
+    // it is still ACTIVE at this point. Same level as `lockAssignment` above.
+    const allActive = await lockActiveAssignmentsOfInstance(tx, input.householdId, instance.id);
+    const slotsRemainingAfter = allActive.length - 1;
+    const isLastSlot = slotsRemainingAfter <= 0;
 
     const definition = await tx.taskDefinition.findFirst({
       where: { id: instance.taskDefinitionId, householdId: input.householdId },
@@ -115,7 +142,10 @@ export async function completeTask(
       instanceConfigVersion: instance.configVersion,
     });
 
-    // §7 / §44 — exactly 0 for RANDOM, whatever the configuration says.
+    // §7 / §44 — exactly 0 for RANDOM, whatever the configuration says. Per
+    // slot, unconditionally — a slot completing with others still open still
+    // pays its own assignee in full (multi-worker-tasks architecture,
+    // "Per-slot completion").
     const award = voluntaryReward(pinned.config, {
       kind: assignment.kind as never,
       currentValue: instance.currentValue,
@@ -183,6 +213,7 @@ export async function completeTask(
         completedAt: now,
         closedAt: now,
         activeForInstanceId: null,
+        activeSlotKey: null,
       },
     });
     if (closed.count === 0) {
@@ -262,57 +293,84 @@ export async function completeTask(
       });
     }
 
-    // §11 — the reset. Default `BASE_VALUE`, which is what makes the escalation
-    // a property of one occurrence rather than a ratchet on the chore itself.
-    const resetTo = resetValue(pinned.config, {
-      currentValue: instance.currentValue,
-      baseValue: instance.baseValue,
-    });
-    const carried = carriedValueAfterCompletion(pinned.config, {
-      currentValue: instance.currentValue,
-      baseValue: instance.baseValue,
-    });
-
-    const updated = await tx.taskInstance.updateMany({
-      where: {
-        id: instance.id,
-        householdId: input.householdId,
-        status: 'ASSIGNED',
-        version: instance.version,
-      },
-      data: {
-        status: 'COMPLETED',
-        completedAt: now,
-        closedAt: now,
-        completedByMemberId: assignment.memberId,
-        currentValue: resetTo,
-        version: { increment: 1 },
-      },
-    });
-    if (updated.count === 0) {
-      throw new ConflictError('TASK_NOT_AVAILABLE', 'Die Aufgabe hat sich zwischenzeitlich geändert.', {
-        currentStatus: instance.status,
-        heldBy: null,
+    // §11 — the reset, and every other instance-level effect, gated on this
+    // being the LAST active slot (multi-worker-tasks architecture, "Per-slot
+    // completion vs. instance-level completion"). For EXACTLY(1),
+    // `isLastSlot` is always true, so this always runs — exactly today.
+    let resetTo = instance.currentValue;
+    if (isLastSlot) {
+      resetTo = resetValue(pinned.config, {
+        currentValue: instance.currentValue,
+        baseValue: instance.baseValue,
       });
+      const carried = carriedValueAfterCompletion(pinned.config, {
+        currentValue: instance.currentValue,
+        baseValue: instance.baseValue,
+      });
+
+      const updated = await tx.taskInstance.updateMany({
+        where: {
+          id: instance.id,
+          householdId: input.householdId,
+          status: 'ASSIGNED',
+          version: instance.version,
+        },
+        data: {
+          status: resolve(instance.status as never, TaskEvent.COMPLETE) as never,
+          completedAt: now,
+          closedAt: now,
+          completedByMemberId: assignment.memberId,
+          currentValue: resetTo,
+          activeSlotCount: 0,
+          version: { increment: 1 },
+        },
+      });
+      if (updated.count === 0) {
+        throw new ConflictError('TASK_NOT_AVAILABLE', 'Die Aufgabe hat sich zwischenzeitlich geändert.', {
+          currentStatus: instance.status,
+          heldBy: null,
+        });
+      }
+
+      const nextDue = nextOccurrence(
+        {
+          type: definition.recurrenceType,
+          interval: definition.recurrenceInterval,
+          weekdays: definition.recurrenceWeekdays,
+          dayOfMonth: definition.recurrenceDayOfMonth,
+          timeOfDay: definition.recurrenceTimeOfDay,
+          dueOffsetMinutes: definition.dueOffsetMinutes,
+        },
+        now,
+        input.timezone,
+      );
+
+      await tx.taskDefinition.updateMany({
+        where: { id: definition.id, householdId: input.householdId },
+        data: { lastCompletedAt: now, nextDueAt: nextDue, carriedValue: carried },
+      });
+    } else {
+      // More slots remain open. The instance stays ASSIGNED — only the
+      // denormalized slot-count cache moves.
+      const updated = await tx.taskInstance.updateMany({
+        where: {
+          id: instance.id,
+          householdId: input.householdId,
+          status: 'ASSIGNED',
+          version: instance.version,
+        },
+        data: {
+          activeSlotCount: slotsRemainingAfter,
+          version: { increment: 1 },
+        },
+      });
+      if (updated.count === 0) {
+        throw new ConflictError('TASK_NOT_AVAILABLE', 'Die Aufgabe hat sich zwischenzeitlich geändert.', {
+          currentStatus: instance.status,
+          heldBy: null,
+        });
+      }
     }
-
-    const nextDue = nextOccurrence(
-      {
-        type: definition.recurrenceType,
-        interval: definition.recurrenceInterval,
-        weekdays: definition.recurrenceWeekdays,
-        dayOfMonth: definition.recurrenceDayOfMonth,
-        timeOfDay: definition.recurrenceTimeOfDay,
-        dueOffsetMinutes: definition.dueOffsetMinutes,
-      },
-      now,
-      input.timezone,
-    );
-
-    await tx.taskDefinition.updateMany({
-      where: { id: definition.id, householdId: input.householdId },
-      data: { lastCompletedAt: now, nextDueAt: nextDue, carriedValue: carried },
-    });
 
     await writeHistory(tx, [
       {
@@ -325,6 +383,7 @@ export async function completeTask(
           memberId: assignment.memberId,
           memberName: assignee.displayName,
           kind: assignment.kind,
+          slotsRemainingAfter,
         },
       },
       ...(transaction
@@ -360,16 +419,20 @@ export async function completeTask(
             },
           ]
         : []),
-      {
-        householdId: input.householdId,
-        taskInstanceId: instance.id,
-        type: 'VALUE_RESET',
-        payload: {
-          from: instance.currentValue,
-          to: resetTo,
-          strategy: pinned.config.completion.resetStrategy,
-        },
-      },
+      ...(isLastSlot
+        ? [
+            {
+              householdId: input.householdId,
+              taskInstanceId: instance.id,
+              type: 'VALUE_RESET',
+              payload: {
+                from: instance.currentValue,
+                to: resetTo,
+                strategy: pinned.config.completion.resetStrategy,
+              },
+            },
+          ]
+        : []),
     ]);
 
     await writeAudit(tx, {
@@ -388,23 +451,26 @@ export async function completeTask(
         valueResetFrom: instance.currentValue,
         valueResetTo: resetTo,
         configVersion: pinned.version,
+        slotsRemainingAfter,
       },
     });
 
-    const household = await tx.householdMember.findMany({
-      where: { householdId: input.householdId, isActive: true },
-      select: { id: true },
-    });
-    await deps.notifier.emit(
-      tx,
-      household.map((m) => ({
-        householdId: input.householdId,
-        memberId: m.id,
-        type: 'TASK_COMPLETED',
-        payload: { taskInstanceId: instance.id, by: assignee.displayName },
-        taskInstanceId: instance.id,
-      })),
-    );
+    if (isLastSlot) {
+      const household = await tx.householdMember.findMany({
+        where: { householdId: input.householdId, isActive: true },
+        select: { id: true },
+      });
+      await deps.notifier.emit(
+        tx,
+        household.map((m) => ({
+          householdId: input.householdId,
+          memberId: m.id,
+          type: 'TASK_COMPLETED',
+          payload: { taskInstanceId: instance.id, by: assignee.displayName },
+          taskInstanceId: instance.id,
+        })),
+      );
+    }
 
     const reloaded = await findInstance(tx, input.householdId, instance.id);
     if (reloaded === null) throw new NotFoundError('Aufgabe nicht gefunden.');

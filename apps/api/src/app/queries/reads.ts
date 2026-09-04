@@ -369,6 +369,14 @@ export interface DashboardDto {
       pointsAwarded: number;
       /** An admin judged this completion unsatisfactory (§32-adjacent moderation). */
       rejected: boolean;
+      /**
+       * Every currently-COMPLETED slot on this instance, so an admin can
+       * target a specific one when rejecting (required once more than one
+       * exists — `POST /admin/instances/:id/reject-completion` disambiguates
+       * by `assignmentId`, Multi-worker-tasks Phase 5). Exactly one entry for
+       * every pre-existing single-worker task.
+       */
+      completions: Array<{ assignmentId: string; memberId: string; memberName: string }>;
     }>;
   };
 }
@@ -422,20 +430,35 @@ export async function loadDashboard(
         completedByMemberId: true,
         definition: { select: { title: true } },
         completedBy: { select: { displayName: true } },
-        // At most one assignment per instance ever reaches COMPLETED or
-        // REJECTED — the state machine is terminal, so completion happens
-        // once (§2.1).
+        // Every REJECTED or COMPLETED slot on this instance, unfiltered by
+        // `take` — needed both for the existence-only "was any slot ever
+        // rejected" check and to let an admin
+        // target a *specific* COMPLETED slot's `assignmentId` when rejecting
+        // a multi-worker instance's completion, since
+        // `POST /admin/instances/:id/reject-completion` now returns
+        // `409 AMBIGUOUS_ASSIGNMENT` without one once more than one COMPLETED
+        // assignment exists (Multi-worker-tasks Phase 5 fix). Capped at 20 —
+        // the admin-configured ceiling on `workerCount` (admin.ts) — so this
+        // can never silently drop a slot the way a `take: 1` would.
         assignments: {
-          where: { status: { in: ['COMPLETED', 'REJECTED'] } },
-          select: { status: true },
-          take: 1,
+          where: { status: { in: ['REJECTED', 'COMPLETED'] } },
+          select: {
+            id: true,
+            status: true,
+            memberId: true,
+            member: { select: { displayName: true } },
+          },
+          take: 20,
         },
-        // At most one reward per instance for the same reason — 0 for a
-        // RANDOM completion, which never earns one (§7, §44).
+        // Sum, not `take: 1` (Multi-worker-tasks Phase 3): a multi-slot
+        // instance can have one VOLUNTARY_TASK_REWARD per voluntary
+        // slot-holder (§2/PRD "full value per voluntary completer", not
+        // divided) — `take: 1` would silently drop every reward but the
+        // first. RANDOM completions never earn one (§7, §44), so this is
+        // still 0 for a fully-random instance.
         transactions: {
           where: { type: 'VOLUNTARY_TASK_REWARD' },
           select: { amount: true },
-          take: 1,
         },
       },
     }),
@@ -471,8 +494,18 @@ export async function loadDashboard(
         completedBy: c.completedBy?.displayName ?? null,
         completedByMemberId: c.completedByMemberId,
         value: c.currentValue,
-        pointsAwarded: c.transactions[0]?.amount ?? 0,
-        rejected: c.assignments[0]?.status === 'REJECTED',
+        // Sum across every slot's voluntary reward (Multi-worker-tasks Phase
+        // 3) — for a single-slot instance this is exactly the one reward, as
+        // before.
+        pointsAwarded: c.transactions.reduce((sum, t) => sum + t.amount, 0),
+        rejected: c.assignments.some((a) => a.status === 'REJECTED'),
+        completions: c.assignments
+          .filter((a) => a.status === 'COMPLETED')
+          .map((a) => ({
+            assignmentId: a.id,
+            memberId: a.memberId,
+            memberName: a.member.displayName,
+          })),
       })),
     },
   };

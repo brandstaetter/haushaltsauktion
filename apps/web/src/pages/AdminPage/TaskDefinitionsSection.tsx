@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Plus } from 'lucide-react';
-import { RecurrenceType } from '@haushaltsauktion/shared';
+import { RecurrenceType, WorkerCountMode } from '@haushaltsauktion/shared';
 import {
   useAdminCategories,
   useAdminMembers,
@@ -61,6 +61,9 @@ interface TaskDefinitionDraft {
   estimatedMinutes: number | null;
   buyoutEnabled: boolean;
   isActive: boolean;
+  /** Multi-worker-tasks (Phase 4). */
+  workerCountMode: WorkerCountMode;
+  workerCount: number;
   recurrence: {
     type: RecurrenceType;
     interval: number | null;
@@ -80,6 +83,9 @@ function emptyDraft(): TaskDefinitionDraft {
     estimatedMinutes: null,
     buyoutEnabled: true,
     isActive: true,
+    // Parity with today's implicit single-worker behavior (§ Phase 4 default).
+    workerCountMode: WorkerCountMode.EXACTLY,
+    workerCount: 1,
     recurrence: {
       type: RecurrenceType.WEEKLY,
       interval: null,
@@ -100,6 +106,8 @@ function draftFromDefinition(def: AdminTaskDefinitionDto): TaskDefinitionDraft {
     estimatedMinutes: def.estimatedMinutes,
     buyoutEnabled: def.buyoutEnabled,
     isActive: def.isActive,
+    workerCountMode: def.workerCountMode,
+    workerCount: def.workerCount,
     recurrence: {
       type: def.recurrenceType,
       interval: def.recurrenceInterval,
@@ -119,6 +127,8 @@ function toWriteBody(draft: TaskDefinitionDraft): {
   estimatedMinutes: number | null;
   buyoutEnabled: boolean;
   isActive: boolean;
+  workerCountMode: WorkerCountMode;
+  workerCount: number;
   recurrence: RecurrenceDto;
 } {
   const type = draft.recurrence.type;
@@ -130,6 +140,10 @@ function toWriteBody(draft: TaskDefinitionDraft): {
     estimatedMinutes: draft.estimatedMinutes,
     buyoutEnabled: draft.buyoutEnabled,
     isActive: draft.isActive,
+    // Client-side floor, mirroring the server's `.min(1)` (§ Phase 4 task):
+    // don't let the admin submit an invalid count in the first place.
+    workerCountMode: draft.workerCountMode,
+    workerCount: Math.max(1, draft.workerCount),
     recurrence: {
       type,
       interval: type === 'EVERY_N_DAYS' ? draft.recurrence.interval : null,
@@ -270,12 +284,17 @@ function LiveInstancesList({ definitionId }: { definitionId: string }) {
   const instances = data?.instances ?? [];
 
   const assigneeLabel = (instance: AdminTaskInstanceRowDto): string => {
-    const assignment = instance.assignments[0];
-    if (!assignment) return t.unassigned;
-    return interpolate(t.assignedTo, {
-      name: assignment.member.displayName,
-      kind: t.kindLabels[assignment.kind],
-    });
+    if (instance.assignments.length === 0) return t.unassigned;
+    // Multi-worker-tasks (Phase 4): join every active slot's holder — for an
+    // `EXACTLY(1)` instance this is exactly the previous single-name label.
+    return instance.assignments
+      .map((assignment) =>
+        interpolate(t.assignedTo, {
+          name: assignment.member.displayName,
+          kind: t.kindLabels[assignment.kind],
+        }),
+      )
+      .join(', ');
   };
 
   return (
@@ -292,6 +311,14 @@ function LiveInstancesList({ definitionId }: { definitionId: string }) {
               <Link to={`/aufgaben/${instance.id}`}>
                 <span>{de.task.status[instance.status]}</span>
                 <span>{formatNumber(instance.currentValue)}</span>
+                {instance.workerCount > 1 && (
+                  <span>
+                    {interpolate(de.task.slotsOccupied, {
+                      occupied: instance.activeSlotCount,
+                      total: instance.workerCount,
+                    })}
+                  </span>
+                )}
                 <span>{assigneeLabel(instance)}</span>
               </Link>
             </li>
@@ -399,6 +426,35 @@ function TaskDefinitionForm({
           valueMinutes={draft.estimatedMinutes}
           placeholder="∞"
           onChange={(minutes) => update({ estimatedMinutes: minutes })}
+        />
+      </label>
+      <label className={styles.field}>
+        <span>{de.admin.taskDefinitions.workerCountMode}</span>
+        <select
+          value={draft.workerCountMode}
+          onChange={(e) => update({ workerCountMode: e.target.value as WorkerCountMode })}
+        >
+          {Object.values(WorkerCountMode).map((mode) => (
+            <option key={mode} value={mode}>
+              {de.admin.taskDefinitions.workerCountModes[mode]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={styles.field}>
+        <span>{de.admin.taskDefinitions.workerCount}</span>
+        <input
+          type="number"
+          min={1}
+          max={20}
+          required
+          value={draft.workerCount}
+          // Same idiom as `baseValue` above: don't clamp on every keystroke
+          // (clamping to the floor while the field is transiently empty
+          // makes it un-clearable — typing a replacement digit would
+          // concatenate onto the clamped value instead of replacing it).
+          // `toWriteBody`'s `Math.max(1, ...)` is the real floor at submit.
+          onChange={(e) => update({ workerCount: parseInt(e.target.value, 10) || 0 })}
         />
       </label>
       <label className={styles.checkbox}>

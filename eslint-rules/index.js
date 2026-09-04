@@ -18,6 +18,7 @@ const LOCK_LEVELS = {
   lockInstance: 1,
   lockAssignment: 2,
   lockActiveAssignmentOfInstance: 2,
+  lockActiveAssignmentsOfInstance: 2,
   lockMember: 3,
   // Integrationen (Todoist) liegen VOLLSTÄNDIG ÜBER der Aufgaben-Leiter: kein
   // Integrationspfad nimmt je ein Lock auf Level 0-3, und keine

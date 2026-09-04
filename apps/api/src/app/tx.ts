@@ -68,6 +68,19 @@ export interface InstanceLockRow {
   dueAt: Date | null;
   offerExpiresAt: Date | null;
   publishedAt: Date | null;
+  /**
+   * Multi-worker-tasks Phase 2: copied down from `TaskDefinition` at
+   * materialization (Phase 1), read here so the use-cases can compute
+   * `minRequired`/`maxAllowed` (`domain/task/worker-slots.ts`) without a
+   * second query. `activeSlotCount` is the denormalized cache — every
+   * use-case in Phase 2 re-derives the true count from the locked `ACTIVE`
+   * rows themselves (`lockActiveAssignmentsOfInstance`) rather than trusting
+   * this column, so it is safe to read even when a not-yet-migrated writer
+   * (`reopen.ts`, `rejectCompletion.ts`) has left it stale.
+   */
+  workerCountMode: string;
+  workerCount: number;
+  activeSlotCount: number;
 }
 
 /**
@@ -94,7 +107,10 @@ export async function lockInstance(
            scheduled_for      AS "scheduledFor",
            due_at             AS "dueAt",
            offer_expires_at   AS "offerExpiresAt",
-           published_at       AS "publishedAt"
+           published_at       AS "publishedAt",
+           worker_count_mode::text AS "workerCountMode",
+           worker_count            AS "workerCount",
+           active_slot_count       AS "activeSlotCount"
       FROM task_instances
      WHERE id = ${instanceId} AND household_id = ${householdId}
        FOR UPDATE`;
@@ -115,6 +131,12 @@ export interface AssignmentLockRow {
   configVersion: number;
   /** When this assignment's completion happened, or `null` if it never did. */
   completedAt: Date | null;
+  /**
+   * Multi-worker-tasks Phase 2: which of the instance's `workerCount`-many
+   * slots this row occupies. `0` for every pre-existing row (§1.5's
+   * single-slot past).
+   */
+  slotIndex: number;
 }
 
 export async function lockAssignment(
@@ -132,7 +154,8 @@ export async function lockAssignment(
            response::text      AS "response",
            value_at_assignment AS "valueAtAssignment",
            config_version      AS "configVersion",
-           completed_at        AS "completedAt"
+           completed_at        AS "completedAt",
+           slot_index          AS "slotIndex"
       FROM task_assignments
      WHERE id = ${assignmentId} AND household_id = ${householdId}
        FOR UPDATE`;
@@ -155,13 +178,58 @@ export async function lockActiveAssignmentOfInstance(
            response::text      AS "response",
            value_at_assignment AS "valueAtAssignment",
            config_version      AS "configVersion",
-           completed_at        AS "completedAt"
+           completed_at        AS "completedAt",
+           slot_index          AS "slotIndex"
       FROM task_assignments
      WHERE household_id = ${householdId}
        AND task_instance_id = ${instanceId}
        AND status = 'ACTIVE'
        FOR UPDATE`;
   return rows[0] ?? null;
+}
+
+/**
+ * Every `ACTIVE` assignment of an instance, locked. Level 2 — same level as
+ * the singular form above, so calling both in one transaction (`completeTask`
+ * locks its one target row by id, then this, to learn how many slots remain)
+ * is not a lock-order violation.
+ *
+ * Multi-worker-tasks Phase 2 (Architektur "Slot uniqueness"): this is the
+ * generalization of `lockActiveAssignmentOfInstance` from "the one holder" to
+ * "every current slot-holder" — the source of truth `volunteerForTask`,
+ * `executeBuyout`, `completeTask` and `runAssignmentSweep` read for slot
+ * counts and occupied `slotIndex` values, computed *after* the level-1
+ * `lockInstance` row lock is held (race-free by construction, same pattern as
+ * `lockActiveAssignmentOfInstance` today). Deliberately not derived from
+ * `TaskInstance.activeSlotCount`: that column is a denormalized write-side
+ * cache two not-yet-migrated callers (`reopen.ts`, `rejectCompletion.ts`)
+ * still do not maintain, so trusting it for a read would let their staleness
+ * leak into this phase's gating decisions instead of staying contained to a
+ * cosmetic display value.
+ */
+export async function lockActiveAssignmentsOfInstance(
+  tx: PrismaTx,
+  householdId: string,
+  instanceId: string,
+): Promise<AssignmentLockRow[]> {
+  return tx.$queryRaw<AssignmentLockRow[]>`
+    SELECT id,
+           household_id        AS "householdId",
+           task_instance_id    AS "taskInstanceId",
+           member_id           AS "memberId",
+           kind::text          AS "kind",
+           status::text        AS "status",
+           response::text      AS "response",
+           value_at_assignment AS "valueAtAssignment",
+           config_version      AS "configVersion",
+           completed_at        AS "completedAt",
+           slot_index          AS "slotIndex"
+      FROM task_assignments
+     WHERE household_id = ${householdId}
+       AND task_instance_id = ${instanceId}
+       AND status = 'ACTIVE'
+     ORDER BY slot_index
+       FOR UPDATE`;
 }
 
 // ───────────────────────── level 3 ─────────────────────────

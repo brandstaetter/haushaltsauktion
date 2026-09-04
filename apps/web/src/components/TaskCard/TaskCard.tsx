@@ -33,6 +33,17 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
       de.task.estimatedMinutes.replace('{minutes}', String(task.estimatedMinutes)),
     );
   }
+  // Multi-worker-tasks (Phase 4): only shown for a task that actually wants
+  // more than one worker — every `EXACTLY(1)` task (today's default) sees
+  // no change here.
+  if (task.workerCount > 1) {
+    meta.push(
+      interpolate(de.task.slotsOccupied, {
+        occupied: task.activeSlotCount,
+        total: task.workerCount,
+      }),
+    );
+  }
 
   const isHeld = task.status === 'ASSIGNED';
   const ctaLabel = actionLabel ?? (isHeld ? de.action.complete : de.action.volunteer);
