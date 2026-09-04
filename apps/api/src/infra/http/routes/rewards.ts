@@ -27,7 +27,9 @@ export async function registerRewardRoutes(app: FastifyInstance, deps: Deps): Pr
     }
     const items = await deps.db.rewardDefinition.findMany({
       where: { householdId: ctx.householdId, isActive: true },
-      orderBy: { cost: 'asc' },
+      // RewardKind is declared MANUAL_FULFILLMENT, VIRTUAL_EFFECT in schema.prisma,
+      // so `kind: 'desc'` sorts VIRTUAL_EFFECT (virtual) before MANUAL_FULFILLMENT (real).
+      orderBy: [{ kind: 'desc' }, { cost: 'desc' }, { title: 'asc' }],
       select: {
         id: true,
         title: true,
