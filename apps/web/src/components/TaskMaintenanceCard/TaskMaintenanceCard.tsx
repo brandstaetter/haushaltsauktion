@@ -123,6 +123,21 @@ export function TaskMaintenanceCard({
             </span>
           </div>
         )}
+        {/* Intake "task-role-based-eligibility-and-preferred-assignee" — pure
+            opt-in, same as the block above: a definition without either field
+            set renders identically to before this feature. */}
+        {definition.requiredRole !== null && (
+          <div className={styles.field}>
+            <span>{de.admin.taskDefinitions.requiredRole}</span>
+            <span>{de.admin.taskDefinitions.requiredRoleValues[definition.requiredRole]}</span>
+          </div>
+        )}
+        {definition.minAdminSlots !== null && (
+          <div className={styles.field}>
+            <span>{de.admin.taskDefinitions.minAdminSlots}</span>
+            <span>{definition.minAdminSlots}</span>
+          </div>
+        )}
       </div>
 
       <div className={styles.actions}>

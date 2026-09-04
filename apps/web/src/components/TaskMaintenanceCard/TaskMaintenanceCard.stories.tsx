@@ -16,6 +16,8 @@ function makeDefinition(overrides: Partial<AdminTaskDefinitionDto> = {}): AdminT
     buyoutEnabled: true,
     workerCountMode: 'EXACTLY',
     workerCount: 1,
+    requiredRole: null,
+    minAdminSlots: null,
     recurrenceType: RecurrenceType.WEEKLY,
     recurrenceInterval: null,
     recurrenceWeekdays: [6],
@@ -29,6 +31,7 @@ function makeDefinition(overrides: Partial<AdminTaskDefinitionDto> = {}): AdminT
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     eligibility: [],
+    preferredAssignees: [],
     ...overrides,
   };
 }
@@ -115,6 +118,20 @@ export const MultiWorker: Story = {
       title: 'Keller aufräumen',
       workerCountMode: 'AT_LEAST',
       workerCount: 2,
+    }),
+  },
+};
+
+/** Intake "task-role-based-eligibility-and-preferred-assignee": a
+ * multi-worker task restricted to admins, requiring at least one admin slot. */
+export const RoleRestrictedWithAdminSlots: Story = {
+  args: {
+    definition: makeDefinition({
+      title: 'Steuererklärung vorbereiten',
+      workerCountMode: 'AT_LEAST',
+      workerCount: 2,
+      requiredRole: 'ADMIN',
+      minAdminSlots: 1,
     }),
   },
 };

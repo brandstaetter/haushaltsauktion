@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { WorkerCountMode } from '@haushaltsauktion/shared';
 
 import {
+  adminSlotReservationActive,
   maxAllowed,
   minRequired,
   slotOutcome,
@@ -111,3 +112,55 @@ describe('slotOutcome', () => {
     expect(result.nextActiveSlotCount).toBe(1);
   });
 });
+
+describe(
+  'adminSlotReservationActive (intake "task-role-based-eligibility-and-preferred-assignee")',
+  () => {
+    it('is never active when minAdminSlots is not configured', () => {
+      expect(
+        adminSlotReservationActive({ min: 2, currentCount: 0, currentAdminCount: 0, minAdminSlots: null }),
+      ).toBe(false);
+      expect(
+        adminSlotReservationActive({ min: 2, currentCount: 0, currentAdminCount: 0, minAdminSlots: 0 }),
+      ).toBe(false);
+    });
+
+    it('is inactive while there is still slack — the deficit can be closed by a later join', () => {
+      // EXACTLY(3), minAdminSlots 1, nobody assigned yet: 3 slots remain for
+      // a deficit of 1, so the very first join need not be an admin.
+      expect(
+        adminSlotReservationActive({ min: 3, currentCount: 0, currentAdminCount: 0, minAdminSlots: 1 }),
+      ).toBe(false);
+    });
+
+    it('activates once every remaining slot is needed to close the deficit', () => {
+      // EXACTLY(3), minAdminSlots 1, 2 of 3 slots already filled by non-admins:
+      // exactly one slot left and the deficit is still 1 — it must be an admin.
+      expect(
+        adminSlotReservationActive({ min: 3, currentCount: 2, currentAdminCount: 0, minAdminSlots: 1 }),
+      ).toBe(true);
+    });
+
+    it('is inactive once the deficit is already closed, even with slots still open', () => {
+      // The one required admin already holds a slot — the remaining open
+      // slot(s) are unrestricted.
+      expect(
+        adminSlotReservationActive({ min: 3, currentCount: 1, currentAdminCount: 1, minAdminSlots: 1 }),
+      ).toBe(false);
+    });
+
+    it('is inactive once min is already reached — staffing is complete', () => {
+      expect(
+        adminSlotReservationActive({ min: 2, currentCount: 2, currentAdminCount: 0, minAdminSlots: 2 }),
+      ).toBe(false);
+    });
+
+    it('scales to a deficit greater than one — every one of the last N slots is reserved', () => {
+      // EXACTLY(4), minAdminSlots 2, 2 slots filled (0 admins), 2 remain —
+      // both of the two remaining slots must go to admins.
+      expect(
+        adminSlotReservationActive({ min: 4, currentCount: 2, currentAdminCount: 0, minAdminSlots: 2 }),
+      ).toBe(true);
+    });
+  },
+);

@@ -98,6 +98,7 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
     recentAssignmentPenalty: 1, // §16
     windowDays: 28, // OQ-7
     weightFloor: 0.1, // PRD §3E
+    preferredAssigneeWeight: 1, // intake "task-role-based-eligibility-and-preferred-assignee"
   }),
 
   notifications: Object.freeze({

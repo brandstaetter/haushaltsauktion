@@ -7,7 +7,12 @@
  * so `domain/` stays free of `Date` and of Prisma.
  */
 
-import { weekKey, type FairnessMetrics, type HouseholdConfig } from '@haushaltsauktion/shared';
+import {
+  weekKey,
+  type FairnessMetrics,
+  type HouseholdConfig,
+  type MemberRole,
+} from '@haushaltsauktion/shared';
 
 import type { EligibilityCandidate } from '../../domain/assignment/eligibility.js';
 import type { PrismaTx } from '../deps.js';
@@ -34,6 +39,7 @@ interface MemberRow {
   id: string;
   isActive: boolean;
   maxRandomAssignmentsPerWeek: number | null;
+  role: MemberRole;
 }
 
 /** ISO week boundaries in the household timezone (§5.6, OQ-6). */
@@ -61,11 +67,11 @@ export async function loadCandidates(
 
   const members: MemberRow[] = await tx.householdMember.findMany({
     where: { householdId: ctx.householdId },
-    select: { id: true, isActive: true, maxRandomAssignmentsPerWeek: true },
+    select: { id: true, isActive: true, maxRandomAssignmentsPerWeek: true, role: true },
     orderBy: { id: 'asc' },
   });
 
-  const [absences, immunities, taskEligibility, categoryExclusions, assignments] =
+  const [absences, immunities, taskEligibility, categoryExclusions, preferredAssignees, assignments] =
     await Promise.all([
       tx.memberAbsence.findMany({
         where: {
@@ -92,6 +98,13 @@ export async function loadCandidates(
             where: { householdId: ctx.householdId, categoryId: ctx.categoryId },
             select: { memberId: true },
           }),
+      // Intake "task-role-based-eligibility-and-preferred-assignee" — soft
+      // preference, consulted only by weights.ts. Never affects who is
+      // eligible, only how heavily an eligible candidate is weighted.
+      tx.taskDefinitionPreferredAssignee.findMany({
+        where: { householdId: ctx.householdId, taskDefinitionId: ctx.taskDefinitionId },
+        select: { memberId: true },
+      }),
       // Everything the metrics need, in one read. `windowStart` bounds it, so the
       // cost is a month of household activity rather than the whole history —
       // which is the point of OQ-7's window in the first place.
@@ -120,6 +133,7 @@ export async function loadCandidates(
   );
   const categoryExcluded = new Set(categoryExclusions.map((e) => e.memberId));
   const definitionHasAllowlist = allowlist.size > 0;
+  const preferredIds = new Set(preferredAssignees.map((p) => p.memberId));
 
   // Rule 7 needs "how many completed offer cycles ago did this member last hold
   // *this task* by draw". `buyoutCount` on the instance is not that number, so
@@ -167,6 +181,8 @@ export async function loadCandidates(
 
     return {
       memberId: member.id,
+      role: member.role,
+      isPreferredAssignee: preferredIds.has(member.id),
       isActive: member.isActive,
       isAbsent: absentIds.has(member.id),
       hasActiveImmunity: immuneIds.has(member.id),

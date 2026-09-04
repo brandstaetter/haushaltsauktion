@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CONFIG,
   EligibilityReason,
+  MemberRole,
   RelaxableConstraint,
   cloneDefaultConfig,
   type FairnessMetrics,
@@ -27,8 +28,8 @@ import {
 } from '../../src/domain/assignment/eligibility.js';
 
 const cfg = DEFAULT_CONFIG;
-const NO_ALLOWLIST = { definitionHasAllowlist: false };
-const WITH_ALLOWLIST = { definitionHasAllowlist: true };
+const NO_ALLOWLIST = { definitionHasAllowlist: false, requiredRole: null, adminSlotReserved: false };
+const WITH_ALLOWLIST = { definitionHasAllowlist: true, requiredRole: null, adminSlotReserved: false };
 
 const metrics: FairnessMetrics = {
   randomAssignments: 0,
@@ -44,6 +45,8 @@ const candidate = (
   over: Partial<EligibilityCandidate> = {},
 ): EligibilityCandidate => ({
   memberId,
+  role: MemberRole.MEMBER,
+  isPreferredAssignee: false,
   isActive: true,
   isAbsent: false,
   hasActiveImmunity: false,
@@ -107,6 +110,55 @@ describe('hard rules 1-5 (§6.9)', () => {
     expect(hardEligibilityReason(candidate('a'), NO_ALLOWLIST)).toBeNull();
   });
 });
+
+describe(
+  'the two additional hard rules (intake "task-role-based-eligibility-and-preferred-assignee")',
+  () => {
+    it('rejects a member whose role does not match the definition\'s requiredRole', () => {
+      const memberRole = candidate('a', { role: MemberRole.MEMBER });
+      expect(hardEligibilityReason(memberRole, { ...NO_ALLOWLIST, requiredRole: MemberRole.ADMIN })).toBe(
+        EligibilityReason.ROLE_NOT_ELIGIBLE,
+      );
+    });
+
+    it('accepts a member whose role matches, and applies no filter when requiredRole is null', () => {
+      const admin = candidate('a', { role: MemberRole.ADMIN });
+      expect(hardEligibilityReason(admin, { ...NO_ALLOWLIST, requiredRole: MemberRole.ADMIN })).toBeNull();
+      expect(hardEligibilityReason(admin, { ...NO_ALLOWLIST, requiredRole: null })).toBeNull();
+    });
+
+    it('lets requiredRole gate volunteering too, unlike the soft rules 6-7', () => {
+      const member = candidate('a', { role: MemberRole.MEMBER });
+      expect(canVolunteer(member, { ...NO_ALLOWLIST, requiredRole: MemberRole.ADMIN })).toBe(false);
+      expect(() =>
+        assertCanVolunteer(member, { ...NO_ALLOWLIST, requiredRole: MemberRole.ADMIN }),
+      ).toThrow(ForbiddenError);
+    });
+
+    it('rejects a non-admin when adminSlotReserved is true', () => {
+      const member = candidate('a', { role: MemberRole.MEMBER });
+      expect(hardEligibilityReason(member, { ...NO_ALLOWLIST, adminSlotReserved: true })).toBe(
+        EligibilityReason.ADMIN_SLOT_RESERVED,
+      );
+    });
+
+    it('accepts an admin even when adminSlotReserved is true', () => {
+      const admin = candidate('a', { role: MemberRole.ADMIN });
+      expect(hardEligibilityReason(admin, { ...NO_ALLOWLIST, adminSlotReserved: true })).toBeNull();
+    });
+
+    it('never relaxes ROLE_NOT_ELIGIBLE or ADMIN_SLOT_RESERVED — the ladder leaves the pool empty (T5) instead', () => {
+      const result = resolveEligibility(
+        cfg,
+        [candidate('anna', { role: MemberRole.MEMBER })],
+        { ...NO_ALLOWLIST, requiredRole: MemberRole.ADMIN },
+      );
+      expect(result.eligible).toEqual([]);
+      expect(result.constraintsRelaxed).toEqual([]);
+      expect(result.evaluations[0]?.reason).toBe(EligibilityReason.ROLE_NOT_ELIGIBLE);
+    });
+  },
+);
 
 describe('soft rules 6-7 never block a volunteer (§6.9, §5)', () => {
   const capped = candidate('a', {

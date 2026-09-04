@@ -67,6 +67,13 @@ export function AssignmentExplanation({ assignmentId }: { assignmentId: string }
                       {interpolate(de.fairness.weight, { value: formatNumber(c.weight) })}
                     </span>
                   )}
+                  {/* Intake "task-role-based-eligibility-and-preferred-assignee":
+                      only shown when the preference actually raised this
+                      candidate's weight, not merely whenever they're on the
+                      list — a stale/zero term must not claim credit. */}
+                  {c.included && (c.weightTerms?.['preferredTerm'] ?? 0) > 0 && (
+                    <span className={styles.weight}>{de.fairness.preferredBadge}</span>
+                  )}
                   {c.selected && <span className={styles.selectedTag}>{de.fairness.selected}</span>}
                 </li>
               ))}

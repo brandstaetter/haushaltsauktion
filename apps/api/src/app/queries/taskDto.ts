@@ -41,6 +41,10 @@ const INSTANCE_INCLUDE = {
       estimatedMinutes: true,
       buyoutEnabled: true,
       categoryId: true,
+      // Intake "task-role-based-eligibility-and-preferred-assignee":
+      // consulted by viewerEligibility below so the DTO's canVolunteer flag
+      // reflects a role-restricted task, not just the pre-existing rules.
+      requiredRole: true,
       category: { select: { id: true, name: true, colorHex: true } },
     },
   },
@@ -112,7 +116,12 @@ async function viewerEligibility(
   });
   const mine = candidates.find((c) => c.memberId === ctx.memberId);
   if (mine === undefined) return { canVolunteer: false, reason: null };
-  const options = { definitionHasAllowlist };
+  // `adminSlotReserved` is deliberately omitted here, same as `instanceId`
+  // above: this pass is a coarse, non-instance-aware DTO hint (see this
+  // function's own comment), not the authoritative gate — `volunteerForTask`
+  // recomputes both freshly, and §36 makes that the binding check regardless
+  // of what this flag says.
+  const options = { definitionHasAllowlist, requiredRole: instance.definition.requiredRole, adminSlotReserved: false };
   return {
     canVolunteer: canVolunteer(mine, options),
     reason: hardEligibilityReason(mine, options),

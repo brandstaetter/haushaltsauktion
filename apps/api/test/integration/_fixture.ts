@@ -152,6 +152,7 @@ export async function dropHousehold(db: PrismaClient, ids: FixtureIds): Promise<
   await db.taskAssignment.deleteMany({ where: { householdId } });
   await db.taskInstance.deleteMany({ where: { householdId } });
   await db.taskDefinitionEligibility.deleteMany({ where: { householdId } });
+  await db.taskDefinitionPreferredAssignee.deleteMany({ where: { householdId } });
   await db.memberCategoryExclusion.deleteMany({ where: { householdId } });
   await db.memberAbsence.deleteMany({ where: { householdId } });
   await db.taskDefinition.deleteMany({ where: { householdId } });

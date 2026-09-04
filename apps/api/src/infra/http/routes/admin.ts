@@ -56,22 +56,54 @@ const RecurrenceBody = z.object({
  * Decisions"). Default `EXACTLY(1)` reproduces today's single-worker
  * behavior for a client that never sends these fields.
  */
-const DefinitionBody = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().max(2000).nullable().default(null),
-  categoryId: z.string().max(64).nullable().default(null),
-  baseValue: z.number().int().min(0).max(100_000),
-  estimatedMinutes: z.number().int().min(0).max(10_000).nullable().default(null),
-  buyoutEnabled: z.boolean().default(true),
-  isActive: z.boolean().default(true),
-  workerCountMode: z.enum(['AT_LEAST', 'AT_MOST', 'EXACTLY']).default('EXACTLY'),
-  workerCount: z.number().int().min(1).max(20).default(1),
-  recurrence: RecurrenceBody,
-});
+/**
+ * Intake "task-role-based-eligibility-and-preferred-assignee". `requiredRole`
+ * is a definition-level scalar (like `baseValue`), so it lives in this body
+ * rather than the eligibility route — `EligibilityBody` below stays about
+ * per-member rows only. `minAdminSlots <= workerCount` is checked here
+ * because it can never be satisfiable otherwise (worker-slots.ts
+ * `adminSlotReservationActive` would reserve every slot forever); it is
+ * deliberately *not* checked against `workerCountMode`/`AT_MOST` floor
+ * (worker-slots.ts `minRequired`) — an admin sees the consequence in the
+ * "Mindestanzahl" hint text (§31), not a rejected save for a combination
+ * that is merely unusual, not invalid.
+ */
+const DefinitionBody = z
+  .object({
+    title: z.string().min(1).max(200),
+    description: z.string().max(2000).nullable().default(null),
+    categoryId: z.string().max(64).nullable().default(null),
+    baseValue: z.number().int().min(0).max(100_000),
+    estimatedMinutes: z.number().int().min(0).max(10_000).nullable().default(null),
+    buyoutEnabled: z.boolean().default(true),
+    isActive: z.boolean().default(true),
+    workerCountMode: z.enum(['AT_LEAST', 'AT_MOST', 'EXACTLY']).default('EXACTLY'),
+    workerCount: z.number().int().min(1).max(20).default(1),
+    requiredRole: z.enum(['MEMBER', 'ADMIN']).nullable().default(null),
+    minAdminSlots: z.number().int().min(0).max(20).nullable().default(null),
+    recurrence: RecurrenceBody,
+  })
+  .superRefine((body, ctx) => {
+    if (body.minAdminSlots !== null && body.minAdminSlots > body.workerCount) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'minAdminSlots darf die Anzahl Helfer nicht übersteigen.',
+        path: ['minAdminSlots'],
+      });
+    }
+  });
 
 const EligibilityBody = z.object({
   included: z.array(z.string().min(1).max(64)).default([]),
   excluded: z.array(z.string().min(1).max(64)).default([]),
+  /**
+   * Intake "task-role-based-eligibility-and-preferred-assignee" — soft
+   * preference (`TaskDefinitionPreferredAssignee`), not a third
+   * `EligibilityMode`: a member can be both included/excluded (hard) AND
+   * preferred (soft) at once, which one shared `mode` column could not
+   * represent.
+   */
+  preferred: z.array(z.string().min(1).max(64)).default([]),
 });
 
 const ConfigPutBody = z.object({
@@ -259,6 +291,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       include: {
         category: { select: { id: true, name: true, colorHex: true } },
         eligibility: { select: { memberId: true, mode: true } },
+        preferredAssignees: { select: { memberId: true } },
       },
     });
     return { items: rows };
@@ -279,6 +312,8 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         isActive: body.isActive,
         workerCountMode: body.workerCountMode,
         workerCount: body.workerCount,
+        requiredRole: body.requiredRole,
+        minAdminSlots: body.minAdminSlots,
         recurrenceType: body.recurrence.type,
         recurrenceInterval: body.recurrence.interval,
         recurrenceWeekdays: body.recurrence.weekdays,
@@ -314,6 +349,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       include: {
         category: true,
         eligibility: true,
+        preferredAssignees: true,
         instances: {
           where: { status: { in: ['DRAFT', 'AVAILABLE', 'ASSIGNED', 'PAUSED'] } },
           select: {
@@ -391,6 +427,8 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         isActive: body.isActive,
         workerCountMode: body.workerCountMode,
         workerCount: body.workerCount,
+        requiredRole: body.requiredRole,
+        minAdminSlots: body.minAdminSlots,
         recurrenceType: body.recurrence.type,
         recurrenceInterval: body.recurrence.interval,
         recurrenceWeekdays: body.recurrence.weekdays,
@@ -538,6 +576,22 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
             mode: 'EXCLUDED' as const,
           })),
         ],
+        skipDuplicates: true,
+      });
+
+      // Intake "task-role-based-eligibility-and-preferred-assignee" — its own
+      // table, same replace-all-rows shape as the hard rules above. A member
+      // can be both included/excluded AND preferred at once, so this write is
+      // independent of the two above rather than folded into `mode`.
+      await tx.taskDefinitionPreferredAssignee.deleteMany({
+        where: { householdId: ctx.householdId, taskDefinitionId: params.id },
+      });
+      await tx.taskDefinitionPreferredAssignee.createMany({
+        data: body.preferred.map((memberId) => ({
+          householdId: ctx.householdId,
+          taskDefinitionId: params.id,
+          memberId,
+        })),
         skipDuplicates: true,
       });
     });

@@ -144,6 +144,15 @@ export interface FairnessConfig {
   windowDays: number;
   /** PRD §3E. `> 0`, so every eligible member stays reachable (ergodicity). */
   weightFloor: number;
+  /**
+   * Intake "task-role-based-eligibility-and-preferred-assignee": added flat
+   * to `WEIGHTED_FAIRNESS`'s raw weight when the candidate is one of the
+   * task definition's preferred assignees (`weights.ts` `preferredTerm`).
+   * `>= 0` — a preference only ever raises a probability, never lowers one
+   * (it is never a hard exclusion). Only `WEIGHTED_FAIRNESS` consults it;
+   * `WEIGHTED_RANDOM` and the other strategies are unaffected.
+   */
+  preferredAssigneeWeight: number;
 }
 
 export interface NotificationsConfig {

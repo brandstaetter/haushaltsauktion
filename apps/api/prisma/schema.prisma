@@ -346,18 +346,19 @@ model HouseholdMember {
   joinedAt  DateTime @default(now()) @map("joined_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  household          Household                   @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  user               User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  household          Household                         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user               User                              @relation(fields: [userId], references: [id], onDelete: Restrict)
   absences           MemberAbsence[]
   categoryExclusions MemberCategoryExclusion[]
   taskEligibility    TaskDefinitionEligibility[]
+  preferredForTasks  TaskDefinitionPreferredAssignee[]
   assignments        TaskAssignment[]
-  transactions       PointTransaction[]          @relation("LedgerOwner")
-  initiatedTx        PointTransaction[]          @relation("LedgerInitiator")
+  transactions       PointTransaction[]                @relation("LedgerOwner")
+  initiatedTx        PointTransaction[]                @relation("LedgerInitiator")
   historyEvents      TaskHistoryEvent[]
   notifications      Notification[]
   auditEvents        AuditEvent[]
-  completedInstances TaskInstance[]              @relation("CompletedBy")
+  completedInstances TaskInstance[]                    @relation("CompletedBy")
   authoredConfigs    HouseholdConfiguration[]
 
   integrations         MemberIntegration[]
@@ -468,6 +469,22 @@ model TaskDefinition {
   workerCountMode WorkerCountMode @default(EXACTLY) @map("worker_count_mode")
   workerCount     Int             @default(1) @map("worker_count")
 
+  /// Rollenbasierte Berechtigung (intake
+  /// "task-role-based-eligibility-and-preferred-assignee"): zusätzlich zu (nicht
+  /// anstelle von) den personenbezogenen INCLUDED/EXCLUDED-Regeln in
+  /// TaskDefinitionEligibility. null = kein Rollenfilter (Default, reproduziert
+  /// heutiges Verhalten). Ausgewertet als zusätzliche harte Regel in
+  /// eligibility.ts, gilt daher auch für freiwillige Übernahme.
+  requiredRole MemberRole? @map("required_role")
+
+  /// Multi-Worker-Mindestanzahl an Admin-Slots (dasselbe Intake): bei gesetztem
+  /// Wert müssen mindestens N der belegten Slots einer Instanz dieser Definition
+  /// von Admins gehalten werden. null = kein Minimum. Wirkt nur auf neue
+  /// Zuweisungen (freiwillig und Zufallsvergabe, worker-slots.ts
+  /// adminSlotReservationActive) — verdrängt nie bereits belegte
+  /// Nicht-Admin-Slots.
+  minAdminSlots Int? @map("min_admin_slots")
+
   // §18 Wiederholung — explizite Felder statt RRULE (§1.4).
   recurrenceType       RecurrenceType @default(ONCE) @map("recurrence_type")
   recurrenceInterval   Int?           @map("recurrence_interval") // N, für EVERY_N_DAYS
@@ -486,10 +503,11 @@ model TaskDefinition {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  household   Household                   @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  category    TaskCategory?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  eligibility TaskDefinitionEligibility[]
-  instances   TaskInstance[]
+  household          Household                         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  category           TaskCategory?                     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  eligibility        TaskDefinitionEligibility[]
+  preferredAssignees TaskDefinitionPreferredAssignee[]
+  instances          TaskInstance[]
 
   @@index([householdId, isActive, nextDueAt])
   @@map("task_definitions")
@@ -511,6 +529,28 @@ model TaskDefinitionEligibility {
   @@id([taskDefinitionId, memberId])
   @@index([householdId, memberId])
   @@map("task_definition_eligibility")
+}
+
+/// Bevorzugte Zuweisung (intake
+/// "task-role-based-eligibility-and-preferred-assignee"): weiche Präferenz, die
+/// nur die Gewichtung bei WEIGHTED_FAIRNESS beeinflusst (weights.ts
+/// preferredTerm) — blockiert nie eine freiwillige Übernahme durch jemand
+/// anderen und schließt niemanden von der Zufallsvergabe aus. Bewusst getrennt
+/// von TaskDefinitionEligibility: eine Person kann gleichzeitig "eingeschlossen"
+/// (hart) UND "bevorzugt" (weich) sein, was ein gemeinsames mode-Feld nicht
+/// abbilden könnte.
+model TaskDefinitionPreferredAssignee {
+  taskDefinitionId String   @map("task_definition_id")
+  memberId         String   @map("member_id")
+  householdId      String   @map("household_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  definition TaskDefinition  @relation(fields: [taskDefinitionId], references: [id], onDelete: Cascade)
+  member     HouseholdMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([taskDefinitionId, memberId])
+  @@index([householdId, memberId])
+  @@map("task_definition_preferred_assignees")
 }
 
 /// Eine konkrete Ausprägung: "Bad putzen – 29.08.2026" (§27).
