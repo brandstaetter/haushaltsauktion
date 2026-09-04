@@ -319,6 +319,13 @@ function LiveInstancesList({ definitionId }: { definitionId: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [allError, setAllError] = useState<string | null>(null);
 
+  // Copilot review (PR #63): the bulk cancel and every per-instance cancel
+  // shared no lock, so one in-flight cancel didn't stop another from firing
+  // — overlapping mutations against the same definition's instances. One
+  // cancel (bulk or single) at a time; every button disables while any of
+  // them is in flight, not just the one that started it.
+  const anyCancelInFlight = cancellingId !== null || cancelAll.isPending;
+
   const assigneeLabel = (instance: AdminTaskInstanceRowDto): string => {
     if (instance.assignments.length === 0) return t.unassigned;
     // Multi-worker-tasks (Phase 4): join every active slot's holder — for an
@@ -386,6 +393,7 @@ function LiveInstancesList({ definitionId }: { definitionId: string }) {
             variant="danger"
             onClick={handleCancelAll}
             loading={cancelAll.isPending}
+            disabled={anyCancelInFlight}
           >
             {t.cancelAllButton}
           </Button>
@@ -415,6 +423,7 @@ function LiveInstancesList({ definitionId }: { definitionId: string }) {
                   variant="danger"
                   onClick={() => handleCancel(instance.id)}
                   loading={cancellingId === instance.id}
+                  disabled={anyCancelInFlight}
                 >
                   {t.cancelButton}
                 </Button>
