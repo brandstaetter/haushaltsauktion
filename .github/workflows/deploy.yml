@@ -156,6 +156,11 @@ jobs:
           context: .
           file: apps/api/Dockerfile
           push: true
+          # Baked into the image so the deployed API reports the exact
+          # commit it was built from via X-App-Version — see server.ts /
+          # config.ts (intake "reliable-update-check-forced-reload-overlay").
+          build-args: |
+            APP_VERSION=${{ steps.tag.outputs.value }}
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_API_REPOSITORY }}:${{ steps.tag.outputs.value }}
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_API_REPOSITORY }}:latest
@@ -167,6 +172,11 @@ jobs:
           context: .
           file: apps/web/Dockerfile
           push: true
+          # Same version identifier as the API build above, baked into the
+          # JS bundle so the client can compare it against X-App-Version on
+          # every call (intake "reliable-update-check-forced-reload-overlay").
+          build-args: |
+            VITE_APP_VERSION=${{ steps.tag.outputs.value }}
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB_REPOSITORY }}:${{ steps.tag.outputs.value }}
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB_REPOSITORY }}:latest

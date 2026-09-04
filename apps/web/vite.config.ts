@@ -9,16 +9,21 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // 'prompt' (not 'autoUpdate'): members can keep a tab open for hours
-      // (30s polling, see apps/web/src/api/hooks.ts), and a silently
-      // self-updating service worker would leave that tab running old JS
-      // against a live server until the next navigation — someone could act
-      // on stale task values or point balances without knowing a fix
-      // shipped. `UpdatePrompt` (apps/web/src/components/UpdatePrompt)
-      // surfaces `needRefresh` via `virtual:pwa-register/react` and only
-      // reloads once the member clicks — see intake
-      // "notify-on-new-deploy-and-refresh-cache" for the full reasoning
-      // (supersedes the original autoUpdate decision from the PWA campaign).
+      // 'prompt' (not 'autoUpdate'): a silently self-activating service
+      // worker still shouldn't swap a long-open tab's JS out from under it
+      // between requests. That said, the actual "new version" detection and
+      // reload no longer come from this plugin's own update lifecycle —
+      // `VersionMismatchOverlay` (apps/web/src/components/VersionMismatchOverlay)
+      // reacts to an `X-App-Version` mismatch on every backend response
+      // instead (intake "reliable-update-check-forced-reload-overlay"),
+      // because this plugin only checks for a new worker on navigation,
+      // which made the previous `UpdatePrompt` banner unreliable — it could
+      // take several manual reloads before the browser even noticed an
+      // update existed. `registerType: 'prompt'` still matters here: it's
+      // what lets `VersionMismatchOverlay` explicitly send the skip-waiting
+      // message itself (`updateServiceWorker(true)`) right before its own
+      // forced reload, rather than the service worker activating on its own
+      // schedule.
       registerType: 'prompt',
       // App-shell only (CLAUDE.md §30 "PWA-fähig") — the household's task
       // list, point balances, and assignments are live shared state that

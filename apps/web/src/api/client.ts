@@ -1,4 +1,5 @@
 import type { ApiErrorBody } from '@haushaltsauktion/shared';
+import { checkVersionHeader } from './versionCheck';
 
 export interface FetchOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -43,6 +44,7 @@ export async function api<T = unknown>(path: string, options: FetchOptions = {})
   }
 
   const res = await fetch(url, init);
+  checkVersionHeader(res);
   if (res.status === 204) {
     return undefined as T;
   }

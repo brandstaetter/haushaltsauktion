@@ -1,4 +1,5 @@
 import type { ApiErrorBody } from '@haushaltsauktion/shared';
+import { checkVersionHeader } from './versionCheck';
 
 /**
  * Near-duplicate of `client.ts`, deliberately not shared with it (Architektur
@@ -56,6 +57,7 @@ export async function operatorApi<T = unknown>(
   }
 
   const res = await fetch(url, init);
+  checkVersionHeader(res);
   if (res.status === 204) {
     return undefined as T;
   }

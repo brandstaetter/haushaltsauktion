@@ -1,11 +1,11 @@
 import { Outlet } from 'react-router';
 import { StringsProvider } from './context/StringsContext';
-import { UpdatePrompt } from './components/UpdatePrompt/UpdatePrompt';
+import { VersionMismatchOverlay } from './components/VersionMismatchOverlay/VersionMismatchOverlay';
 
 export function App() {
   return (
     <StringsProvider>
-      <UpdatePrompt />
+      <VersionMismatchOverlay />
       <Outlet />
     </StringsProvider>
   );

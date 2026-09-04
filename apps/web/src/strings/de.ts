@@ -293,9 +293,12 @@ export const de = {
     dismiss: 'Nicht jetzt',
   },
   update: {
-    prompt: 'Eine neue Version ist verfügbar.',
-    action: 'Aktualisieren',
-    dismiss: 'Später',
+    // Bugfix "reliable-update-check-forced-reload-overlay": replaces the old
+    // dismissible banner (`prompt`/`action`/`dismiss`) — a version mismatch
+    // now blocks immediately with no dismiss option, so there is nothing to
+    // decide, only to announce.
+    overlayTitle: 'Neue Version verfügbar',
+    overlayMessage: 'Die Anwendung wurde aktualisiert. Die Seite wird jetzt neu geladen …',
   },
   account: {
     title: 'Ich',

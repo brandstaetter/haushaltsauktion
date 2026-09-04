@@ -33,6 +33,14 @@ RUN npm run build -w @haushaltsauktion/shared
 RUN npm run build -w @haushaltsauktion/api
 
 FROM node:22-alpine AS runtime
+# Bugfix "reliable-update-check-forced-reload-overlay": baked in at image
+# build time (deploy.yml's build-and-push job passes the same short Git SHA
+# it tags the image with as `--build-arg APP_VERSION=...`), not read from the
+# instance's runtime .env — every replica of one image reports the same
+# value, and it changes only on an actual redeploy. Defaults to `dev` for a
+# plain `docker build`/`docker compose up` with no build-arg set.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 ENV NODE_ENV=production
 WORKDIR /repo
 
