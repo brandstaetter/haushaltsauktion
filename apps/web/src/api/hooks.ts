@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AuditAction,
   AvailableTaskDto,
   BuyoutQuoteDto,
   BuyoutRequest,
@@ -735,7 +736,7 @@ export function useFulfillRedemption() {
  * yet support cursor pagination past that, matching what the route actually
  * implements today rather than promising a "load more" this call can't honor.
  */
-export function useAdminAuditEvents(action?: string) {
+export function useAdminAuditEvents(action?: AuditAction) {
   return useQuery({
     queryKey: [...adminAuditEventsQueryKey, action ?? 'all'],
     queryFn: () =>

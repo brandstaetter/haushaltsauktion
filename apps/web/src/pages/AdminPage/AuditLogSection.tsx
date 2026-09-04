@@ -21,7 +21,7 @@ import styles from './AdminPage.module.css';
  */
 export function AuditLogSection() {
   const { de } = useStrings();
-  const [action, setAction] = useState('');
+  const [action, setAction] = useState<AuditAction | ''>('');
   const { data, isLoading } = useAdminAuditEvents(action || undefined);
   const events = data?.items ?? [];
 
@@ -31,7 +31,7 @@ export function AuditLogSection() {
 
       <label className={styles.field}>
         <span className="visually-hidden">{de.admin.auditLog.filterLabel}</span>
-        <select value={action} onChange={(e) => setAction(e.target.value)}>
+        <select value={action} onChange={(e) => setAction(e.target.value as AuditAction | '')}>
           <option value="">{de.admin.auditLog.filterAll}</option>
           {Object.values(AuditAction).map((a) => (
             <option key={a} value={a}>
