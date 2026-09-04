@@ -49,6 +49,7 @@ function taskFixture(overrides: Partial<TaskInstanceDetailDto> = {}): TaskInstan
     workerCountMode: 'EXACTLY',
     workerCount: 1,
     activeSlotCount: 1,
+    viewerHasActiveSlot: false,
     taskDefinitionId: 'def-1',
     scheduledFor: '2026-09-04T00:00:00.000Z',
     publishedAt: '2026-09-04T00:00:00.000Z',
@@ -252,5 +253,51 @@ describe('TaskDetailPage', () => {
         'asg-paul',
       );
     });
+  });
+
+  it('AT_LEAST mit freiem Slot: zeigt "Freiwillig übernehmen" für einen Betrachter, der die Aufgabe noch nicht hält, obwohl status bereits ASSIGNED ist', async () => {
+    const task = taskFixture({
+      status: 'ASSIGNED',
+      workerCountMode: 'AT_LEAST',
+      workerCount: 1,
+      activeSlotCount: 1,
+      canVolunteer: true,
+      activeAssignment: {
+        id: 'asg-anna',
+        memberId: 'mem-anna',
+        kind: 'VOLUNTARY',
+        response: 'ACCEPTED',
+        assignedAt: '2026-09-04T00:00:00.000Z',
+        valueAtAssignment: 6,
+        rewardOnCompletion: 6,
+        buyoutQuote: null,
+      },
+      activeAssignments: [
+        {
+          id: 'asg-anna',
+          memberId: 'mem-anna',
+          kind: 'VOLUNTARY',
+          response: 'ACCEPTED',
+          assignedAt: '2026-09-04T00:00:00.000Z',
+          valueAtAssignment: 6,
+          rewardOnCompletion: 6,
+          buyoutQuote: null,
+        },
+      ],
+    });
+
+    mockedApi.mockImplementation(async (path: string) => {
+      if (path === '/tasks/inst-1') return task;
+      if (path === '/members/me') return memberFixture();
+      if (path === '/members') return { items: [memberFixture(), memberFixture({ id: 'mem-anna', displayName: 'Anna' })] };
+      throw new Error(`unerwarteter Aufruf: ${path}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Bad putzen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: de.action.volunteer })).toBeInTheDocument();
+    // Not the current viewer's slot, so no "Erledigen"/"Zurückgeben" for them.
+    expect(screen.queryByRole('button', { name: de.action.complete })).not.toBeInTheDocument();
   });
 });

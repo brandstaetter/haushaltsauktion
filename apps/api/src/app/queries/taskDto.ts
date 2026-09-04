@@ -19,7 +19,7 @@ import type {
 import { AssignmentKind, type HouseholdConfig } from '@haushaltsauktion/shared';
 
 import { canVolunteer, hardEligibilityReason } from '../../domain/assignment/eligibility.js';
-import { adminSlotReservationActive, minRequired } from '../../domain/task/worker-slots.js';
+import { adminSlotReservationActive, maxAllowed, minRequired } from '../../domain/task/worker-slots.js';
 import { potentialVoluntaryReward, voluntaryReward } from '../../domain/task/value.js';
 import type { PrismaTx } from '../deps.js';
 import { loadCandidates } from '../assignment/candidates.js';
@@ -117,6 +117,12 @@ async function viewerEligibility(
     categoryId: instance.definition.categoryId,
     now: ctx.now,
     cfg,
+    // Bugfix (multi-worker vanish-from-list): an ASSIGNED instance with a
+    // free slot is now recruiting again (see listAvailableTasks below), so a
+    // member who already holds one of its slots must be excluded here too —
+    // otherwise the DTO would offer them a second "Freiwillig übernehmen" for
+    // a task they're already on.
+    instanceId: instance.id,
   });
   const mine = candidates.find((c) => c.memberId === ctx.memberId);
   if (mine === undefined) return { canVolunteer: false, reason: null };
@@ -163,6 +169,16 @@ async function toAvailableDto(
   const eligibility =
     options.eligibility ?? (await viewerEligibility(tx, ctx, instance, cfg));
 
+  // Bugfix (multi-worker vanish-from-list): an `ASSIGNED` instance still
+  // recruits while `activeSlotCount < maxAllowed(...)` — `AVAILABLE` is no
+  // longer the only status a new volunteer can join from (mirrors the guard
+  // in volunteerForTask.ts).
+  const hasOpenSlot =
+    instance.status === 'AVAILABLE' ||
+    (instance.status === 'ASSIGNED' &&
+      instance.activeSlotCount < maxAllowed(instance.workerCountMode, instance.workerCount));
+  const viewerHasActiveSlot = instance.assignments.some((a) => a.memberId === ctx.memberId);
+
   return {
     id: instance.id,
     version: instance.version,
@@ -183,12 +199,13 @@ async function toAvailableDto(
     isOverdue: isOverdue(instance, ctx.now),
     offerExpiresAt: instance.offerExpiresAt?.toISOString() ?? null,
     status: instance.status,
-    canVolunteer: instance.status === 'AVAILABLE' && eligibility.canVolunteer,
+    canVolunteer: hasOpenSlot && eligibility.canVolunteer,
     ineligibleReason: eligibility.reason,
     potentialReward: potentialVoluntaryReward(cfg, instance.currentValue),
     workerCountMode: instance.workerCountMode,
     workerCount: instance.workerCount,
     activeSlotCount: instance.activeSlotCount,
+    viewerHasActiveSlot,
   };
 }
 
@@ -317,7 +334,12 @@ export async function listAvailableTasks(
   const instances = await tx.taskInstance.findMany({
     where: {
       householdId: ctx.householdId,
-      status: 'AVAILABLE',
+      // Bugfix (multi-worker vanish-from-list): an ASSIGNED instance under
+      // AT_LEAST/AT_MOST can still have a free slot once its first volunteer
+      // crosses minRequired — such rows must stay reachable here, so this can
+      // no longer filter on AVAILABLE alone. Rows that are actually full are
+      // dropped below, in the loop, where `maxAllowed()` is available.
+      status: { in: ['AVAILABLE', 'ASSIGNED'] },
       ...(filter.categoryId ? { definition: { categoryId: filter.categoryId } } : {}),
     },
     include: INSTANCE_INCLUDE,
@@ -326,6 +348,10 @@ export async function listAvailableTasks(
 
   const dtos: AvailableTaskDto[] = [];
   for (const instance of instances) {
+    if (instance.status === 'ASSIGNED') {
+      const max = maxAllowed(instance.workerCountMode, instance.workerCount);
+      if (instance.activeSlotCount >= max) continue;
+    }
     const dto = await toAvailableDto(tx, ctx, instance, config);
     if (filter.eligibleOnly && !dto.canVolunteer) continue;
     dtos.push(dto);

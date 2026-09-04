@@ -77,6 +77,10 @@ test(
         scheduledFor: now,
         publishedAt: now,
         configVersion: 1,
+        // EXACTLY(1), one ACTIVE assignment below — matches the invariant
+        // volunteerForTask.ts/the sweep maintain, which /tasks/available's
+        // slot-based filtering (bugfix: vanish-from-list) now depends on.
+        activeSlotCount: 1,
       },
       select: { id: true },
     });
@@ -106,6 +110,7 @@ test(
         scheduledFor: now,
         publishedAt: now,
         configVersion: 1,
+        activeSlotCount: 1,
       },
       select: { id: true },
     });

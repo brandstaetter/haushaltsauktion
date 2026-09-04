@@ -221,7 +221,11 @@ export function TaskDetailPage() {
       )}
 
       <div className={styles.actions}>
-        {task.status === 'AVAILABLE' && task.canVolunteer && (
+        {/* Bugfix (multi-worker vanish-from-list): `canVolunteer` already
+            encodes "has an open slot and is eligible" (see toAvailableDto) —
+            an extra `status === 'AVAILABLE'` here would hide the CTA for an
+            ASSIGNED multi-worker instance that still has room. */}
+        {task.canVolunteer && (
           <Button
             onClick={() =>
               run(volunteer.mutateAsync({ id, body: { expectedVersion: task.version } }))

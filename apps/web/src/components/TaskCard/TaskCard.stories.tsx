@@ -24,6 +24,7 @@ function makeTask(overrides: Partial<AvailableTaskDto> = {}): AvailableTaskDto {
     workerCountMode: 'EXACTLY',
     workerCount: 1,
     activeSlotCount: 0,
+    viewerHasActiveSlot: false,
     ...overrides,
   };
 }
@@ -49,8 +50,28 @@ export const Available: Story = {
 /** Randomly assigned to the current viewer — CTA switches to "Als erledigt markieren" (§21). */
 export const Assigned: Story = {
   args: {
-    task: makeTask({ status: 'ASSIGNED', potentialReward: 0 }),
+    task: makeTask({ status: 'ASSIGNED', potentialReward: 0, viewerHasActiveSlot: true }),
     assignee: { id: 'member-anna', displayName: 'Anna', avatarUrl: null, kind: 'RANDOM' },
+  },
+};
+
+/**
+ * Multi-worker task, first slot already taken by someone else — still
+ * ASSIGNED, but a slot is free and the viewer hasn't joined, so the CTA stays
+ * "Freiwillig übernehmen" instead of switching to "Als erledigt markieren".
+ * Regression coverage for the vanish-from-list bugfix.
+ */
+export const AssignedWithOpenSlot: Story = {
+  args: {
+    task: makeTask({
+      status: 'ASSIGNED',
+      workerCountMode: 'AT_LEAST',
+      workerCount: 1,
+      activeSlotCount: 1,
+      canVolunteer: true,
+      viewerHasActiveSlot: false,
+    }),
+    assignee: { id: 'member-anna', displayName: 'Anna', avatarUrl: null, kind: 'VOLUNTARY' },
   },
 };
 
