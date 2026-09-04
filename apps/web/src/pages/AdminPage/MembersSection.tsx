@@ -54,6 +54,9 @@ function adjustPointsErrorMessage(err: unknown, de: Strings): string {
     const paths = new Set((apiErr.details?.fieldErrors ?? []).map((f) => f.path));
     if (paths.has('reason')) return de.admin.members.errors.reasonRequired;
     if (paths.has('amount')) return de.admin.members.errors.invalidAmount;
+
+    if (err instanceof ApiError && err.message) return err.message;
+    return de.admin.members.errors.generic;
   }
   return memberErrorMessage(err, de);
 }
