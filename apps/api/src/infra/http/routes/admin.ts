@@ -24,6 +24,7 @@ import type { Deps } from '../../../app/deps.js';
 import { adjustPoints } from '../../../app/points/adjustPoints.js';
 import { verifyLedgerIntegrity } from '../../../app/points/verifyLedgerIntegrity.js';
 import { fulfillRedemption } from '../../../app/rewards/fulfillRedemption.js';
+import { cancelInstance, cancelOpenInstancesOfDefinition } from '../../../app/tasks/cancelInstance.js';
 import { completeTask } from '../../../app/tasks/completeTask.js';
 import { rejectCompletion } from '../../../app/tasks/rejectCompletion.js';
 import { ConflictError, NotFoundError, ValidationError } from '../../../domain/errors.js';
@@ -1223,7 +1224,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
   const instanceAction = async (
     ctx: { householdId: string; memberId: string },
     instanceId: string,
-    action: 'publish' | 'pause' | 'resume' | 'cancel',
+    action: 'publish' | 'pause' | 'resume',
     now: Date,
   ) => {
     const instance = await deps.db.taskInstance.findFirst({
@@ -1237,7 +1238,6 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       publish: ['DRAFT'],
       pause: ['DRAFT', 'AVAILABLE'],
       resume: ['PAUSED'],
-      cancel: ['DRAFT', 'AVAILABLE', 'PAUSED'],
     };
     if (!allowed[action].includes(instance.status)) {
       throw new ConflictError('ILLEGAL_TRANSITION', `Aktion im Status ${instance.status} unzulässig.`, {
@@ -1252,29 +1252,20 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         ? { status: 'AVAILABLE' as const, publishedAt: now, offerExpiresAt: offer }
         : action === 'pause'
           ? { status: 'PAUSED' as const }
-          : action === 'resume'
-            ? { status: 'AVAILABLE' as const, offerExpiresAt: offer }
-            : { status: 'CANCELLED' as const, closedAt: now };
+          : { status: 'AVAILABLE' as const, offerExpiresAt: offer };
 
     await deps.db.taskInstance.updateMany({
       where: { id: instanceId, householdId: ctx.householdId, version: instance.version },
       data: { ...data, version: { increment: 1 } },
     });
 
-    const historyType =
-      action === 'publish'
-        ? 'OFFERED'
-        : action === 'pause'
-          ? 'PAUSED'
-          : action === 'resume'
-            ? 'RESUMED'
-            : 'CANCELLED';
+    const historyType = action === 'publish' ? 'OFFERED' : action === 'pause' ? 'PAUSED' : 'RESUMED';
     await deps.db.taskHistoryEvent.create({
       data: {
         householdId: ctx.householdId,
         taskInstanceId: instanceId,
         type: historyType,
-        payload: action === 'cancel' ? { reason: null } : {},
+        payload: {},
       },
     });
     await deps.db.auditEvent.create({
@@ -1287,9 +1278,7 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
             ? 'INSTANCE_PUBLISHED'
             : action === 'pause'
               ? 'INSTANCE_PAUSED'
-              : action === 'resume'
-                ? 'INSTANCE_RESUMED'
-                : 'INSTANCE_CANCELLED',
+              : 'INSTANCE_RESUMED',
         entityType: 'TaskInstance',
         entityId: instanceId,
         payload: {},
@@ -1298,13 +1287,60 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
     return { id: instanceId, status: data.status };
   };
 
-  for (const action of ['publish', 'pause', 'resume', 'cancel'] as const) {
+  for (const action of ['publish', 'pause', 'resume'] as const) {
     app.post(`/admin/instances/:id/${action}`, async (request, reply) => {
       const ctx = requireAdmin(request, reply);
       const params = parse(IdParam, request.params);
       return instanceAction(ctx, params.id, action, deps.clock.now());
     });
   }
+
+  /**
+   * Intake "admin-cancel-or-sync-open-instances-on-definition-change". A
+   * dedicated use-case, not `instanceAction` above: unlike publish/pause/
+   * resume, cancelling an `ASSIGNED` (or partially-staffed multi-worker)
+   * instance must also close every active `TaskAssignment` and reverse any
+   * `ON_ACCEPT` reward already paid — see `cancelInstance.ts`.
+   */
+  app.post('/admin/instances/:id/cancel', async (request, reply) => {
+    const ctx = requireAdmin(request, reply);
+    const params = parse(IdParam, request.params);
+    const body = parse(
+      z.object({ reason: z.string().max(500).nullable().default(null) }),
+      request.body ?? {},
+    );
+    return cancelInstance(deps, {
+      householdId: ctx.householdId,
+      actorMemberId: ctx.memberId,
+      instanceId: params.id,
+      reason: body.reason,
+    });
+  });
+
+  /**
+   * Same intake — the bulk convenience for the actual trigger case: an admin
+   * changed a `TaskDefinition` and wants every currently open instance of it
+   * gone, not clicked one at a time.
+   */
+  app.post('/admin/task-definitions/:id/cancel-open-instances', async (request, reply) => {
+    const ctx = requireAdmin(request, reply);
+    const params = parse(IdParam, request.params);
+    const body = parse(
+      z.object({ reason: z.string().max(500).nullable().default(null) }),
+      request.body ?? {},
+    );
+    const definition = await deps.db.taskDefinition.findFirst({
+      where: { id: params.id, householdId: ctx.householdId },
+      select: { id: true },
+    });
+    if (definition === null) throw new NotFoundError('Aufgabendefinition nicht gefunden.');
+    return cancelOpenInstancesOfDefinition(deps, {
+      householdId: ctx.householdId,
+      actorMemberId: ctx.memberId,
+      taskDefinitionId: params.id,
+      reason: body.reason,
+    });
+  });
 
   /**
    * Multi-worker-tasks: these three admin instance-level actions each used
