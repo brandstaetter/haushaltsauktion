@@ -160,13 +160,13 @@ test.describe('Mobile Darstellung (390×844)', () => {
         `Nav-Einträge sind unterschiedlich hoch, die Leiste ist nicht mehr ausgerichtet: ${heights.join(', ')}`,
       ).toBe(1);
 
-      // 6 Einträge auf 390px brauchen zwei Zeilen zu je 3 Spalten (`.grid`
-      // in Nav.module.css) — sonst wären die Spalten wieder so schmal wie
-      // im ursprünglichen Bug. Bestätigt, dass tatsächlich umgebrochen
-      // wurde, statt sich auf eine einzelne, versehentlich passende Breite
-      // zu verlassen.
+      // 7 Einträge auf 390px brauchen drei Zeilen zu je 3 Spalten (`.grid`
+      // in Nav.module.css, ceil(7/3) = 3) — sonst wären die Spalten wieder
+      // so schmal wie im ursprünglichen Bug. Bestätigt, dass tatsächlich
+      // umgebrochen wurde, statt sich auf eine einzelne, versehentlich
+      // passende Breite zu verlassen.
       const tops = await links.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
-      expect(new Set(tops).size, `Erwartet zwei Zeilen, gemessen: ${tops.join(', ')}`).toBe(2);
+      expect(new Set(tops).size, `Erwartet drei Zeilen, gemessen: ${tops.join(', ')}`).toBe(3);
 
       await nav.getByRole('link', { name: 'Zurück', exact: true }).click();
       await expect(page).toHaveURL(/\/$/);
