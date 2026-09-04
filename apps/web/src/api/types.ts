@@ -1,5 +1,6 @@
 import type {
   AssignmentKind,
+  AuditAction,
   AvailableTaskDto,
   EligibilityMode,
   HouseholdConfig,
@@ -295,4 +296,23 @@ export interface AdminRedemptionDto {
   fulfilledAt: string | null;
   reward: { id: string; title: string };
   member: { id: string; displayName: string };
+}
+
+/**
+ * One row of `GET /admin/audit-events` (§23) — the admin-only audit log
+ * (intake "manual-point-adjustment-missing-from-shared-history"). `seq` is a
+ * Postgres bigint, so the server serializes it as a string.
+ */
+export interface AdminAuditEventDto {
+  id: string;
+  seq: string;
+  actorType: 'MEMBER' | 'ADMIN' | 'SYSTEM';
+  actorMemberId: string | null;
+  actor: { id: string; displayName: string } | null;
+  action: AuditAction;
+  entityType: string;
+  entityId: string | null;
+  /** { before?, after?, diff?, reason?, amount?, balanceAfter?, ... } — shape varies by action. */
+  payload: Record<string, unknown>;
+  createdAt: string;
 }

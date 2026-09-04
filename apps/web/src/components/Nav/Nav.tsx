@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Folder,
   Gift,
+  ScrollText,
   Wrench,
   ArrowLeft,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ export function Nav({ role }: NavProps) {
     { to: '/verwaltung/aufgaben', icon: ClipboardList, label: de.nav.adminTasks },
     { to: '/verwaltung/kategorien', icon: Folder, label: de.nav.adminCategories },
     { to: '/verwaltung/punkte-shop', icon: Gift, label: de.nav.adminRewards },
+    { to: '/verwaltung/audit-log', icon: ScrollText, label: de.nav.adminAuditLog },
     { to: '/', icon: ArrowLeft, label: de.nav.back },
   ];
 

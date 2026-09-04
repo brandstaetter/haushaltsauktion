@@ -162,6 +162,7 @@ export const NotificationType = asEnum({
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
 
 export const AuditAction = asEnum({
+  HOUSEHOLD_REGISTERED: 'HOUSEHOLD_REGISTERED',
   LOGIN_SUCCEEDED: 'LOGIN_SUCCEEDED',
   LOGIN_FAILED: 'LOGIN_FAILED',
   CONFIG_UPDATED: 'CONFIG_UPDATED',
@@ -190,6 +191,11 @@ export const AuditAction = asEnum({
   BUYOUT_EXECUTED: 'BUYOUT_EXECUTED',
   TASK_COMPLETED: 'TASK_COMPLETED',
   TASK_COMPLETION_REJECTED: 'TASK_COMPLETION_REJECTED',
+  PASSWORD_RESET: 'PASSWORD_RESET',
+  /** §23 / Integrationen. Payload trägt { provider, projectId?, triggers? } — nie das Token. */
+  INTEGRATION_CONNECTED: 'INTEGRATION_CONNECTED',
+  INTEGRATION_DISCONNECTED: 'INTEGRATION_DISCONNECTED',
+  INTEGRATION_SETTINGS_UPDATED: 'INTEGRATION_SETTINGS_UPDATED',
   /** Punkte-Shop (intake "points-shop-real-life-rewards"). */
   REWARD_DEFINITION_CREATED: 'REWARD_DEFINITION_CREATED',
   REWARD_DEFINITION_UPDATED: 'REWARD_DEFINITION_UPDATED',
