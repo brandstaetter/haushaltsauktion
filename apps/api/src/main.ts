@@ -74,7 +74,10 @@ async function main(): Promise<void> {
   // Reconcile + dispatch. `TODOIST_INTERVAL_SECONDS=0` disables it — and is
   // also the single-reconciler guard: notification idempotency assumes exactly
   // one reconciler process, so any deployment running more than one API
-  // instance must set it to `0` on all but one.
+  // instance must set it to `0` on all but one. No technical lock enforces
+  // this yet — see `todoist-worker.ts`'s module doc (intake
+  // "todoist-worker-not-multi-instance-safe") for why and what a real fix
+  // would need.
   const todoistWorker = startTodoistWorker(deps, env.TODOIST_INTERVAL_SECONDS);
   if (todoist !== undefined && env.TODOIST_INTERVAL_SECONDS > 0) {
     logger.info(

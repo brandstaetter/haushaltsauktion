@@ -1,8 +1,9 @@
 ---
 title: "Todoist-Reconciler ist nicht sicher für mehrere API-Instanzen (nur durch Konvention geschützt)"
-status: pending
+status: completed
 priority: low
 target: apps/api/src/infra/jobs/todoist-worker.ts, apps/api/src/main.ts
+campaign: todoist-reconciler-ist-nicht-sicher-f-r-mehrere-api-instanzen-nur-durch-konventi
 ---
 
 ## Description
@@ -22,7 +23,7 @@ Und `apps/api/src/main.ts` (Zeilen 74-78) bestätigt: die
 Notification-Idempotenz des Reconcilers setzt voraus, dass **genau eine**
 Instanz ihn laufen lässt — durchgesetzt einzig durch die operative Disziplin,
 `TODOIST_INTERVAL_SECONDS=0` manuell auf allen Instanzen außer einer zu
-setzen. Es gibt (anders als bei `acquireSweepLock` in `app/tx.ts`, das
+setzen. Es gibt (anders als bei `acquireSweepLock` in `apps/api/src/app/tx.ts`, das
 `pg_advisory_xact_lock` pro Haushalt nimmt) keinen technischen Mechanismus,
 der eine versehentliche Doppelausführung verhindert.
 

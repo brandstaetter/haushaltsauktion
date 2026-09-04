@@ -13,8 +13,30 @@
  * spanning another process's completed dispatch, could even produce a duplicate
  * Todoist task, because the live-key index only guards the in-flight interval.
  * Any deployment running more than one API instance must therefore set
- * `TODOIST_INTERVAL_SECONDS=0` on all but one. Before scaling out, add a
- * per-household advisory lock mirroring `acquireSweepLock`.
+ * `TODOIST_INTERVAL_SECONDS=0` on all but one — enforced by operator
+ * discipline only, not by a technical lock (intake
+ * "todoist-worker-not-multi-instance-safe"; latent, since nothing in this
+ * repo's compose files currently runs more than one instance — CLAUDE.md §43).
+ *
+ * **Why this isn't `acquireSweepLock` yet.** `acquireSweepLock` works because
+ * `runAssignmentSweep` does its household's entire unit of work inside one
+ * `pg_advisory_xact_lock`-guarded interactive transaction. This tick cannot:
+ * `runReconciliation` reads span several unlocked queries before its own short
+ * write transaction, and `dispatchOutbox` makes a real Todoist HTTP call with
+ * *no* transaction open per row (`dispatchOutbox.ts`'s whole point — an outage
+ * must never hold a lock across a third-party round trip, §28). Wrapping the
+ * household's whole tick in one outer transaction to hold an advisory lock
+ * would mean an interactive Prisma transaction staying open across up to
+ * `BATCH_LIMIT` (20) sequential HTTP calls — a connection-pool and
+ * transaction-timeout risk of its own. A correct fix needs either a
+ * session-level `pg_try_advisory_lock` on a connection held outside Prisma's
+ * pool (lock/unlock must share one physical connection, which `$queryRaw`
+ * calls through the pool cannot guarantee), or restructuring `dispatchOutbox`'s
+ * claim (`lockOutboxBatch` in `tx.ts`) to atomically flip each row's status
+ * within the claiming transaction — right now the claim's `FOR UPDATE SKIP
+ * LOCKED` transaction commits (releasing the row lock) before the row's status
+ * changes in a later transaction, leaving a real, if narrow, window where a
+ * second concurrent claim could re-select the same still-PENDING/FAILED rows.
  *
  * Note `0` disables the *worker*, not all Todoist traffic: a member
  * disconnecting on that instance still gets a best-effort close flush.
