@@ -359,7 +359,20 @@ export async function listAvailableTasks(
   return dtos;
 }
 
-/** `GET /api/tasks/assigned-to-me` (§3.4). */
+/**
+ * `GET /api/tasks/assigned-to-me` (§3.4).
+ *
+ * Bugfix (intake "multi-worker-task-not-in-my-tasks-until-fully-staffed"):
+ * for `EXACTLY`/`AT_LEAST` above 1 worker, a join that does not itself cross
+ * `minRequired` leaves `TaskInstance.status` at `AVAILABLE`
+ * (`volunteerForTask.ts`'s `nextStatus`) even though the joining member now
+ * holds a real `ACTIVE` assignment — so filtering on `status: 'ASSIGNED'`
+ * here (as this used to) hid the task from its own holder until every slot
+ * was filled. Mirrors the `listAvailableTasks` fix below it: the relevant
+ * statuses for "could have an active assignment on it" are `AVAILABLE` and
+ * `ASSIGNED`, same as there — `EXACTLY(1)` is unaffected, since its one join
+ * always crosses `minRequired` immediately.
+ */
 export async function listAssignedToMe(
   tx: PrismaTx,
   ctx: ViewerContext,
@@ -369,7 +382,7 @@ export async function listAssignedToMe(
   const instances = await tx.taskInstance.findMany({
     where: {
       householdId: ctx.householdId,
-      status: 'ASSIGNED',
+      status: { in: ['AVAILABLE', 'ASSIGNED'] },
       assignments: { some: { status: 'ACTIVE', memberId: ctx.memberId } },
     },
     include: INSTANCE_INCLUDE,
