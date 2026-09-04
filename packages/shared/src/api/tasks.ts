@@ -61,6 +61,17 @@ export interface AvailableTaskDto {
   workerCountMode: WorkerCountMode;
   workerCount: number;
   activeSlotCount: number;
+  /**
+   * Bugfix (multi-worker vanish-from-list): whether the viewer holds one of
+   * this instance's currently `ACTIVE` slots. An `ASSIGNED` instance with
+   * `AT_LEAST`/`AT_MOST` still recruits while a slot is free, so `status`
+   * alone can no longer tell a client "the viewer already holds this" —
+   * that used to be implicit (only the holder's own request ever saw an
+   * `ASSIGNED` row in a viewer-scoped list), but is explicit now that
+   * `listAvailableTasks` also returns `ASSIGNED` rows other members can
+   * still join.
+   */
+  viewerHasActiveSlot: boolean;
 }
 
 /** §31 — everything the user must see before deciding. All server-computed. */

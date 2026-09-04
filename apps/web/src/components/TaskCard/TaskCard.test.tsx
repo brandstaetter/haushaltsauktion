@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { AvailableTaskDto } from '@haushaltsauktion/shared';
 import { TaskCard } from './TaskCard';
@@ -25,6 +25,7 @@ function taskFixture(overrides: Partial<AvailableTaskDto> = {}): AvailableTaskDt
     workerCountMode: 'EXACTLY',
     workerCount: 1,
     activeSlotCount: 0,
+    viewerHasActiveSlot: false,
     ...overrides,
   };
 }
@@ -70,5 +71,38 @@ describe('TaskCard', () => {
   it('zeigt keine Belegungsanzeige für workerCount === 1 (Standardfall)', () => {
     render(<TaskCard task={taskFixture({ workerCount: 1, activeSlotCount: 1 })} />);
     expect(screen.queryByText(/besetzt/)).not.toBeInTheDocument();
+  });
+
+  it('bietet weiterhin "Freiwillig übernehmen" für eine ASSIGNED Multi-Worker-Aufgabe mit freiem Slot, die der Viewer noch nicht hält', () => {
+    const onAction = vi.fn();
+    render(
+      <TaskCard
+        task={taskFixture({
+          status: 'ASSIGNED',
+          workerCount: 2,
+          activeSlotCount: 1,
+          canVolunteer: true,
+          viewerHasActiveSlot: false,
+        })}
+        onAction={onAction}
+      />,
+    );
+    const button = screen.getByRole('button', { name: 'Freiwillig übernehmen' });
+    expect(button).not.toBeDisabled();
+  });
+
+  it('bietet "Als erledigt markieren" für eine ASSIGNED-Aufgabe, deren Slot der Viewer selbst hält', () => {
+    const onAction = vi.fn();
+    render(
+      <TaskCard
+        task={taskFixture({
+          status: 'ASSIGNED',
+          canVolunteer: false,
+          viewerHasActiveSlot: true,
+        })}
+        onAction={onAction}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Als erledigt markieren' })).toBeInTheDocument();
   });
 });

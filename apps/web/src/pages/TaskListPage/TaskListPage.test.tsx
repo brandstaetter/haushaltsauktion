@@ -48,6 +48,7 @@ function availableTaskFixture(overrides: Partial<AvailableTaskDto> = {}): Availa
     workerCountMode: 'EXACTLY',
     workerCount: 1,
     activeSlotCount: 0,
+    viewerHasActiveSlot: false,
     ...overrides,
   };
 }

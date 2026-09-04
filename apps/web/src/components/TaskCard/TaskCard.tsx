@@ -45,7 +45,12 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
     );
   }
 
-  const isHeld = task.status === 'ASSIGNED';
+  // Bugfix (multi-worker vanish-from-list): `status === 'ASSIGNED'` used to
+  // imply "the viewer holds this" — true only while every task had exactly
+  // one slot. A multi-worker instance can now be ASSIGNED (minRequired met)
+  // while still recruiting, so this list can show an ASSIGNED row the viewer
+  // hasn't joined; `viewerHasActiveSlot` is the actual per-viewer signal.
+  const isHeld = task.viewerHasActiveSlot;
   const ctaLabel = actionLabel ?? (isHeld ? de.action.complete : de.action.volunteer);
 
   return (
