@@ -587,6 +587,19 @@ export const de = {
           VOLUNTARY: 'freiwillig',
           RANDOM: 'zufällig',
         },
+        /** Intake "admin-cancel-or-sync-open-instances-on-definition-change".
+         * Deliberately not just "Abbrechen" — that's already the sheet's own
+         * generic close button in the same dialog, and two same-labelled
+         * buttons with very different consequences is a real a11y trap, not
+         * just a test-query nuisance. */
+        cancelButton: 'Instanz abbrechen',
+        cancelSuccess: 'Instanz wurde abgebrochen.',
+        cancelAllButton: 'Alle offenen Instanzen abbrechen',
+        cancelAllSuccess: '{cancelled} Instanz(en) abgebrochen.',
+        errors: {
+          illegalTransition: 'Diese Instanz kann gerade nicht abgebrochen werden.',
+          generic: 'Das hat nicht funktioniert.',
+        },
       },
     },
     categories: {

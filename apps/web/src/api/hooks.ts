@@ -551,6 +551,48 @@ export function useReactivateTaskDefinition() {
   });
 }
 
+/**
+ * Intake "admin-cancel-or-sync-open-instances-on-definition-change". Ends an
+ * open instance (any status the backend's `OPEN_STATUSES` admits, including
+ * `ASSIGNED`) for good — invalidates the same member-facing queries
+ * `useMaterializeTaskDefinition` does, since a cancelled instance disappears
+ * from dashboards/task lists exactly like a newly materialized one appears.
+ */
+export function useCancelInstance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string | null }) =>
+      api<{ id: string; status: string; revokedAssignments: number; clawedBack: number }>(
+        `/admin/instances/${id}/cancel`,
+        { method: 'POST', body: { reason: reason ?? null } },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: dashboardQueryKey });
+      void qc.invalidateQueries({ queryKey: ['tasks'] });
+      void qc.invalidateQueries({ queryKey: ['history'] });
+      void qc.invalidateQueries({ queryKey: adminTaskDefinitionsQueryKey });
+    },
+  });
+}
+
+/** Same intake — the bulk convenience for "the definition changed, end every open instance of it". */
+export function useCancelOpenInstancesOfDefinition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string | null }) =>
+      api<{ cancelled: number; skipped: number }>(
+        `/admin/task-definitions/${id}/cancel-open-instances`,
+        { method: 'POST', body: { reason: reason ?? null } },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: dashboardQueryKey });
+      void qc.invalidateQueries({ queryKey: ['tasks'] });
+      void qc.invalidateQueries({ queryKey: ['history'] });
+      void qc.invalidateQueries({ queryKey: adminTaskDefinitionsQueryKey });
+    },
+  });
+}
+
 export function useUpdateTaskEligibility() {
   const qc = useQueryClient();
   return useMutation({

@@ -8,6 +8,8 @@ import {
   useAdminTaskDefinitionDetail,
   useAdminTaskDefinitions,
   useArchiveTaskDefinition,
+  useCancelInstance,
+  useCancelOpenInstancesOfDefinition,
   useCreateTaskDefinition,
   useMaterializeTaskDefinition,
   useReactivateTaskDefinition,
@@ -49,6 +51,16 @@ function taskDefinitionErrorMessage(err: unknown, de: Strings): string {
   }
   if (err instanceof ApiError && err.message) return err.message;
   return de.admin.taskDefinitions.errors.generic;
+}
+
+/** Intake "admin-cancel-or-sync-open-instances-on-definition-change". */
+function cancelInstanceErrorMessage(err: unknown, de: Strings): string {
+  const apiErr = err as { code?: string };
+  if (apiErr.code === 'ILLEGAL_TRANSITION') {
+    return de.admin.taskDefinitions.instances.errors.illegalTransition;
+  }
+  if (err instanceof ApiError && err.message) return err.message;
+  return de.admin.taskDefinitions.instances.errors.generic;
 }
 
 // ───────────────────────── create/edit sheet ─────────────────────────
@@ -288,14 +300,31 @@ function RecurrenceFields({
 /**
  * §17/§23 visibility: what a definition has actually produced and who holds
  * it, so an admin editing it can see at a glance what's in flight before
- * changing base values or eligibility out from under it. Read-only — the
- * unassign action itself is a separate ticket.
+ * changing base values or eligibility out from under it. Was read-only —
+ * cancelling an open instance (including one already `ASSIGNED`) is the
+ * action intake "admin-cancel-or-sync-open-instances-on-definition-change"
+ * adds, both per-instance and for every open instance of this definition at
+ * once (the actual trigger case: the definition just changed).
  */
 function LiveInstancesList({ definitionId }: { definitionId: string }) {
   const { de } = useStrings();
   const t = de.admin.taskDefinitions.instances;
   const { data, isLoading } = useAdminTaskDefinitionDetail(definitionId);
+  const cancelInstance = useCancelInstance();
+  const cancelAll = useCancelOpenInstancesOfDefinition();
   const instances = data?.instances ?? [];
+
+  const [rowErrors, setRowErrors] = useState<Record<string, string | null>>({});
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [allError, setAllError] = useState<string | null>(null);
+
+  // Copilot review (PR #63): the bulk cancel and every per-instance cancel
+  // shared no lock, so one in-flight cancel didn't stop another from firing
+  // — overlapping mutations against the same definition's instances. One
+  // cancel (bulk or single) at a time; every button disables while any of
+  // them is in flight, not just the one that started it.
+  const anyCancelInFlight = cancellingId !== null || cancelAll.isPending;
 
   const assigneeLabel = (instance: AdminTaskInstanceRowDto): string => {
     if (instance.assignments.length === 0) return t.unassigned;
@@ -311,33 +340,97 @@ function LiveInstancesList({ definitionId }: { definitionId: string }) {
       .join(', ');
   };
 
+  const handleCancel = (instanceId: string) => {
+    setRowErrors((prev) => ({ ...prev, [instanceId]: null }));
+    setCancellingId(instanceId);
+    cancelInstance.mutate(
+      { id: instanceId },
+      {
+        onSuccess: () => {
+          setCancellingId(null);
+          setMessage(t.cancelSuccess);
+        },
+        onError: (err) => {
+          setCancellingId(null);
+          setRowErrors((prev) => ({ ...prev, [instanceId]: cancelInstanceErrorMessage(err, de) }));
+        },
+      },
+    );
+  };
+
+  const handleCancelAll = () => {
+    setAllError(null);
+    cancelAll.mutate(
+      { id: definitionId },
+      {
+        onSuccess: (result) => {
+          setMessage(interpolate(t.cancelAllSuccess, { cancelled: result.cancelled }));
+        },
+        onError: (err) => setAllError(cancelInstanceErrorMessage(err, de)),
+      },
+    );
+  };
+
   return (
     <div className={styles.restrictionsForm}>
       <h3 className={styles.sectionTitle}>{t.title}</h3>
+
+      <Toast message={message} onDismiss={() => setMessage(null)} />
+
       {isLoading ? (
         <div className={styles.spinner} aria-label="Wird geladen" />
       ) : instances.length === 0 ? (
         <p className={styles.hint}>{t.empty}</p>
       ) : (
-        <ul className={styles.checkboxList}>
-          {instances.map((instance) => (
-            <li key={instance.id} className={styles.instanceRow}>
-              <Link to={`/aufgaben/${instance.id}`}>
-                <span>{de.task.status[instance.status]}</span>
-                <span>{formatNumber(instance.currentValue)}</span>
-                {instance.workerCount > 1 && (
-                  <span>
-                    {interpolate(de.task.slotsOccupied, {
-                      occupied: instance.activeSlotCount,
-                      total: instance.workerCount,
-                    })}
-                  </span>
+        <>
+          {allError && (
+            <div className={styles.message} role="alert">
+              {allError}
+            </div>
+          )}
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={handleCancelAll}
+            loading={cancelAll.isPending}
+            disabled={anyCancelInFlight}
+          >
+            {t.cancelAllButton}
+          </Button>
+          <ul className={styles.checkboxList}>
+            {instances.map((instance) => (
+              <li key={instance.id} className={styles.instanceRow}>
+                <Link to={`/aufgaben/${instance.id}`}>
+                  <span>{de.task.status[instance.status]}</span>
+                  <span>{formatNumber(instance.currentValue)}</span>
+                  {instance.workerCount > 1 && (
+                    <span>
+                      {interpolate(de.task.slotsOccupied, {
+                        occupied: instance.activeSlotCount,
+                        total: instance.workerCount,
+                      })}
+                    </span>
+                  )}
+                  <span>{assigneeLabel(instance)}</span>
+                </Link>
+                {rowErrors[instance.id] && (
+                  <div className={styles.message} role="alert">
+                    {rowErrors[instance.id]}
+                  </div>
                 )}
-                <span>{assigneeLabel(instance)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => handleCancel(instance.id)}
+                  loading={cancellingId === instance.id}
+                  disabled={anyCancelInFlight}
+                >
+                  {t.cancelButton}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );

@@ -575,4 +575,182 @@ describe('TaskDefinitionsSection', () => {
       expect(capturedBody).toEqual({ included: [], excluded: [], preferred: ['mem-paul'] });
     },
   );
+
+  it(
+    'erlaubt das Abbrechen einer einzelnen laufenden Instanz und aller offenen Instanzen auf einmal',
+    async () => {
+      const user = userEvent.setup();
+      const definition = definitionFixture();
+      let instances: AdminTaskDefinitionDetailDto['instances'] = [
+        {
+          id: 'inst-1',
+          status: 'ASSIGNED',
+          currentValue: 9,
+          dueAt: null,
+          workerCountMode: 'EXACTLY',
+          workerCount: 1,
+          activeSlotCount: 1,
+          assignments: [
+            { id: 'asg-1', kind: 'RANDOM', slotIndex: 0, member: { id: 'mem-1', displayName: 'Anna' } },
+          ],
+        },
+        {
+          id: 'inst-2',
+          status: 'AVAILABLE',
+          currentValue: 6,
+          dueAt: null,
+          workerCountMode: 'EXACTLY',
+          workerCount: 1,
+          activeSlotCount: 0,
+          assignments: [],
+        },
+      ];
+      const cancelledIds: string[] = [];
+      let bulkCancelCalled = false;
+
+      mockedApi.mockImplementation(
+        async (path: string, options?: { method?: string; body?: unknown }) => {
+          const method = options?.method ?? 'GET';
+          if (path === '/admin/task-definitions' && method === 'GET') {
+            return { items: [definition] };
+          }
+          if (path === '/admin/categories') return { items: [] };
+          if (path === '/admin/members') return { items: [] };
+          if (path === '/auth/me') return sessionFixture;
+          if (path === `/admin/task-definitions/${definition.id}` && method === 'GET') {
+            return {
+              ...definition,
+              instances,
+              marketValue: { averageVoluntaryTakeoverValue: null, sampleSize: 0 },
+            };
+          }
+          if (path === '/admin/instances/inst-1/cancel' && method === 'POST') {
+            cancelledIds.push('inst-1');
+            instances = instances.filter((i) => i.id !== 'inst-1');
+            return { id: 'inst-1', status: 'CANCELLED', revokedAssignments: 1, clawedBack: 0 };
+          }
+          if (
+            path === `/admin/task-definitions/${definition.id}/cancel-open-instances` &&
+            method === 'POST'
+          ) {
+            bulkCancelCalled = true;
+            const cancelled = instances.length;
+            instances = [];
+            return { cancelled, skipped: 0 };
+          }
+          throw new Error(`unerwarteter Aufruf: ${path} ${method}`);
+        },
+      );
+
+      renderSection();
+
+      expect(await screen.findByText('Bad putzen')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: de.admin.taskDefinitions.edit }));
+
+      const dialog = await screen.findByRole('dialog');
+      const instanceRows = await within(dialog).findAllByRole('button', {
+        name: de.admin.taskDefinitions.instances.cancelButton,
+      });
+      expect(instanceRows).toHaveLength(2);
+      await user.click(instanceRows[0]!);
+
+      expect(cancelledIds).toEqual(['inst-1']);
+      await within(dialog).findByText(de.admin.taskDefinitions.instances.cancelSuccess);
+
+      await user.click(
+        within(dialog).getByRole('button', {
+          name: de.admin.taskDefinitions.instances.cancelAllButton,
+        }),
+      );
+      expect(bulkCancelCalled).toBe(true);
+      await within(dialog).findByText(de.admin.taskDefinitions.instances.empty);
+    },
+  );
+
+  it(
+    'deaktiviert alle Abbrechen-Buttons, solange ein Freikauf/Abbrechen-Vorgang läuft (Copilot-Review PR #63)',
+    async () => {
+      const user = userEvent.setup();
+      const definition = definitionFixture();
+      const instances: AdminTaskDefinitionDetailDto['instances'] = [
+        {
+          id: 'inst-1',
+          status: 'ASSIGNED',
+          currentValue: 9,
+          dueAt: null,
+          workerCountMode: 'EXACTLY',
+          workerCount: 1,
+          activeSlotCount: 1,
+          assignments: [
+            { id: 'asg-1', kind: 'RANDOM', slotIndex: 0, member: { id: 'mem-1', displayName: 'Anna' } },
+          ],
+        },
+        {
+          id: 'inst-2',
+          status: 'AVAILABLE',
+          currentValue: 6,
+          dueAt: null,
+          workerCountMode: 'EXACTLY',
+          workerCount: 1,
+          activeSlotCount: 0,
+          assignments: [],
+        },
+      ];
+      let resolveCancel: (() => void) | null = null;
+
+      mockedApi.mockImplementation(
+        async (path: string, options?: { method?: string; body?: unknown }) => {
+          const method = options?.method ?? 'GET';
+          if (path === '/admin/task-definitions' && method === 'GET') {
+            return { items: [definition] };
+          }
+          if (path === '/admin/categories') return { items: [] };
+          if (path === '/admin/members') return { items: [] };
+          if (path === '/auth/me') return sessionFixture;
+          if (path === `/admin/task-definitions/${definition.id}` && method === 'GET') {
+            return {
+              ...definition,
+              instances,
+              marketValue: { averageVoluntaryTakeoverValue: null, sampleSize: 0 },
+            };
+          }
+          if (path === '/admin/instances/inst-1/cancel' && method === 'POST') {
+            // Never resolves until the test lets it — that's the window in
+            // which the other buttons must be observed as disabled.
+            return new Promise((resolve) => {
+              resolveCancel = () =>
+                resolve({ id: 'inst-1', status: 'CANCELLED', revokedAssignments: 1, clawedBack: 0 });
+            });
+          }
+          throw new Error(`unerwarteter Aufruf: ${path} ${method}`);
+        },
+      );
+
+      renderSection();
+
+      expect(await screen.findByText('Bad putzen')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: de.admin.taskDefinitions.edit }));
+
+      const dialog = await screen.findByRole('dialog');
+      const instanceRows = await within(dialog).findAllByRole('button', {
+        name: de.admin.taskDefinitions.instances.cancelButton,
+      });
+      expect(instanceRows).toHaveLength(2);
+
+      await user.click(instanceRows[0]!);
+
+      // While inst-1's cancel is in flight: the bulk button and the other
+      // row's cancel button must both be disabled, not just the clicked one.
+      const bulkButton = within(dialog).getByRole('button', {
+        name: de.admin.taskDefinitions.instances.cancelAllButton,
+      });
+      expect(bulkButton).toBeDisabled();
+      expect(instanceRows[1]).toBeDisabled();
+
+      resolveCancel!();
+      await within(dialog).findByText(de.admin.taskDefinitions.instances.cancelSuccess);
+
+      expect(bulkButton).not.toBeDisabled();
+    },
+  );
 });
