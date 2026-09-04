@@ -58,4 +58,16 @@ describe('renderEvent', () => {
       'Bad putzen wurde abgebrochen',
     );
   });
+
+  it('names the member, the bonus amount and the task for a streak bonus — not the raw enum', () => {
+    expect(
+      renderEvent(
+        de,
+        event('STREAK_BONUS_AWARDED', {
+          member: { displayName: 'Paul' },
+          payload: { amount: 3, streakLength: 6, transactionId: 'tx-1' },
+        }),
+      ),
+    ).toBe('Paul erhält 3 Punkte Serien-Bonus für Bad putzen');
+  });
 });

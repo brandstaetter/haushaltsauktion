@@ -225,6 +225,8 @@ export const de = {
       REOPENED_TO_ASSIGNEE: '{task} wurde {member} zur Nacherledigung zurückgegeben',
       RE_OFFERED: '{task} wurde erneut angeboten — Wert {value}',
       CANCELLED: '{task} wurde abgebrochen',
+      /** intake "daily-completion-streak-bonus" — completeTask.ts:412. */
+      STREAK_BONUS_AWARDED: '{member} erhält {points} Punkte Serien-Bonus für {task}',
     },
   },
   notifications: {
