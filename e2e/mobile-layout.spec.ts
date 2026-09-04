@@ -133,10 +133,18 @@ test.describe('Mobile Darstellung (390×844)', () => {
 
       const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
       const links = nav.getByRole('link');
-      // Die 5 Verwaltungseinträge plus "Zurück" zum Hauptmenü.
-      await expect(links).toHaveCount(6);
+      // Die 6 Verwaltungseinträge plus "Zurück" zum Hauptmenü.
+      await expect(links).toHaveCount(7);
 
-      for (const label of ['Einstellungen', 'Benutzer', 'Aufgaben', 'Kategorien', 'Punkte-Shop', 'Zurück']) {
+      for (const label of [
+        'Einstellungen',
+        'Benutzer',
+        'Aufgaben',
+        'Kategorien',
+        'Punkte-Shop',
+        'Audit-Log',
+        'Zurück',
+      ]) {
         const link = nav.getByRole('link', { name: label, exact: true });
         await expectNoLineWrap(link);
         // Die eigentliche Regression: ein Label kann einzeilig bleiben und
