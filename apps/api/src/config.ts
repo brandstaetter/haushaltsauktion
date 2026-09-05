@@ -24,6 +24,17 @@ const EnvSchema = z.object({
   /** The interval sweep (PRD §2). 0 disables the worker; the endpoint still works. */
   SWEEP_INTERVAL_SECONDS: z.coerce.number().int().min(0).default(60),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  /**
+   * The global bucket's request count (§3.12, `server.ts`) — per minute, keyed
+   * by session. `300` comfortably covers real household traffic (1-20
+   * members) but a long, sequential E2E suite that reuses just two or three
+   * real logins (`e2e/helpers.ts`'s `storageStatePath`) across dozens of spec
+   * files can exhaust that same per-session bucket well before real users
+   * would, tripping unrelated later tests with a `429` on `/auth/me`. The
+   * throwaway E2E stack raises this via `deploy/docker-compose.e2e.yml`;
+   * production keeps the default.
+   */
+  RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
   /** Comma-separated origins for the SPA in development. */
   CORS_ORIGINS: z.string().optional(),
   /**

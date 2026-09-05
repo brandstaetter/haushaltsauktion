@@ -70,6 +70,7 @@ Beide Ports, sowie `DB_PORT`, sind über Umgebungsvariablen konfigurierbar
 | `SESSION_TTL_HOURS` | nein | `720` (30 Tage) | Session-Gültigkeit |
 | `SWEEP_INTERVAL_SECONDS` | nein | `60` | Intervall der Hintergrund-Zufallsvergabe; `0` deaktiviert den Timer (der Endpunkt `POST /api/admin/assignments/run` funktioniert trotzdem) |
 | `LOG_LEVEL` | nein | `info` | pino-Log-Level |
+| `RATE_LIMIT_MAX` | nein | `300` | Globales Limit (§3.12), Anfragen pro Minute je Session |
 | `CORS_ORIGINS` | nein | — | Komma-getrennte erlaubte Origins (Dev-SPA auf anderem Port) |
 | `SETUP_TOKEN` | nein | — (Feature deaktiviert) | Schaltet `POST /api/register` frei — siehe [Ersteinrichtung](#ersteinrichtung-neuer-haushalt) |
 | `INTEGRATION_ENCRYPTION_KEY` | nein — aber **ohne ihn ist die Todoist-Integration inaktiv** | — | AES-256-GCM-Schlüssel für die Todoist-Tokens der Mitglieder. Base64-kodiert; **dekodiert muss der Wert exakt 32 Byte ergeben** (`openssl rand -base64 32` liefert das direkt). Fehlt er, wird die Integration nicht zusammengesetzt: keine Wirkung, **keine Fehlermeldung**. Ein *fehlerhafter* Wert bricht dagegen absichtlich schon beim Start ab. |

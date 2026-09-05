@@ -52,7 +52,7 @@ export async function buildServer(options: ServerOptions): Promise<FastifyInstan
   // is expensive (login) or economically meaningful (buyout).
   await app.register(rateLimit, {
     global: true,
-    max: 300,
+    max: env.RATE_LIMIT_MAX,
     timeWindow: '1 minute',
     keyGenerator: (request) => request.ctx?.sessionId ?? request.ip,
   });
