@@ -1,0 +1,74 @@
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.empty {
+  color: var(--ink-3);
+  font: var(--t-body);
+  padding: var(--s-4) 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+
+.rank {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-full);
+  font: var(--t-h3);
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+/*
+ * Gold vs. bronze medal emoji differ only by a small embedded digit and a
+ * subtle hue shift in some fonts (Segoe UI Emoji included) — easy to misread
+ * at this size. The badge's own background makes rank 1-3 unmistakable even
+ * if the emoji itself is hard to tell apart; deliberately theme-invariant
+ * (unlike `--value-*`'s light/dark pairs) since these are real medal colors,
+ * not colors that need to blend with the surrounding surface.
+ */
+.gold {
+  background: #f5cf5c;
+}
+
+.silver {
+  background: #d4dce3;
+}
+
+.bronze {
+  background: #d99a63;
+}
+
+.name {
+  flex: 1 1 auto;
+  font: var(--t-body);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crown {
+  font-size: 13px;
+}
+
+.points {
+  flex: 0 0 auto;
+  font: var(--t-h3);
+  color: var(--ink);
+}

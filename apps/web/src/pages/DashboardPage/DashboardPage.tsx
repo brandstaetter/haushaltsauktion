@@ -8,6 +8,8 @@ import type { Strings } from '../../strings/de';
 import { TaskCard } from '../../components/TaskCard/TaskCard';
 import { Button } from '../../components/Button/Button';
 import { Sheet } from '../../components/Sheet/Sheet';
+import { PointsCard } from '../../components/PointsCard/PointsCard';
+import { LeaderboardCard } from '../../components/LeaderboardCard/LeaderboardCard';
 import { formatNumber, formatRemaining, interpolate } from '../../utils/format';
 import styles from './DashboardPage.module.css';
 
@@ -166,9 +168,13 @@ export function DashboardPage() {
     <div className={styles.page}>
       <section className={styles.hero}>
         <h1 className={styles.greeting}>{de.dashboard.greeting.replace('{name}', data.me.displayName)}</h1>
-        <div className={styles.balanceCard}>
-          <span className={styles.balanceLabel}>{de.dashboard.balance}</span>
-          <span className={styles.balanceValue}>{formatNumber(data.me.balance)}</span>
+        <div className={styles.heroRow}>
+          <div className={styles.pointsCol}>
+            <PointsCard balance={data.me.balance} />
+          </div>
+          <div className={styles.leaderboardCol}>
+            <LeaderboardCard members={data.family.members} />
+          </div>
         </div>
       </section>
 
