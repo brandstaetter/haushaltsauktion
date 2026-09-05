@@ -26,12 +26,20 @@ async function flattenPlugins(plugins: PluginOption[] | undefined): Promise<Plug
 }
 
 const config: StorybookConfig = {
-  stories: ['../src/components/**/*.stories.@(ts|tsx)'],
-  addons: [],
+  stories: [
+    '../src/components/**/*.stories.@(ts|tsx)',
+    '../src/pages/**/*.stories.@(ts|tsx)',
+  ],
+  addons: ['msw-storybook-addon'],
   framework: {
     name: '@storybook/react-vite',
     options: {},
   },
+  // Serves `mockServiceWorker.js` (see `package.json`'s `msw.workerDirectory`)
+  // — kept out of `../public` deliberately, since that directory is also
+  // Vite's static-asset source for the real app's production build and has
+  // no business shipping a mock worker.
+  staticDirs: ['./public'],
   async viteFinal(viteConfig) {
     // `vite-plugin-pwa` is merged in along with the rest of `vite.config.ts`
     // (see above), but it has no business running inside Storybook: it

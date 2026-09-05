@@ -40,6 +40,8 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^4.1.11",
     "jsdom": "^29.1.1",
+    "msw": "^2.15.0",
+    "msw-storybook-addon": "^3.0.0",
     "storybook": "^10.6.0",
     "typescript": "~5.9.3",
     "vite": "^6.2.3",
@@ -47,5 +49,10 @@
     "vitest": "^4.1.11",
     "workbox-precaching": "^7.4.1",
     "workbox-routing": "^7.4.1"
+  },
+  "msw": {
+    "workerDirectory": [
+      ".storybook/public"
+    ]
   }
 }
