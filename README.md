@@ -68,7 +68,7 @@ Beide Ports, sowie `DB_PORT`, sind über Umgebungsvariablen konfigurierbar
 | `PORT` / `HOST` | nein | `3000` / `0.0.0.0` | API-Listen-Adresse |
 | `COOKIE_SECURE` | nein | `true` | Cookies nur über HTTPS; für lokales HTTP auf `false` setzen |
 | `SESSION_TTL_HOURS` | nein | `720` (30 Tage) | Session-Gültigkeit |
-| `SWEEP_INTERVAL_SECONDS` | nein | `60` | Intervall der Hintergrund-Zufallsvergabe; `0` deaktiviert den Timer (der Endpunkt `POST /api/admin/assignments/run` funktioniert trotzdem) |
+| `SWEEP_INTERVAL_SECONDS` | nein | `900` (15 Min.) | Intervall der Hintergrund-Zufallsvergabe; `0` deaktiviert den Timer (der Endpunkt `POST /api/admin/assignments/run` funktioniert trotzdem) |
 | `LOG_LEVEL` | nein | `info` | pino-Log-Level |
 | `RATE_LIMIT_MAX` | nein | `300` | Globales Limit (§3.12), Anfragen pro Minute je Session |
 | `CORS_ORIGINS` | nein | — | Komma-getrennte erlaubte Origins (Dev-SPA auf anderem Port) |

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AuditAction } from '@haushaltsauktion/shared';
 import { useAdminAuditEvents, useMembers } from '../../api/hooks';
 import { useStrings } from '../../context/StringsContext';
-import { formatDate, interpolate, signedNumber } from '../../utils/format';
+import { formatDate, formatTime, interpolate, signedNumber } from '../../utils/format';
 import { Button } from '../../components/Button/Button';
 import styles from './AdminPage.module.css';
 
@@ -179,7 +179,7 @@ export function AuditLogSection() {
                 <div className={styles.memberHeader}>
                   <span className={styles.memberName}>{de.admin.auditLog.actions[event.action]}</span>
                   <time dateTime={event.createdAt} className={styles.hint}>
-                    {formatDate(event.createdAt)}
+                    {formatDate(event.createdAt)}, {formatTime(event.createdAt)}
                   </time>
                 </div>
                 <div className={styles.memberFields}>

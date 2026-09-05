@@ -22,7 +22,7 @@ const EnvSchema = z.object({
     .transform((v) => v !== 'false'),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 90).default(24 * 30),
   /** The interval sweep (PRD §2). 0 disables the worker; the endpoint still works. */
-  SWEEP_INTERVAL_SECONDS: z.coerce.number().int().min(0).default(60),
+  SWEEP_INTERVAL_SECONDS: z.coerce.number().int().min(0).default(900),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   /**
    * The global bucket's request count (§3.12, `server.ts`) — per minute, keyed
