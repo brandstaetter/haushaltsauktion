@@ -104,6 +104,9 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
   notifications: Object.freeze({
     inAppEnabled: true, // §24
     dueSoonLeadMinutes: 120,
+    // intake "due-soon-reminder-for-assigned-tasks": "double the duration
+    // time before the expiry point".
+    dueSoonDurationMultiplier: 2,
     // push-notifications §Architekturvorschlag — pure opt-in, off by default.
     pushEnabled: false,
   }),

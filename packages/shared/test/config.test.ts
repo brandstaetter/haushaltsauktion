@@ -53,6 +53,12 @@ describe('DEFAULT_CONFIG matches CLAUDE.md §39 verbatim', () => {
     expect(DEFAULT_CONFIG.streak.baseRate).toBe(0.5);
   });
 
+  it('sets the due-soon multiplier default (intake "due-soon-reminder-for-assigned-tasks")', () => {
+    expect(DEFAULT_CONFIG.notifications.dueSoonDurationMultiplier).toBe(2);
+    // dueSoonLeadMinutes is a separate, still-unused mechanism — untouched.
+    expect(DEFAULT_CONFIG.notifications.dueSoonLeadMinutes).toBe(120);
+  });
+
   it('carries the four keys the reconciliation added', () => {
     expect(DEFAULT_CONFIG.fairness.windowDays).toBe(28); // OQ-7
     // OQ-4, reworked: auto-assignment now only triggers within this many
@@ -230,6 +236,21 @@ describe('cross-field rules (§5.3)', () => {
     expect(pathsOf(patch((c) => (c.assignment.offerDurationMinutes = 0)))).toContain(
       'assignment.offerDurationMinutes',
     );
+  });
+
+  it('bounds dueSoonDurationMultiplier to [0, 100] but allows fractional values', () => {
+    expect(pathsOf(patch((c) => (c.notifications.dueSoonDurationMultiplier = -1)))).toContain(
+      'notifications.dueSoonDurationMultiplier',
+    );
+    expect(pathsOf(patch((c) => (c.notifications.dueSoonDurationMultiplier = 101)))).toContain(
+      'notifications.dueSoonDurationMultiplier',
+    );
+    expect(
+      validateConfig(patch((c) => (c.notifications.dueSoonDurationMultiplier = 0))).valid,
+    ).toBe(true);
+    expect(
+      validateConfig(patch((c) => (c.notifications.dueSoonDurationMultiplier = 1.5))).valid,
+    ).toBe(true);
   });
 });
 

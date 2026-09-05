@@ -710,6 +710,14 @@ model TaskAssignment {
   completedAt DateTime? @map("completed_at")
   closedAt    DateTime? @map("closed_at")
 
+  /// Dedup-Marker für TASK_DUE_SOON (intake "due-soon-reminder-for-assigned-tasks").
+  /// Lebt bewusst auf der Zuweisung, nicht auf der Instanz: dieselbe TaskInstance
+  /// durchläuft bei Freikauf/Ablaufstrafe mehrere TaskAssignment-Zeilen gegen
+  /// denselben dueAt, und ein Flag auf der Instanz würde die Erinnerung für eine
+  /// spätere Zuweisung dauerhaft unterdrücken, obwohl deren Inhaber sie nie
+  /// erhalten hat. NULL, bis der Sweep genau einmal benachrichtigt hat.
+  dueSoonNotifiedAt DateTime? @map("due_soon_notified_at")
+
   household Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
   instance  TaskInstance           @relation(fields: [taskInstanceId], references: [id], onDelete: Cascade)
   member    HouseholdMember        @relation(fields: [memberId], references: [id], onDelete: Restrict)

@@ -67,6 +67,12 @@ export interface SweepReport {
   assigned: number;
   expired: number;
   skipped: number;
+  /**
+   * Intake "due-soon-reminder-for-assigned-tasks" (T19): how many
+   * `TaskAssignment` rows received exactly one `TASK_DUE_SOON` reminder this
+   * run.
+   */
+  dueSoonNotified: number;
   traces: Array<{ taskInstanceId: string; trace: SelectionTrace }>;
 }
 
@@ -109,6 +115,7 @@ export async function runAssignmentSweep(
     assigned: 0,
     expired: 0,
     skipped: 0,
+    dueSoonNotified: 0,
     traces: [],
   };
 
@@ -472,6 +479,137 @@ export async function runAssignmentSweep(
     });
   }
 
+  // ── T19: due-soon reminders ──────────────────────────────────────────
+  // Intake "due-soon-reminder-for-assigned-tasks". Same shape as T16-T18
+  // above: a bounded candidate set fetched with a plain query, the threshold
+  // computed per row in application code (it depends on a joined field —
+  // `estimatedMinutes` lives only on `TaskDefinition`, never copied onto
+  // `TaskInstance` — so it cannot be expressed as a flat SQL predicate
+  // without materializing it per row anyway), then acted on inside
+  // `withTransaction`. `dueSoonNotifiedAt` lives on `TaskAssignment`, not
+  // `TaskInstance` (see the field's schema comment): a buyout or expiry
+  // re-offer can cycle the same instance through several assignment rows
+  // against the same fixed `dueAt`, and scoping the dedup flag to the
+  // assignment gives each new holder their own independent chance to be
+  // warned instead of inheriting a prior holder's already-sent reminder.
+  // `estimatedMinutes` is read live (not pinned at assignment time) — it is
+  // display metadata with no fairness/ledger invariant to protect, unlike
+  // `valueAtAssignment`/`configVersion`.
+  const dueSoonCandidates = await deps.db.taskAssignment.findMany({
+    where: {
+      householdId: input.householdId,
+      status: 'ACTIVE',
+      dueSoonNotifiedAt: null,
+      instance: {
+        status: 'ASSIGNED',
+        dueAt: { not: null },
+        definition: { estimatedMinutes: { not: null } },
+      },
+    },
+    select: {
+      taskInstanceId: true,
+      instance: {
+        select: { dueAt: true, definition: { select: { estimatedMinutes: true } } },
+      },
+    },
+  });
+
+  if (dueSoonCandidates.length > 0) {
+    // Loaded once per sweep run, not per row — the multiplier is the same
+    // for every candidate in this household.
+    const { config: dueSoonConfig } = await loadCurrentConfig(deps.db, input.householdId);
+
+    const ripeInstanceIds = new Set<string>();
+    for (const candidate of dueSoonCandidates) {
+      const dueAt = candidate.instance.dueAt;
+      const estimatedMinutes = candidate.instance.definition.estimatedMinutes;
+      if (dueAt === null || estimatedMinutes === null) continue; // already guarded by the query
+      const thresholdMs =
+        dueAt.getTime() - dueSoonConfig.notifications.dueSoonDurationMultiplier * estimatedMinutes * 60_000;
+      if (now.getTime() >= thresholdMs) ripeInstanceIds.add(candidate.taskInstanceId);
+    }
+
+    if (input.dryRun) {
+      report.dueSoonNotified += dueSoonCandidates.filter((c) =>
+        ripeInstanceIds.has(c.taskInstanceId),
+      ).length;
+    } else {
+      for (const instanceId of ripeInstanceIds) {
+        await withTransaction(deps, async (tx) => {
+          await acquireSweepLock(tx, input.householdId);
+          const instance = await lockInstance(tx, input.householdId, instanceId);
+          if (instance === null || instance.status !== 'ASSIGNED' || instance.dueAt === null) {
+            return;
+          }
+
+          // Live re-check inside the lock — `estimatedMinutes` and `dueAt`
+          // could have moved since the outer query's snapshot above, and no
+          // pinned copy is ever consulted (see the field's schema comment).
+          const definition = await tx.taskDefinition.findFirst({
+            where: { id: instance.taskDefinitionId, householdId: input.householdId },
+            select: { estimatedMinutes: true },
+          });
+          const estimatedMinutes = definition?.estimatedMinutes ?? null;
+          if (estimatedMinutes === null) return;
+          const thresholdMs =
+            instance.dueAt.getTime() -
+            dueSoonConfig.notifications.dueSoonDurationMultiplier * estimatedMinutes * 60_000;
+          if (now.getTime() < thresholdMs) return;
+
+          // Every currently ACTIVE assignment of this instance (any `kind`)
+          // — a multi-worker instance notifies every active worker
+          // independently. The raw lock helper's row shape doesn't carry
+          // `dueSoonNotifiedAt`, so it is re-read for filtering right after,
+          // still inside the same instance-level lock.
+          const activeAssignments = await lockActiveAssignmentsOfInstance(
+            tx,
+            input.householdId,
+            instance.id,
+          );
+          const notifiable = await tx.taskAssignment.findMany({
+            where: {
+              householdId: input.householdId,
+              id: { in: activeAssignments.map((a) => a.id) },
+              dueSoonNotifiedAt: null,
+            },
+            select: { id: true, memberId: true },
+          });
+          if (notifiable.length === 0) return;
+
+          await tx.taskAssignment.updateMany({
+            where: {
+              householdId: input.householdId,
+              id: { in: notifiable.map((a) => a.id) },
+              status: 'ACTIVE',
+              dueSoonNotifiedAt: null,
+            },
+            data: { dueSoonNotifiedAt: now },
+          });
+
+          // Informational nudge only — no history/audit event, unlike the
+          // other sweep steps: nothing about the task's status or the
+          // ledger changes here (campaign brief, "Sweep implementation
+          // shape" §3).
+          await deps.notifier.emit(
+            tx,
+            notifiable.map((a) => ({
+              householdId: input.householdId,
+              memberId: a.memberId,
+              type: 'TASK_DUE_SOON',
+              // The `{task}` placeholder in `de.ts` is resolved at read time
+              // via a join on `taskInstanceId` (`app/queries/reads.ts`), not
+              // from this payload.
+              payload: {},
+              taskInstanceId: instance.id,
+            })),
+          );
+
+          report.dueSoonNotified += notifiable.length;
+        });
+      }
+    }
+  }
+
   // ── T4 / T5: the random draw ────────────────────────────────────────
   const ripe = await deps.db.taskInstance.findMany({
     where: {
@@ -815,6 +953,7 @@ export async function runAssignmentSweep(
           assigned: report.assigned,
           expired: report.expired,
           skipped: report.skipped,
+          dueSoonNotified: report.dueSoonNotified,
         },
       },
     });
