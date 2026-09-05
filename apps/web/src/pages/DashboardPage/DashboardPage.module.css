@@ -33,22 +33,36 @@
   font: var(--t-h1);
 }
 
-.balanceCard {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  padding: var(--s-4);
-  display: grid;
-  gap: var(--s-1);
+/*
+ * Mobil (Standard, §19 "primär für Smartphone-Nutzung optimiert"): gestapelt
+ * statt nebeneinander — bei 20 % Breite hätte "Dein Punktestand" auf einem
+ * Handy kaum Platz zum Umbrechen. Ab 900px (Layout.module.css's Breakpoint
+ * für die Desktop-Seitenleiste) wird daraus die 20/80-Reihe.
+ */
+.heroRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
 }
 
-.balanceLabel {
-  font: var(--t-label);
-  color: var(--ink-3);
+.pointsCol,
+.leaderboardCol {
+  min-width: 0;
 }
 
-.balanceValue {
-  font: var(--t-h1);
+@media (min-width: 900px) {
+  .heroRow {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .pointsCol {
+    flex: 0 0 20%;
+  }
+
+  .leaderboardCol {
+    flex: 0 0 80%;
+  }
 }
 
 .weekDelta {

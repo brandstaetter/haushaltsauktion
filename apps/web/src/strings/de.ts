@@ -86,6 +86,7 @@ export const de = {
     myTasks: 'Meine Aufgaben',
     available: 'Freiwillig verfügbar',
     household: 'Familie',
+    leaderboard: 'Rangliste',
     openTasks: 'Offen im Haushalt',
     members: 'Mitglieder',
     currentValue: 'Gesamtwert offen',
@@ -120,6 +121,11 @@ export const de = {
         generic: 'Das hat nicht funktioniert.',
       },
     },
+  },
+  leaderboard: {
+    /** Screenreader-Text pro Zeile — die sichtbare Medaille/Zahl ist `aria-hidden` (§32 Fairness-Transparenz gilt für Erklärungen, nicht für dieses rein optische Feature). */
+    row: '{rank}. Platz: {name}, {points} Punkte',
+    empty: 'Keine Punkte bisher vergeben...',
   },
   task: {
     title: 'Aufgabe',
