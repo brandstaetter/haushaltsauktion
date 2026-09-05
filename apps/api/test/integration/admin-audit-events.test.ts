@@ -49,13 +49,28 @@ beforeAll(async () => {
   });
   app = await buildTestServer(db);
   await app.ready();
+  // `login()` itself writes a LOGIN_SUCCEEDED audit event per member
+  // (auth.ts) — these, and the ROLE_CHANGED event below, must predate the
+  // sweep-run flood so `seq desc` ordering pushes them all out of an
+  // unfiltered top-100 page, same as they'd be pushed out in production by
+  // sweep ticks that keep running after the real event happened.
   elke = await login(app, ids, 'elke');
   paul = await login(app, ids, 'paul');
+  await db.auditEvent.create({
+    data: {
+      householdId: ids.householdId,
+      actorType: 'ADMIN',
+      actorMemberId: ids.memberId('elke'),
+      action: 'ROLE_CHANGED',
+      entityType: 'HouseholdMember',
+      entityId: ids.memberId('paul'),
+      payload: { before: 'MEMBER', after: 'ADMIN' },
+    },
+  });
 
-  // Flood the top-100 window with SYSTEM-actor sweep-run noise, then write one
-  // real member action. Ordering is `seq desc`, so without a query-level
-  // filter the sweep runs alone would fill an unfiltered page long before a
-  // 101-row-deep fetch ever reached the member action.
+  // Flood the top-100 window with SYSTEM-actor sweep-run noise, newer (higher
+  // `seq`) than everything above. Without a query-level filter, these 120
+  // rows alone fill an unfiltered 100-row page, burying the real events.
   for (let i = 0; i < 120; i++) {
     await db.auditEvent.create({
       data: {
@@ -68,17 +83,6 @@ beforeAll(async () => {
       },
     });
   }
-  await db.auditEvent.create({
-    data: {
-      householdId: ids.householdId,
-      actorType: 'ADMIN',
-      actorMemberId: ids.memberId('elke'),
-      action: 'ROLE_CHANGED',
-      entityType: 'HouseholdMember',
-      entityId: ids.memberId('paul'),
-      payload: { before: 'MEMBER', after: 'ADMIN' },
-    },
-  });
 }, 60_000);
 
 afterAll(async () => {
@@ -122,14 +126,30 @@ test('actors-Filter mit dem SYSTEM-Sentinel wählt nur systemgenerierte Einträg
   expect(systemItems.length).toBeGreaterThan(0);
   expect(systemItems.every((i) => i.actorType === 'SYSTEM')).toBe(true);
 
+  // Elke has two rows of her own: the fixture's LOGIN_SUCCEEDED (auth.ts) and
+  // the seeded ROLE_CHANGED — the actor filter should surface both and
+  // nothing else (in particular, none of Paul's or the SYSTEM rows).
   const memberOnly = await app.inject({
     method: 'GET',
     url: `/api/admin/audit-events?limit=100&actors=${ids.memberId('elke')}`,
     headers: { cookie: elke.cookie },
   });
-  const memberItems = (memberOnly.json() as { items: { action: string }[] }).items;
-  expect(memberItems).toHaveLength(1);
-  expect(memberItems[0]!.action).toBe('ROLE_CHANGED');
+  const memberItems = (memberOnly.json() as { items: { action: string; actorMemberId: string | null }[] })
+    .items;
+  expect(memberItems).toHaveLength(2);
+  expect(memberItems.every((i) => i.actorMemberId === ids.memberId('elke'))).toBe(true);
+  expect(memberItems.map((i) => i.action).sort()).toEqual(['LOGIN_SUCCEEDED', 'ROLE_CHANGED']);
+
+  // Combined with an actions filter, the intersection narrows to exactly the
+  // one event this scenario is actually about.
+  const combined = await app.inject({
+    method: 'GET',
+    url: `/api/admin/audit-events?limit=100&actions=ROLE_CHANGED&actors=${ids.memberId('elke')}`,
+    headers: { cookie: elke.cookie },
+  });
+  const combinedItems = (combined.json() as { items: { action: string }[] }).items;
+  expect(combinedItems).toHaveLength(1);
+  expect(combinedItems[0]!.action).toBe('ROLE_CHANGED');
 });
 
 test('ein Mitglied ohne Admin-Rolle bekommt keinen Zugriff auf den Audit-Log-Endpunkt', async () => {
