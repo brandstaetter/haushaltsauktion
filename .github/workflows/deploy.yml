@@ -275,11 +275,35 @@ jobs:
               echo "VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}" >> .env
             fi
 
+            # VAPID_SUBJECT is synced only when the secret is actually
+            # non-empty — unlike the two keys above, an empty string here is
+            # NOT equivalent to "unset": deploy/docker-compose.prod.yml's
+            # `${VAPID_SUBJECT:-mailto:admin@localhost}` only supplies its
+            # safe default when the variable is absent from `.env` entirely,
+            # and apps/api/src/main.ts's own `?? 'mailto:...'` fallback only
+            # catches `undefined`, not `''`. Writing an empty value here
+            # would silently reach web-push as `""` and break every send
+            # instead of falling back — so a missing/empty secret leaves
+            # this line out of `.env` on purpose, letting the compose
+            # default apply exactly as it does today.
+            if [ -n "${{ secrets.VAPID_SUBJECT }}" ]; then
+              if grep -q '^VAPID_SUBJECT=' .env; then
+                sed -i "s#^VAPID_SUBJECT=.*#VAPID_SUBJECT=${{ secrets.VAPID_SUBJECT }}#" .env
+              else
+                echo "VAPID_SUBJECT=${{ secrets.VAPID_SUBJECT }}" >> .env
+              fi
+            fi
+
             # Visibility check — same reasoning as the Todoist one above.
             if grep -qE '^VAPID_PUBLIC_KEY=.+' .env && grep -qE '^VAPID_PRIVATE_KEY=.+' .env; then
               echo "VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY are set on this instance."
             else
               echo "::warning::VAPID_PUBLIC_KEY and/or VAPID_PRIVATE_KEY are not set (the GitHub Secret is empty or missing). Web Push notifications will stay inactive even if an admin enables notifications.pushEnabled in Admin Settings."
+            fi
+            if grep -qE '^VAPID_SUBJECT=.+' .env; then
+              echo "VAPID_SUBJECT is set on this instance (custom value from the GitHub Secret)."
+            else
+              echo "VAPID_SUBJECT is not set on this instance — falling back to the compose-level default (mailto:admin@localhost). This is a normal, working state, not an error."
             fi
 
             docker compose pull
