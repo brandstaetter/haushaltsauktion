@@ -431,6 +431,7 @@ export const de = {
       voluntary: 'Freiwillige Übernahme',
       buyout: 'Freikauf',
       valueIncrease: 'Wertsteigerung',
+      notifications: 'Benachrichtigungen',
       tasks: 'Aufgaben',
       members: 'Mitglieder',
       taskDefinitions: 'Aufgaben verwalten',
@@ -781,6 +782,12 @@ export const de = {
       todoistPriorityNormal: 'Normal (Todoist P4)',
       todoistPriorityHint:
         'Gilt für neue Aufgaben, die diese Anwendung in Todoist anlegt. Ohne Auswahl setzt Todoist selbst die Standardpriorität.',
+      inAppEnabled: 'In-App-Benachrichtigungen',
+      pushEnabled: 'Push-Benachrichtigungen für diesen Haushalt erlauben',
+      pushUnavailable:
+        'Dieser Server ist für Web Push nicht eingerichtet (fehlende VAPID-Schlüssel). Solange das so ist, kann kein Mitglied Push empfangen — die Funktion lässt sich hier nicht aktivieren.',
+      pushEnabledHint:
+        'Jedes Mitglied aktiviert den Empfang zusätzlich selbst pro Gerät unter „Ich“. Ohne diesen Schalter bleibt Push aus, auch wenn ein Mitglied dort zustimmt.',
       enabled: 'Aktiviert',
       allowNegativeBalance: 'Negativen Kontostand erlauben',
       minimumBalance: 'Mindestguthaben für Freikauf',

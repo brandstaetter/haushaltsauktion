@@ -111,7 +111,7 @@ beforeEach(async () => {
 test('deps.push undefined: a no-op, nothing claimed', async () => {
   await enqueue('elke', 'TASK_ASSIGNED', null);
 
-  const outcome = await dispatchPushOutbox(testDeps(db)); // no `push` set
+  const outcome = await dispatchPushOutbox(testDeps(db), { householdId: ids.householdId }); // no `push` set
 
   expect(outcome).toEqual({ claimed: 0, delivered: 0, skippedHouseholdDisabled: 0 });
   const remaining = await db.pushOutboxItem.count({ where: { householdId: ids.householdId } });
@@ -126,7 +126,7 @@ test('household with notifications.pushEnabled = false: rows are deleted, push.s
   const rowId = await enqueue('elke', 'TASK_ASSIGNED', null);
   const { push, calls } = recordingPush(() => ({ ok: true }));
 
-  const outcome = await dispatchPushOutbox(depsWith(push));
+  const outcome = await dispatchPushOutbox(depsWith(push), { householdId: ids.householdId });
 
   expect(outcome.claimed).toBe(1);
   expect(outcome.skippedHouseholdDisabled).toBe(1);
@@ -143,7 +143,7 @@ test('successful send: the outbox row is deleted, the subscription is left alone
   const rowId = await enqueue('elke', 'TASK_ASSIGNED', instanceId);
   const { push, calls } = recordingPush(() => ({ ok: true }));
 
-  const outcome = await dispatchPushOutbox(depsWith(push));
+  const outcome = await dispatchPushOutbox(depsWith(push), { householdId: ids.householdId });
 
   expect(outcome.claimed).toBe(1);
   expect(outcome.delivered).toBe(1);
@@ -163,7 +163,7 @@ test('a `gone: true` result deletes both the outbox row and the dead subscriptio
   const rowId = await enqueue('elke', 'TASK_ASSIGNED', null);
   const { push } = recordingPush(() => ({ ok: false, gone: true }));
 
-  await dispatchPushOutbox(depsWith(push));
+  await dispatchPushOutbox(depsWith(push), { householdId: ids.householdId });
 
   const row = await db.pushOutboxItem.findUnique({ where: { id: rowId } });
   expect(row).toBeNull();
@@ -178,7 +178,7 @@ test('a `gone: false` result still deletes the outbox row (best-effort, no retry
   const rowId = await enqueue('elke', 'TASK_ASSIGNED', null);
   const { push } = recordingPush(() => ({ ok: false, gone: false }));
 
-  await dispatchPushOutbox(depsWith(push));
+  await dispatchPushOutbox(depsWith(push), { householdId: ids.householdId });
 
   const row = await db.pushOutboxItem.findUnique({ where: { id: rowId } });
   expect(row).toBeNull();
@@ -205,7 +205,7 @@ test('a thrown error from push.send still deletes that row and does not affect o
     },
   };
 
-  const outcome = await dispatchPushOutbox(depsWith(throwingPush));
+  const outcome = await dispatchPushOutbox(depsWith(throwingPush), { householdId: ids.householdId });
 
   expect(outcome.claimed).toBe(2);
   expect(outcome.delivered).toBe(2);
@@ -219,7 +219,7 @@ test('a member with no subscribed device: the row is simply deleted, no send att
   const rowId = await enqueue('elke', 'TASK_ASSIGNED', null);
   const { push, calls } = recordingPush(() => ({ ok: true }));
 
-  await dispatchPushOutbox(depsWith(push));
+  await dispatchPushOutbox(depsWith(push), { householdId: ids.householdId });
 
   expect(calls.length).toBe(0);
   const row = await db.pushOutboxItem.findUnique({ where: { id: rowId } });

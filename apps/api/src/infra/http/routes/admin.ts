@@ -188,6 +188,12 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       // (§31), rather than after the write is rejected or, worse, silently
       // accepted with no member ever able to connect.
       integrationsAvailable: { todoist: deps.todoist !== undefined && deps.secrets !== undefined },
+      // Same reasoning as `integrationsAvailable` above, for Web Push:
+      // `deps.push` is only composed when both VAPID keys are configured
+      // (main.ts) — an admin flipping `notifications.pushEnabled` on a
+      // deployment without them would otherwise see the switch "succeed"
+      // and then nothing ever arrives, with no signal as to why.
+      notificationsAvailable: { push: deps.push !== undefined },
     };
   });
 

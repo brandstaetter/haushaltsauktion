@@ -52,6 +52,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   RATE_LIMITED: 429,
   INTEGRATION_DISABLED: 409,
   INTEGRATION_NOT_CONFIGURED: 409,
+  PUSH_NOT_CONFIGURED: 409,
   INTEGRATION_UNAUTHORIZED: 422,
   // 502: the failure is upstream, not in the member's request.
   INTEGRATION_UNAVAILABLE: 502,

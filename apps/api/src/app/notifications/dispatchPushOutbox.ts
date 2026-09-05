@@ -34,9 +34,21 @@
  * than a technical guarantee elsewhere (`SWEEP_INTERVAL_SECONDS=0` /
  * `TODOIST_INTERVAL_SECONDS=0`'s module docs) — the same acceptance applies
  * here, and deliberately is not re-litigated with a lock.
+ *
+ * **`options.householdId` is a test-only scoping knob, never used in
+ * production.** `push-outbox-worker.ts` (the one production call site) never
+ * passes it, so the claim stays genuinely cross-household there, unchanged.
+ * `apps/api/vitest.config.ts` runs integration test *files* in parallel on
+ * the assumption that each file owns its own `test-…`-prefixed household and
+ * therefore cannot see another file's rows — true everywhere else in this
+ * suite, because every other query here is already household-scoped. This
+ * function's claim was the one exception, so two test files that both write
+ * to `push_outbox_items` could intermittently claim (and delete) each
+ * other's rows depending on scheduling. Passing `{ householdId }` restores
+ * the isolation the rest of the suite already assumes, for tests only.
  */
 
-import type { PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 
 import { parseConfig } from '@haushaltsauktion/shared';
 
@@ -66,11 +78,18 @@ interface ClaimedRow {
  * not stop delivery for the rest, same discipline as `worker.ts`'s sweep
  * tick and `todoist-worker.ts`'s dispatch tick.
  */
-export async function dispatchPushOutbox(deps: Deps): Promise<DispatchPushOutboxOutcome> {
+export async function dispatchPushOutbox(
+  deps: Deps,
+  options?: { householdId?: string },
+): Promise<DispatchPushOutboxOutcome> {
   const outcome: DispatchPushOutboxOutcome = { claimed: 0, delivered: 0, skippedHouseholdDisabled: 0 };
   if (deps.push === undefined) return outcome;
   const push = deps.push;
 
+  const whereClause =
+    options?.householdId !== undefined
+      ? Prisma.sql`WHERE household_id = ${options.householdId}`
+      : Prisma.empty;
   const claimed = await deps.db.$queryRaw<ClaimedRow[]>`
     SELECT id,
            household_id     AS "householdId",
@@ -79,6 +98,7 @@ export async function dispatchPushOutbox(deps: Deps): Promise<DispatchPushOutbox
            payload,
            task_instance_id AS "taskInstanceId"
       FROM push_outbox_items
+      ${whereClause}
      ORDER BY created_at ASC
      LIMIT ${BATCH_LIMIT}`;
   outcome.claimed = claimed.length;

@@ -110,6 +110,8 @@ export interface AdminConfigDto {
   updatedBy: { id: string; displayName: string } | null;
   /** Whether the server process itself supports each integration, independent of the household switch. */
   integrationsAvailable: { todoist: boolean };
+  /** Whether the server process itself has VAPID keys configured, independent of the household switch. */
+  notificationsAvailable: { push: boolean };
 }
 
 /**

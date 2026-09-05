@@ -94,6 +94,18 @@ export async function updateConfig(
     );
   }
 
+  // Same reasoning as the Todoist guard above, for Web Push: `deps.push` is
+  // only composed when both VAPID keys are configured (main.ts). Without
+  // this, flipping `notifications.pushEnabled` on would "succeed" and then
+  // silently deliver nothing (pushNotifier/dispatchPushOutbox degrade to a
+  // no-op with no error), with nothing at save time telling the admin why.
+  if (next.notifications.pushEnabled && deps.push === undefined) {
+    throw new ConflictError(
+      'PUSH_NOT_CONFIGURED',
+      'Web Push ist auf diesem Server nicht eingerichtet (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY fehlen). Push-Benachrichtigungen können nicht aktiviert werden.',
+    );
+  }
+
   return withTransaction(deps, async (tx) => {
     const current = await loadCurrentConfig(tx, input.householdId);
     if (current.version !== input.expectedVersion) {
