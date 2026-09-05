@@ -70,6 +70,13 @@ export const ErrorCode = Object.freeze({
    * setting no member could ever use.
    */
   INTEGRATION_NOT_CONFIGURED: 'INTEGRATION_NOT_CONFIGURED',
+  /**
+   * Same reasoning as `INTEGRATION_NOT_CONFIGURED`, for Web Push: the admin
+   * trying to turn `notifications.pushEnabled` on when the server process
+   * itself has no push port configured (`VAPID_PUBLIC_KEY`/
+   * `VAPID_PRIVATE_KEY` unset) — a setting no member could ever receive.
+   */
+  PUSH_NOT_CONFIGURED: 'PUSH_NOT_CONFIGURED',
 
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const);

@@ -59,6 +59,7 @@ describe('AdminSettingsPage', () => {
       updatedAt: null,
       updatedBy: null,
       integrationsAvailable: { todoist: true },
+      notificationsAvailable: { push: true },
     };
 
     mockedApi.mockImplementation(
@@ -123,5 +124,66 @@ describe('AdminSettingsPage', () => {
     await user.click(screen.getByRole('button', { name: de.admin.save }));
     expect(await screen.findByText(new RegExp(`^${de.admin.version} 3 ·`))).toBeInTheDocument();
     expect(screen.queryByText(de.admin.saveFailed)).toBeNull();
+  });
+
+  it('deaktiviert den Push-Schalter und zeigt den Hinweis, wenn der Server keine VAPID-Schlüssel hat', async () => {
+    const current: AdminConfigDto = {
+      version: 1,
+      values: cloneDefaultConfig(),
+      defaults: cloneDefaultConfig(),
+      updatedAt: null,
+      updatedBy: null,
+      integrationsAvailable: { todoist: true },
+      notificationsAvailable: { push: false },
+    };
+    mockedApi.mockImplementation(async (path: string, options?: { method?: string }) => {
+      const method = options?.method ?? 'GET';
+      if (path === '/admin/config' && method === 'GET') return current;
+      throw new Error(`unerwarteter Aufruf: ${path} ${method}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(de.admin.fields.pushUnavailable)).toBeInTheDocument();
+    const pushCheckbox = screen.getByLabelText(de.admin.fields.pushEnabled) as HTMLInputElement;
+    expect(pushCheckbox.checked).toBe(false);
+    expect(pushCheckbox.disabled).toBe(true);
+  });
+
+  it('speichert pushEnabled, wenn der Server VAPID-Schlüssel hat', async () => {
+    const user = userEvent.setup();
+    let current: AdminConfigDto = {
+      version: 1,
+      values: cloneDefaultConfig(),
+      defaults: cloneDefaultConfig(),
+      updatedAt: null,
+      updatedBy: null,
+      integrationsAvailable: { todoist: true },
+      notificationsAvailable: { push: true },
+    };
+    mockedApi.mockImplementation(
+      async (path: string, options?: { method?: string; body?: unknown }) => {
+        const method = options?.method ?? 'GET';
+        if (path === '/admin/config' && method === 'GET') return current;
+        if (path === '/admin/config' && method === 'PUT') {
+          const body = options?.body as { expectedVersion: number; values: AdminConfigDto['values'] };
+          current = { ...current, version: current.version + 1, values: body.values };
+          return { version: current.version, values: current.values, changeSummary: [] };
+        }
+        throw new Error(`unerwarteter Aufruf: ${path} ${method}`);
+      },
+    );
+
+    renderPage();
+
+    const pushCheckbox = (await screen.findByLabelText(
+      de.admin.fields.pushEnabled,
+    )) as HTMLInputElement;
+    expect(pushCheckbox.disabled).toBe(false);
+    await user.click(pushCheckbox);
+    await user.click(screen.getByRole('button', { name: de.admin.save }));
+
+    expect(await screen.findByText(new RegExp(`^${de.admin.version} 2$`))).toBeInTheDocument();
+    expect(current.values.notifications.pushEnabled).toBe(true);
   });
 });

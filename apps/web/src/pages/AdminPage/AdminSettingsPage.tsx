@@ -226,6 +226,33 @@ export function AdminSettingsPage() {
       </section>
 
       <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>{de.admin.sections.notifications}</h2>
+        <label className={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={draft.notifications.inAppEnabled}
+            onChange={(e) => update('notifications', { inAppEnabled: e.target.checked })}
+          />
+          <span>{de.admin.fields.inAppEnabled}</span>
+        </label>
+        {!config.notificationsAvailable.push && (
+          <p className={styles.message} role="alert">
+            {de.admin.fields.pushUnavailable}
+          </p>
+        )}
+        <label className={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={draft.notifications.pushEnabled}
+            disabled={!config.notificationsAvailable.push && !draft.notifications.pushEnabled}
+            onChange={(e) => update('notifications', { pushEnabled: e.target.checked })}
+          />
+          <span>{de.admin.fields.pushEnabled}</span>
+        </label>
+        <p className={styles.hint}>{de.admin.fields.pushEnabledHint}</p>
+      </section>
+
+      <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{de.admin.sections.buyout}</h2>
         <label className={styles.checkbox}>
           <input

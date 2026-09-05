@@ -77,6 +77,7 @@ Beide Ports, sowie `DB_PORT`, sind über Umgebungsvariablen konfigurierbar
 | `TODOIST_INTERVAL_SECONDS` | nein | `60` | Intervall des Todoist-Workers; `0` schaltet ihn ab. **Bei mehr als einer API-Instanz auf allen außer einer `0` setzen** — siehe [`docs/todoist.md`](./docs/todoist.md) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | nein — aber **ohne beide ist Web Push inaktiv** | — | VAPID-Schlüsselpaar für Web-Push-Benachrichtigungen. Erzeugen mit `npx web-push generate-vapid-keys`. Fehlt eines der beiden, wird Push nicht zusammengesetzt: keine Wirkung, keine Fehlermeldung. Sind beide gesetzt **und** ist zusätzlich `notifications.pushEnabled` im Haushalt aktiviert (Admin-Konfiguration, Default `false`), sendet die App Push-Benachrichtigungen für `TASK_ASSIGNED`/`TASK_TAKEN`; Mitglieder aktivieren den Empfang selbst unter „Ich" (Opt-in pro Gerät, mit iOS-Hinweis zur Home-Bildschirm-Installation). |
 | `VAPID_SUBJECT` | nein | `mailto:admin@localhost` | Kontaktadresse (`mailto:` oder `https:`) im VAPID-JWT, die ein Push-Dienst bei Missbrauch erreichen kann |
+| `PUSH_OUTBOX_INTERVAL_SECONDS` | nein | `15` | Intervall des Push-Outbox-Dispatchers; `0` deaktiviert den Timer. Läuft nur, wenn beide VAPID-Schlüssel gesetzt sind |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | nein | `haushalt` / `haushalt` / `haushaltsauktion` | nur für `docker-compose.yml`s `db`-Service |
 
 Eine echte Bereitstellung **muss** `SESSION_SECRET` auf einen zufälligen,
