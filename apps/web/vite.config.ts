@@ -25,18 +25,30 @@ export default defineConfig({
       // forced reload, rather than the service worker activating on its own
       // schedule.
       registerType: 'prompt',
-      // App-shell only (CLAUDE.md §30 "PWA-fähig") — the household's task
-      // list, point balances, and assignments are live shared state that
-      // changes underneath the current viewer (values escalate, offers
-      // expire, another member volunteers first). Caching /api/* responses
-      // would let someone act on stale data. Precaching covers only the
-      // built JS/CSS/HTML shell (Workbox's default `generateSW` globPatterns
-      // scoped to `dist/`), so the app can *launch* offline or on a flaky
-      // connection, but every API call still goes to the network — there is
-      // no `runtimeCaching` entry for `/api/*` here, deliberately.
-      workbox: {
-        cleanupOutdatedCaches: true,
-        navigateFallbackDenylist: [/^\/api\//],
+      // `injectManifest` (not the implicit `generateSW` default): needed for
+      // `src/sw.ts`'s own `push`/`notificationclick` listeners
+      // (push-notifications §Architekturvorschlag,
+      // "Service-Worker-Strategiewechsel") — `generateSW` only ever produces
+      // a worker from a config object and cannot register custom event
+      // handlers. `precacheAndRoute` + a `NavigationRoute` inside `sw.ts`
+      // reproduce the `generateSW` behaviour below 1:1; see that file's
+      // module doc for the equivalence.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        // App-shell only (CLAUDE.md §30 "PWA-fähig") — the household's task
+        // list, point balances, and assignments are live shared state that
+        // changes underneath the current viewer (values escalate, offers
+        // expire, another member volunteers first). Caching /api/* responses
+        // would let someone act on stale data. Precaching covers only the
+        // built JS/CSS/HTML shell, so the app can *launch* offline or on a
+        // flaky connection, but every API call still goes to the network —
+        // there is no runtime-caching entry for `/api/*`, deliberately.
+        // (`cleanupOutdatedCaches`, meaningful only under `generateSW`'s
+        // managed runtime caching, has no `injectManifest` equivalent to
+        // carry over — `sw.ts` precaches nothing but the app shell, so there
+        // is nothing "outdated" left for it to clean up.)
       },
       manifest: {
         name: 'Haushaltsauktion',

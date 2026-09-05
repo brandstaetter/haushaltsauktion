@@ -193,6 +193,9 @@ const NotificationsSchema = z
       .min(0)
       .max(MINUTES_PER_FORTNIGHT)
       .default(DEFAULT_CONFIG.notifications.dueSoonLeadMinutes),
+    // Web Push (push-notifications §Architekturvorschlag). Off by default,
+    // same reasoning as `integrations.todoist.enabled` below.
+    pushEnabled: z.boolean().default(DEFAULT_CONFIG.notifications.pushEnabled),
   })
   .default(DEFAULT_CONFIG.notifications);
 

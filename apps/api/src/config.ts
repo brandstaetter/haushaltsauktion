@@ -76,6 +76,34 @@ const EnvSchema = z.object({
   TODOIST_INTERVAL_SECONDS: z.coerce.number().int().min(0).default(60),
 
   /**
+   * VAPID key pair for Web Push (push-notifications §Architekturvorschlag,
+   * Phase 1). Both optional together: a household/deployment that never
+   * enables push notifications needs no key pair at all — `main.ts` composes
+   * `Deps.push` only when both are set, mirroring the Todoist `hasKey` pattern
+   * above. Generate with `npx web-push generate-vapid-keys`.
+   */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  /**
+   * The `Subject` `web-push` puts in its VAPID JWT — a `mailto:` or `https:`
+   * contact a push service can reach if it needs to flag abuse. `web-push`
+   * requires one whenever VAPID details are set, so this travels with the
+   * key pair rather than defaulting silently.
+   */
+  VAPID_SUBJECT: z.string().optional(),
+
+  /**
+   * The `PushOutboxItem` dispatch worker (push-notifications
+   * §Architekturvorschlag, Phase 2 — rollback-safety fix). `0` disables it,
+   * mirroring `SWEEP_INTERVAL_SECONDS`/`TODOIST_INTERVAL_SECONDS` — but the
+   * default here is deliberately short: unlike the sweep or the Todoist
+   * reconciler, this worker is not a background reconciliation job, it is
+   * the only thing that ever sends a push, so a long interval would be
+   * directly felt as "my phone buzzed minutes late."
+   */
+  PUSH_OUTBOX_INTERVAL_SECONDS: z.coerce.number().int().min(0).default(15),
+
+  /**
    * Baked into the Docker image at build time (Dockerfile `ARG`/`ENV`,
    * `.github/workflows/deploy.yml`'s `build-and-push` job passes the same
    * short Git SHA it tags the image with) — not a runtime-environment

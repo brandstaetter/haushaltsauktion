@@ -137,6 +137,7 @@ export async function dropHousehold(db: PrismaClient, ids: FixtureIds): Promise<
   await db.integrationOutbox.deleteMany({ where: { householdId } });
   await db.integrationTaskLink.deleteMany({ where: { householdId } });
   await db.memberIntegration.deleteMany({ where: { householdId } });
+  await db.pushOutboxItem.deleteMany({ where: { householdId } });
   await db.notification.deleteMany({ where: { householdId } });
   await db.auditEvent.deleteMany({ where: { householdId } });
   await db.taskHistoryEvent.deleteMany({ where: { householdId } });

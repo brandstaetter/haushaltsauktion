@@ -24,6 +24,7 @@ import { registerIntegrationRoutes } from './routes/integrations.js';
 import { registerMemberRoutes } from './routes/members.js';
 import { registerMiscRoutes } from './routes/misc.js';
 import { registerOperatorRoutes } from './routes/operator.js';
+import { registerPushSubscriptionRoutes } from './routes/pushSubscriptions.js';
 import { registerRegisterRoutes } from './routes/register.js';
 import { registerRewardRoutes } from './routes/rewards.js';
 import { registerTaskRoutes } from './routes/tasks.js';
@@ -93,6 +94,7 @@ export async function buildServer(options: ServerOptions): Promise<FastifyInstan
       await registerTaskRoutes(api, deps);
       await registerAssignmentRoutes(api, deps);
       await registerMemberRoutes(api, deps);
+      await registerPushSubscriptionRoutes(api, deps, env);
       await registerMiscRoutes(api, deps);
       await registerIntegrationRoutes(api, deps);
       await registerRewardRoutes(api, deps);

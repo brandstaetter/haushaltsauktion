@@ -158,6 +158,14 @@ export interface FairnessConfig {
 export interface NotificationsConfig {
   inAppEnabled: boolean;
   dueSoonLeadMinutes: number;
+  /**
+   * Household-level Web Push switch (push-notifications
+   * §Architekturvorschlag). Off by default, same reasoning as
+   * `integrations.todoist.enabled` below: a channel that reaches a member's
+   * device even when the app is closed must not switch itself on for
+   * existing households at upgrade time.
+   */
+  pushEnabled: boolean;
 }
 
 /**
@@ -231,4 +239,11 @@ export interface PublicHouseholdConfig {
    * the section is any of the client's business.
    */
   integrations: { todoist: Pick<TodoistIntegrationConfig, 'enabled'> };
+  /**
+   * Just the switch (push-notifications §Architekturvorschlag) — same
+   * "gate a section's visibility only" reasoning as `integrations.todoist`
+   * above. A household that never enables push should not even see the
+   * opt-in UI under „Ich".
+   */
+  notifications: Pick<NotificationsConfig, 'pushEnabled'>;
 }

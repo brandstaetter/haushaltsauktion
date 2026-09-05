@@ -16,6 +16,7 @@ import type {
   VolunteerRequest,
 } from '@haushaltsauktion/shared';
 import { api, setCsrfToken } from './client';
+import { urlBase64ToUint8Array } from '../utils/vapid';
 import type {
   AdminAuditEventDto,
   AdminConfigDto,
@@ -988,5 +989,131 @@ export function useTodoistProjects(enabled: boolean) {
     queryKey: [...todoistQueryKey, 'projects'],
     queryFn: () => api<{ projects: { id: string; name: string }[] }>('/integrations/todoist/projects'),
     enabled,
+  });
+}
+
+// ───────────────────────── Web Push ─────────────────────────
+// push-notifications §Architekturvorschlag, Phase 2.
+
+const pushSubscriptionQueryKey = ['push', 'subscription'] as const;
+
+/**
+ * The server keys a `PushSubscription` row by unique `endpoint`
+ * (`pushSubscriptions.ts`'s `upsert`) and returns its row `id` only once, at
+ * POST time. The browser's own `PushSubscription` object never carries that
+ * id back on a later page load, so it is kept here — per-browser, exactly
+ * like the subscription itself — for the one purpose of letting
+ * `useUnsubscribeFromPush` target `DELETE .../push-subscription/:id` without
+ * a new lookup-by-endpoint route. If it is missing (a different browser
+ * profile, cleared site data, …), unsubscribe still succeeds browser-side;
+ * the now-orphaned server row is cleaned up passively the next time a push
+ * attempt to it comes back `gone: true` (`pushNotifier.ts`).
+ */
+const PUSH_SUBSCRIPTION_ID_KEY = 'haushaltsauktion:push-subscription-id';
+
+async function readBrowserPushSubscription(): Promise<PushSubscription | null> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  const registration = await navigator.serviceWorker.ready;
+  return registration.pushManager.getSubscription();
+}
+
+/**
+ * Browser-side subscription state — not a backend query. A `PushSubscription`
+ * only truly lives in the browser's Push API, so this reads
+ * `navigator.serviceWorker.ready` → `pushManager.getSubscription()` rather
+ * than trusting the server's row (which could be stale if the browser
+ * silently dropped it). Modeled as a `useQuery` anyway, for the same
+ * cache/invalidate ergonomics every other hook here gets — the `queryFn`
+ * just happens to call a browser API instead of `api()`.
+ */
+export function usePushSubscriptionStatus() {
+  return useQuery({
+    queryKey: pushSubscriptionQueryKey,
+    queryFn: async () => {
+      const subscription = await readBrowserPushSubscription();
+      return { subscribed: subscription !== null };
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useSubscribeToPush() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.');
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error('Berechtigung für Benachrichtigungen wurde nicht erteilt.');
+      }
+      const { publicKey } = await api<{ publicKey: string | null }>('/push/vapid-public-key');
+      if (publicKey === null) {
+        throw new Error('Push ist auf diesem Server nicht konfiguriert.');
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        // `lib.dom.d.ts`'s `BufferSource` wants a `Uint8Array<ArrayBuffer>`
+        // specifically; a plain `Uint8Array` (backed by the always-real
+        // `ArrayBuffer` this helper allocates, never a `SharedArrayBuffer`) is
+        // structurally fine at runtime, just not narrow enough for the type.
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+      });
+      const json = subscription.toJSON() as {
+        endpoint: string;
+        keys: { p256dh: string; auth: string };
+      };
+      const created = await api<{ id: string }>('/members/me/push-subscription', {
+        method: 'POST',
+        body: { endpoint: json.endpoint, keys: json.keys },
+      });
+      try {
+        localStorage.setItem(PUSH_SUBSCRIPTION_ID_KEY, created.id);
+      } catch {
+        // localStorage can throw (private mode, quota, blocked site data) —
+        // the subscription itself still succeeded; only the later
+        // unsubscribe's server-side cleanup gets slightly less precise.
+      }
+      return created;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: pushSubscriptionQueryKey });
+    },
+  });
+}
+
+export function useUnsubscribeFromPush() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const subscription = await readBrowserPushSubscription();
+      if (subscription !== null) await subscription.unsubscribe();
+
+      let storedId: string | null = null;
+      try {
+        storedId = localStorage.getItem(PUSH_SUBSCRIPTION_ID_KEY);
+      } catch {
+        storedId = null;
+      }
+      if (storedId !== null) {
+        try {
+          await api(`/members/me/push-subscription/${storedId}`, { method: 'DELETE' });
+        } catch {
+          // Already gone server-side (e.g. a previous `gone: true` cleanup) —
+          // not a reason to fail the unsubscribe the member asked for.
+        }
+        try {
+          localStorage.removeItem(PUSH_SUBSCRIPTION_ID_KEY);
+        } catch {
+          // See the `setItem` note above.
+        }
+      }
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: pushSubscriptionQueryKey });
+    },
   });
 }

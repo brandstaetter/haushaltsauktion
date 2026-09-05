@@ -148,3 +148,37 @@ export interface TodoistPort {
   closeTask(token: string, command: CloseTaskCommand): Promise<TodoistResult<void>>;
   listProjects(token: string): Promise<TodoistResult<TodoistProject[]>>;
 }
+
+// ───────────────────────── Web Push ─────────────────────────
+
+/**
+ * The three fields the browser's native `PushSubscription.toJSON()` produces
+ * (`endpoint` plus `keys.p256dh`/`keys.auth`), flattened. Kept separate from
+ * the Prisma `PushSubscription` row shape on purpose: a use-case should not
+ * have to import a generated model type just to send a notification.
+ */
+export interface PushSubscriptionKeys {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+/**
+ * Outcome of one send attempt (push-notifications §Architekturvorschlag).
+ *
+ * `gone: true` means the push service answered 404/410 — the subscription is
+ * permanently dead (browser uninstalled, permission revoked, …) and the
+ * caller should delete the row. `gone: false` covers everything else (network
+ * error, 4xx/5xx that is not gone, a thrown exception) — worth logging, but
+ * not proof the subscription itself is bad.
+ *
+ * There is deliberately no variant that throws: the research doc's whole
+ * point is that a push failure must never propagate back into the use-case
+ * that triggered it, so the port's return type makes "it failed" a value
+ * instead of a control-flow surprise.
+ */
+export type PushSendResult = { ok: true } | { ok: false; gone: boolean };
+
+export interface PushSender {
+  send(subscription: PushSubscriptionKeys, payload: Record<string, unknown>): Promise<PushSendResult>;
+}

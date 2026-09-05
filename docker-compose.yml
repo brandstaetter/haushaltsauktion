@@ -48,6 +48,13 @@ services:
       # veralteten Lesevorgang — sogar eine doppelte Todoist-Aufgabe erzeugen.
       # Das ist ein Korrektheitsproblem, keine Kosmetik (siehe docs/todoist.md).
       TODOIST_INTERVAL_SECONDS: ${TODOIST_INTERVAL_SECONDS:-60}
+      # ── Web Push (optional) ───────────────────────────────────────────
+      # OHNE beide Schlüssel wird Push gar nicht erst zusammengesetzt: kein
+      # Versand, keine Fehlermeldung — dieselbe Regel wie bei Todoist oben.
+      # Erzeugen mit:  npx web-push generate-vapid-keys
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     ports:
       - "${API_PORT:-3000}:3000"
     healthcheck:

@@ -14,7 +14,7 @@ import { randomInt } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
 
 import type { Rng } from '../domain/assignment/strategies.js';
-import type { SecretBox, TodoistPort } from './integrations/ports.js';
+import type { PushSender, SecretBox, TodoistPort } from './integrations/ports.js';
 
 /** The transaction-scoped client. Everything transactional takes this, not `db`. */
 export type PrismaTx = Prisma.TransactionClient;
@@ -88,6 +88,17 @@ export interface Deps {
    */
   todoist?: TodoistPort;
   secrets?: SecretBox;
+
+  /**
+   * Web Push sender (push-notifications §Architekturvorschlag, Phase 1).
+   *
+   * **Optional on purpose**, exactly like `todoist` above: a household or
+   * deployment that never configures a VAPID key pair needs no push
+   * capability, and no use-case in this phase calls `push` directly — a later
+   * phase's `pushNotifier` decorator is the only caller, and it must treat an
+   * absent `push` as "push not configured here" rather than a crash.
+   */
+  push?: PushSender;
 }
 
 export const systemClock: Clock = {
