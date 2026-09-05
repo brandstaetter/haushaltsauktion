@@ -48,13 +48,17 @@ import type { NotificationDraft, Notifier } from '../deps.js';
  * a pre-existing gap: nothing ever emitted this type before
  * `runAssignmentSweep.ts`'s T1/T2 sites started doing so, so both the in-app
  * and push channels were silently missing it equally. Further types
- * (`TASK_DUE_SOON`, `TASK_VALUE_INCREASED`, …) remain future work — not
- * required by this campaign's acceptance criteria.
+ * (`TASK_VALUE_INCREASED`, …) remain future work.
+ *
+ * `TASK_DUE_SOON` (intake "due-soon-reminder-for-assigned-tasks"): a
+ * due-*soon* reminder that only reaches someone already looking at the app
+ * largely defeats its purpose, so it is pushed too.
  */
 export const PUSH_ENABLED_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
   'TASK_ASSIGNED',
   'TASK_TAKEN',
   'TASK_AVAILABLE',
+  'TASK_DUE_SOON',
 ]);
 
 /**

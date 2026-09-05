@@ -193,6 +193,15 @@ const NotificationsSchema = z
       .min(0)
       .max(MINUTES_PER_FORTNIGHT)
       .default(DEFAULT_CONFIG.notifications.dueSoonLeadMinutes),
+    // Intake "due-soon-reminder-for-assigned-tasks": multiplier on
+    // `TaskDefinition.estimatedMinutes`, not an integer minute count like
+    // `dueSoonLeadMinutes` above — fractional values (e.g. 1.5x) are
+    // meaningful here.
+    dueSoonDurationMultiplier: z
+      .number()
+      .min(0)
+      .max(100)
+      .default(DEFAULT_CONFIG.notifications.dueSoonDurationMultiplier),
     // Web Push (push-notifications §Architekturvorschlag). Off by default,
     // same reasoning as `integrations.todoist.enabled` below.
     pushEnabled: z.boolean().default(DEFAULT_CONFIG.notifications.pushEnabled),

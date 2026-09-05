@@ -159,6 +159,19 @@ export interface NotificationsConfig {
   inAppEnabled: boolean;
   dueSoonLeadMinutes: number;
   /**
+   * Intake "due-soon-reminder-for-assigned-tasks": the multiplier `k` in
+   * `dueAt - k * TaskDefinition.estimatedMinutes minutes`, the threshold at
+   * which an `ASSIGNED` instance's active assignment(s) receive one
+   * `TASK_DUE_SOON` reminder each. Only consulted when both `dueAt` and
+   * `estimatedMinutes` are set — a separate, dynamically-computed mechanism
+   * from `dueSoonLeadMinutes` above, which stays unused by this feature.
+   * `>= 0` (a `0` multiplier — warn only once already overdue — is a
+   * harmless degenerate case, not worth forbidding); capped at `100` as a
+   * generous fat-finger guard, same reasoning as the other multiplier-shaped
+   * fields in this file.
+   */
+  dueSoonDurationMultiplier: number;
+  /**
    * Household-level Web Push switch (push-notifications
    * §Architekturvorschlag). Off by default, same reasoning as
    * `integrations.todoist.enabled` below: a channel that reaches a member's
