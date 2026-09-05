@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { useOperatorLogout, useOperatorMetrics, useOperatorSession } from '../../api/operatorHooks';
 import { Button } from '../../components/Button/Button';
+import { useStrings } from '../../context/StringsContext';
 import styles from './OperatorDashboardPage.module.css';
 
 /**
@@ -9,6 +10,7 @@ import styles from './OperatorDashboardPage.module.css';
  * live numbers from `GET /api/operator/metrics`.
  */
 export function OperatorDashboardPage() {
+  const { de } = useStrings();
   const { operator } = useOperatorSession();
   const logout = useOperatorLogout();
   const { data, isLoading, error } = useOperatorMetrics(Boolean(operator));
@@ -88,7 +90,7 @@ export function OperatorDashboardPage() {
             </div>
             {Object.entries(data.ledgerVolume.byType).map(([type, v]) => (
               <div className={styles.tileRow} key={type}>
-                <span>{type}</span>
+                <span>{de.ledger.type[type as keyof typeof de.ledger.type] ?? type}</span>
                 <span>
                   {v.count} ({v.sum >= 0 ? '+' : ''}
                   {v.sum})
