@@ -47,7 +47,7 @@ export const Available: Story = {
   args: { task: makeTask() },
 };
 
-/** Randomly assigned to the current viewer — CTA switches to "Als erledigt markieren" (§21). */
+/** Randomly assigned to the current viewer — CTA switches to "Öffnen" (§21). */
 export const Assigned: Story = {
   args: {
     task: makeTask({ status: 'ASSIGNED', potentialReward: 0, viewerHasActiveSlot: true }),
@@ -58,7 +58,7 @@ export const Assigned: Story = {
 /**
  * Multi-worker task, first slot already taken by someone else — still
  * ASSIGNED, but a slot is free and the viewer hasn't joined, so the CTA stays
- * "Freiwillig übernehmen" instead of switching to "Als erledigt markieren".
+ * "Freiwillig übernehmen" instead of switching to "Öffnen".
  * Regression coverage for the vanish-from-list bugfix.
  */
 export const AssignedWithOpenSlot: Story = {

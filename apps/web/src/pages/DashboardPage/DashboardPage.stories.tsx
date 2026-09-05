@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Route, Routes } from 'react-router';
 import { http, HttpResponse } from 'msw';
+import type { AvailableTaskDto, TaskInstanceDetailDto } from '@haushaltsauktion/shared';
 import { DashboardPage } from './DashboardPage';
 import { Layout } from '../../components/Layout/Layout';
-import { mockDashboard, mockSession } from '../../mocks/data';
+import { mockAssignedTask, mockAvailableTasks, mockDashboard, mockSession } from '../../mocks/data';
 
 /** Shared with `AsMember` and `MobileMember` — a plain MEMBER instead of the default fixture's ADMIN. */
 const memberSessionHandler = http.get('/api/auth/me', () =>
@@ -12,6 +13,50 @@ const memberSessionHandler = http.get('/api/auth/me', () =>
 
 /** iPhone 13 (390×844) — see `INITIAL_VIEWPORTS` in `storybook/viewport`, built into Storybook's core toolbar. */
 const iphone13Viewport = { value: 'iphone13', isRotated: false };
+
+/**
+ * Multi-worker-tasks (Phase 3) fixtures for `MultiWorkerTasks` below — the
+ * "N/M" badge (`TaskCard.tsx`, only shown once `workerCount > 1`)
+ * across its full range: 1/2 and 0/2 still have a slot open, so both sit
+ * under "Freiwillig verfügbar"; 2/2 is fully staffed with the viewer holding
+ * one of the two slots (`viewerHasActiveSlot: true`), so it sits under
+ * "Meine Aufgaben" instead — matching where each would actually surface via
+ * the real `/dashboard` endpoint's per-viewer eligibility.
+ */
+const multiWorkerOpenSlot: AvailableTaskDto = {
+  ...mockAvailableTasks[1],
+  id: 'instance-multiworker-1of2',
+  title: 'Garten pflegen',
+  status: 'ASSIGNED',
+  workerCountMode: 'EXACTLY',
+  workerCount: 2,
+  activeSlotCount: 1,
+  canVolunteer: true,
+  viewerHasActiveSlot: false,
+};
+
+const multiWorkerNoAssignments: AvailableTaskDto = {
+  ...mockAvailableTasks[1],
+  id: 'instance-multiworker-0of2',
+  title: 'Fenster putzen',
+  status: 'AVAILABLE',
+  workerCountMode: 'EXACTLY',
+  workerCount: 2,
+  activeSlotCount: 0,
+  canVolunteer: true,
+  viewerHasActiveSlot: false,
+};
+
+const multiWorkerFullyStaffed: TaskInstanceDetailDto = {
+  ...mockAssignedTask,
+  id: 'instance-multiworker-2of2',
+  title: 'Keller aufräumen',
+  workerCountMode: 'EXACTLY',
+  workerCount: 2,
+  activeSlotCount: 2,
+  canVolunteer: false,
+  viewerHasActiveSlot: true,
+};
 
 /**
  * Proof-of-concept for full-page stories: renders the real page against MSW
@@ -55,6 +100,26 @@ export const Empty: Story = {
             ...mockDashboard,
             me: { ...mockDashboard.me, assigned: [], available: [] },
             family: { ...mockDashboard.family, openTasks: [], recentlyCompleted: [] },
+          }),
+        ),
+      ],
+    },
+  },
+};
+
+/** Multi-worker-tasks (Phase 3): the "N/M" badge at 0/2, 1/2, and 2/2 filled slots. */
+export const MultiWorkerTasks: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get('/api/dashboard', () =>
+          HttpResponse.json({
+            ...mockDashboard,
+            me: {
+              ...mockDashboard.me,
+              assigned: [multiWorkerFullyStaffed],
+              available: [multiWorkerOpenSlot, multiWorkerNoAssignments],
+            },
           }),
         ),
       ],

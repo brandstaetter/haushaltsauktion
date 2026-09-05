@@ -105,10 +105,6 @@ export function TaskMaintenanceCard({
           <span>{de.admin.taskDefinitions.recurrence.title}</span>
           <span>{recurrenceSummary(definition, de)}</span>
         </div>
-        <div className={`${styles.field} ${styles.buyoutField}`}>
-          <span>{de.admin.taskDefinitions.buyoutEnabled}</span>
-          <span>{definition.buyoutEnabled ? '✓' : '–'}</span>
-        </div>
         {/* Multi-worker-tasks (Phase 4): only shown for a task that wants more
             than one worker — an EXACTLY(1) task (today's default) renders
             identically to before this feature. */}
@@ -138,6 +134,10 @@ export function TaskMaintenanceCard({
             <span>{definition.minAdminSlots}</span>
           </div>
         )}
+        <div className={`${styles.field} ${styles.buyoutField}`}>
+          <span>{de.admin.taskDefinitions.buyoutEnabled}</span>
+          <span>{definition.buyoutEnabled ? '✓' : '–'}</span>
+        </div>
       </div>
 
       <div className={styles.actions}>

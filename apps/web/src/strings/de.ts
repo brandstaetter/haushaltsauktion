@@ -47,10 +47,13 @@ export const de = {
   },
   action: {
     volunteer: 'Freiwillig übernehmen',
+    /** Multi-worker-tasks: joining a slot someone else already started (`activeSlotCount > 0`), not taking on a fresh task alone. */
+    helpOut: 'Mithelfen',
     accept: 'Aufgabe übernehmen',
     buyout: 'Für {cost} Punkte freikaufen',
     buyoutConfirm: 'Freikauf bestätigen',
     complete: 'Als erledigt markieren',
+    open: 'Öffnen',
     release: 'Aufgabe zurückgeben',
     later: 'Später entscheiden',
     cancel: 'Abbrechen',
@@ -85,11 +88,7 @@ export const de = {
     balance: 'Dein Punktestand',
     myTasks: 'Meine Aufgaben',
     available: 'Freiwillig verfügbar',
-    household: 'Familie',
     leaderboard: 'Rangliste',
-    openTasks: 'Offen im Haushalt',
-    members: 'Mitglieder',
-    currentValue: 'Gesamtwert offen',
     recent: 'Kürzlich erledigt',
     ledgerLink: 'Punktekonto',
     allTasks: 'Alle',
@@ -143,7 +142,7 @@ export const de = {
       RANDOM: 'zufällig',
     },
     /** Multi-worker-tasks (Phase 4). Only shown when `workerCount > 1`. */
-    slotsOccupied: '{occupied}/{total} besetzt',
+    slotsOccupied: '{occupied}/{total}',
     since: 'seit {time}',
     status: {
       AVAILABLE: 'verfügbar',
@@ -534,13 +533,13 @@ export const de = {
       workerCount: 'Anzahl Helfer',
       workerCountSummary: '{mode} {count}',
       /** Intake "task-role-based-eligibility-and-preferred-assignee". */
-      requiredRole: 'Rollenbeschränkung',
+      requiredRole: 'Rolle',
       requiredRoleNone: 'Keine',
       requiredRoleValues: {
         MEMBER: 'Nur Mitglieder',
         ADMIN: 'Nur Admins',
       },
-      minAdminSlots: 'Mindestanzahl Admin-Slots',
+      minAdminSlots: 'Min. Admin-Slots',
       minAdminSlotsHint:
         'Mindestens so viele der besetzten Helfer-Slots müssen von Admins gehalten werden. Leer lassen für kein Minimum.',
       save: 'Speichern',
@@ -576,7 +575,7 @@ export const de = {
         'Erhöht bei der Zufallsvergabe die Gewichtung dieser Personen, schließt aber niemand anderen aus und blockiert nie eine freiwillige Übernahme.',
       saveEligibility: 'Berechtigung speichern',
       recurrence: {
-        title: 'Wiederholung',
+        title: 'Turnus',
         type: 'Typ',
         types: {
           ONCE: 'Einmalig',

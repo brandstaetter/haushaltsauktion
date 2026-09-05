@@ -143,36 +143,6 @@
   cursor: pointer;
 }
 
-.household {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  padding: var(--s-4);
-}
-
-.summaryGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--s-3);
-}
-
-.summaryCell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-1);
-}
-
-.summaryValue {
-  font: var(--t-h2);
-}
-
-.summaryLabel {
-  font: var(--t-label);
-  color: var(--ink-3);
-  text-align: center;
-}
-
 .rejectedBadge {
   align-self: flex-start;
   font: var(--t-label);

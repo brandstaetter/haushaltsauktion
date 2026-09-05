@@ -9,7 +9,7 @@
  * changes; every other default here still applies underneath it.
  */
 import { http, HttpResponse } from 'msw';
-import { mockDashboard, mockNotifications, mockOperatorMetrics, mockSession } from './data';
+import { mockDashboard, mockMembers, mockNotifications, mockOperatorMetrics, mockSession } from './data';
 
 export const handlers = [
   http.get('/api/auth/me', () => HttpResponse.json(mockSession)),
@@ -18,6 +18,10 @@ export const handlers = [
   http.get('/api/config/public', () =>
     HttpResponse.json({ version: 1, values: {} }),
   ),
+  // `TaskDetailPage` (and any future page resolving co-assignee names) reads
+  // these two — generic enough to live here rather than per-story.
+  http.get('/api/members', () => HttpResponse.json({ items: mockMembers })),
+  http.get('/api/members/me', () => HttpResponse.json(mockMembers[0])),
   // Operator area (`operatorClient.ts`) is a structurally separate identity
   // from the household session above — see that file's module doc. Its own
   // login state lives only in the QueryClient cache (`useOperatorSession`),
