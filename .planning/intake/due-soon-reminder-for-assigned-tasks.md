@@ -1,6 +1,6 @@
 ---
 title: "Due-soon reminder for assigned tasks with a set duration — implement the dormant TASK_DUE_SOON scaffold"
-status: in-progress
+status: completed
 priority: normal
 target: apps/api/src/app/assignment/runAssignmentSweep.ts, apps/api/prisma/schema.prisma, packages/shared/src/config/types.ts, packages/shared/src/config/schema.ts, packages/shared/src/config/defaults.ts
 campaign: due-soon-reminder-for-assigned-tasks-with-a-set-duration-implement-the-dormant-t

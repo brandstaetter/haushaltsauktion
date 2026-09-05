@@ -1,19 +1,19 @@
 ---
 version: 1
 id: "86ffd812-ab47-4be8-a19f-95af80a3a62a"
-status: active
+status: completed
 started: "2026-09-05T20:03:25.324Z"
-completed_at: null
+completed_at: "2026-09-05T22:30:00.000Z"
 direction: "Due-soon reminder for assigned tasks with a set duration — implement the dormant TASK_DUE_SOON scaffold"
 phase_count: 4
-current_phase: 2
-branch: null
+current_phase: 4
+branch: feat/task-due-soon-reminder
 worktree_status: null
 ---
 
 # Campaign: Due-soon reminder for assigned tasks with a set duration — implement the dormant TASK_DUE_SOON scaffold
 
-Status: active
+Status: completed
 Started: 2026-09-05T20:03:25.324Z
 Direction: Due-soon reminder for assigned tasks with a set duration — implement the dormant TASK_DUE_SOON scaffold
 
@@ -87,7 +87,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | 1 | complete | brief | Intake preflight and campaign scaffold | Campaign file exists with scope, acceptance criteria, and evidence contract |
 | 2 | complete | build | Implement requested change | Required files are changed and implementation diff is available |
 | 3 | complete | verify | Run verification | npm run test passes |
-| 4 | pending | package | Package for review | PR link or local review package is recorded |
+| 4 | complete | package | Package for review | PR link or local review package is recorded |
 
 ## Exit Evidence
 
@@ -95,7 +95,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 |---|---|---|---|---|---|---|---|
 | phase:2 | implementation-diff | file_diff | yes | git diff --stat (7 files changed, 199 insertions(+), 2 deletions(-); new migration + new test file untracked) | done | 2 | — |
 | phase:3 | verification-command | test_result | yes | npm run test — 3/3 workspaces passed: shared 146/146, api 409/409, web 175/175; repo-wide typecheck clean; eslint clean on changed files | done | 2 | — |
-| phase:4 | review-package | review_package | yes | .planning/review-packages/due-soon-reminder-for-assigned-tasks-with-a-set-duration-implement-the-dormant-t.md | pending | 2 | package delivery for review |
+| phase:4 | review-package | pr_link | yes | https://github.com/brandstaetter/haushaltsauktion/pull/79 | resolved | 2 | review pull request |
 
 ## Decision Log
 
@@ -105,14 +105,16 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
   Delivered: `TaskAssignment.dueSoonNotifiedAt` column + migration `20260905201151_add_task_assignment_due_soon_notified_at`; `NotificationsConfig.dueSoonDurationMultiplier` (default 2, min 0/max 100) through types/schema/defaults; `TASK_DUE_SOON` added to `PUSH_ENABLED_NOTIFICATION_TYPES`; new T19 sweep step in `runAssignmentSweep.ts` with a live (non-pinned) threshold re-check inside the instance lock; new `apps/api/test/integration/due-soon-notifications.test.ts` (7 tests) plus a `packages/shared/test/config.test.ts` addition for the new field's bounds/default.
   Verified independently by Archon (not just taking the sub-agent's self-report): re-read every diff line-by-line against the campaign's Acceptance Criteria and the `/grill`-resolved design, re-ran `npm run build -w packages/shared`, repo-wide `npm run typecheck`, the new test file alone, the full `apps/api` suite, `packages/shared`'s suite, and `eslint` on every changed file — all clean, matching the sub-agent's claims exactly.
 - 2026-09-05: Phase 3 (verify) satisfied by the same test run — root `npm run test` (the phase's declared end condition) passes across all three workspaces (146+409+175 = 730 tests).
+- 2026-09-05: Phase 4 (package) — committed the scoped diff (11 files: schema, migration, sweep logic, push allow-list, config types/schema/defaults, both test files, this campaign file, and the originating intake file), pushed `feat/task-due-soon-reminder`, opened PR #79 (https://github.com/brandstaetter/haushaltsauktion/pull/79) after explicit user confirmation for the push/PR step (Red-reversibility gate). `package-delivery.js --pr <url>` recorded the review package and resolved the phase:4 exit-evidence row.
+  Note: the sibling intake item `assigned-task-expiry-penalty-reoffer.md` (a separate, not-yet-built feature from the same session) was deliberately left uncommitted/untracked — out of scope for this PR.
 
 ## Active Context
 
-Phases 1-3 complete. Branch `feat/task-due-soon-reminder` has the full implementation, verified independently. Next action: Phase 4 — package for review (local review package and/or PR). Not yet pushed to any remote; no PR opened.
+Campaign complete. All 4 phases done, PR #79 open awaiting human review/CI. No further action from this campaign; `/pr-watch 79` or the cloud auto-fix toggle can handle CI failures if any arise.
 
 ## Continuation State
 
-Phase: 4
-Sub-step: packaging not started
-Files modified: apps/api/prisma/schema.prisma, apps/api/src/app/assignment/runAssignmentSweep.ts, apps/api/src/app/notifications/pushNotifier.ts, packages/shared/src/config/{types,schema,defaults}.ts, packages/shared/test/config.test.ts, apps/api/prisma/migrations/20260905201151_add_task_assignment_due_soon_notified_at/ (new), apps/api/test/integration/due-soon-notifications.test.ts (new)
-Blocking: none — awaiting a decision on whether to push the branch and open a PR, or produce a local-only review package, before proceeding (not yet committed to git either)
+Phase: 4 (final)
+Sub-step: complete
+Files modified: see commit ce0a67b on `feat/task-due-soon-reminder`
+Blocking: none — awaiting PR review/merge (outside this campaign's scope)
