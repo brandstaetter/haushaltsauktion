@@ -777,17 +777,25 @@ export function useFulfillRedemption() {
  * yet support cursor pagination past that, matching what the route actually
  * implements today rather than promising a "load more" this call can't honor.
  *
- * Always fetches the full unfiltered page: action/actor filtering
- * (intake "admin-audit-log-checkbox-grid-filters") is multi-select, which the
- * route's single-value `action`/`memberId` query params can't express, and at
- * this page's scale (§43: admin-only, 1–20 members) re-filtering 100 already-
- * fetched rows client-side is simpler than adding `action[]`/`actorType`
- * params to the route.
+ * Filtering (intake "admin-audit-log-checkbox-grid-filters") is applied in
+ * the query itself, not just on the already-fetched page: a chatty action
+ * like `ASSIGNMENT_SWEEP_RUN` (logged on every sweep tick) can fill the
+ * 100-row window on its own, so filtering client-side after the fetch would
+ * still be limited to whatever the unfiltered top-100 happened to contain —
+ * older events of a filtered-in action could already have scrolled out.
+ * `actions`/`actors` are comma-separated (route: `admin.ts`); an empty
+ * selection is sent as "omit the param", matching the checkbox grid's
+ * "no filter" default.
  */
-export function useAdminAuditEvents() {
+export function useAdminAuditEvents(actions: string[] = [], actors: string[] = []) {
   return useQuery({
-    queryKey: adminAuditEventsQueryKey,
-    queryFn: () => api<{ items: AdminAuditEventDto[] }>('/admin/audit-events?limit=100'),
+    queryKey: [...adminAuditEventsQueryKey, actions, actors] as const,
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: '100' });
+      if (actions.length > 0) params.set('actions', actions.join(','));
+      if (actors.length > 0) params.set('actors', actors.join(','));
+      return api<{ items: AdminAuditEventDto[] }>(`/admin/audit-events?${params.toString()}`);
+    },
   });
 }
 

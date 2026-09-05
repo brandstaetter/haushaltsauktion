@@ -53,9 +53,27 @@ function renderSection() {
   );
 }
 
+/**
+ * Mirrors the real `/admin/audit-events` route's `actions`/`actors` filtering
+ * (apps/api/.../admin.ts) rather than always returning the full list — since
+ * AuditLogSection no longer filters client-side, a mock that ignored the
+ * query string would make these tests pass regardless of whether the
+ * component actually sent the right filter params.
+ */
 function mockApiWithEvents(events: AdminAuditEventDto[], members: { id: string; displayName: string }[] = []) {
   mockedApi.mockImplementation(async (path: string) => {
-    if (path.startsWith('/admin/audit-events')) return { items: events };
+    if (path.startsWith('/admin/audit-events')) {
+      const params = new URLSearchParams(path.split('?')[1] ?? '');
+      const actions = params.get('actions')?.split(',').filter(Boolean) ?? [];
+      const actors = params.get('actors')?.split(',').filter(Boolean) ?? [];
+      const filtered = events.filter((event) => {
+        const actionMatches = actions.length === 0 || actions.includes(event.action);
+        const actorKey = event.actorType === 'SYSTEM' ? 'SYSTEM' : (event.actorMemberId ?? '');
+        const actorMatches = actors.length === 0 || actors.includes(actorKey);
+        return actionMatches && actorMatches;
+      });
+      return { items: filtered };
+    }
     if (path.startsWith('/members')) return { items: members };
     throw new Error(`unerwarteter Aufruf: ${path}`);
   });
