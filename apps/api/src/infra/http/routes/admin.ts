@@ -1517,17 +1517,45 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
         entityId: z.string().max(64).optional(),
         memberId: z.string().max(64).optional(),
         since: z.coerce.date().optional(),
+        // Multi-select filters (AuditLogSection's checkbox grid). Comma-separated
+        // rather than repeated `actions=` keys/`actions[]=` — avoids depending on
+        // which querystring convention Fastify's parser applies, and there's no
+        // ambiguity risk since no action name or member id can contain a comma.
+        // `action`/`memberId` above stay as single-value filters for existing
+        // callers (e.g. reject-completion.test.ts); `actions`/`actors` are additive.
+        actions: z.string().optional(),
+        actors: z.string().optional(),
       }),
       request.query,
     );
+    const actionFilter = query.actions
+      ? query.actions.split(',').filter(Boolean)
+      : query.action
+        ? [query.action]
+        : [];
+    // 'SYSTEM' is the checkbox grid's sentinel for actorType=SYSTEM rows (which
+    // have no actorMemberId to filter by) — apps/web/.../AuditLogSection.tsx's
+    // SYSTEM_ACTOR_KEY.
+    const actorKeys = query.actors ? query.actors.split(',').filter(Boolean) : [];
+    const wantsSystemActor = actorKeys.includes('SYSTEM');
+    const actorMemberIds = actorKeys.filter((key) => key !== 'SYSTEM');
+
     const rows = await deps.db.auditEvent.findMany({
       where: {
         householdId: ctx.householdId,
-        ...(query.action ? { action: query.action as never } : {}),
+        ...(actionFilter.length > 0 ? { action: { in: actionFilter as never[] } } : {}),
         ...(query.entityType ? { entityType: query.entityType } : {}),
         ...(query.entityId ? { entityId: query.entityId } : {}),
         ...(query.memberId ? { actorMemberId: query.memberId } : {}),
         ...(query.since ? { createdAt: { gte: query.since } } : {}),
+        ...(actorKeys.length > 0
+          ? {
+              OR: [
+                ...(wantsSystemActor ? [{ actorType: 'SYSTEM' as const }] : []),
+                ...(actorMemberIds.length > 0 ? [{ actorMemberId: { in: actorMemberIds } }] : []),
+              ],
+            }
+          : {}),
       },
       orderBy: { seq: 'desc' },
       take: Math.min(query.limit ?? 50, 100),

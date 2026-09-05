@@ -21,12 +21,13 @@ import styles from './AdminPage.module.css';
  * switch over every action's payload shape.
  *
  * Filtering (intake "admin-audit-log-checkbox-grid-filters") is multi-select
- * over both action and actor, done client-side against the one unfiltered
- * page `useAdminAuditEvents` fetches: the route's `action`/`memberId` query
- * params only accept one value each, and at this page's scale (§43,
- * admin-only, capped at 100 rows) re-filtering client-side is simpler than
- * adding `action[]`/`actorType` params to the route. An empty selection
- * means "no filter", matching the old dropdown's "Alle Aktionen" default.
+ * over both action and actor, applied server-side via `useAdminAuditEvents`'s
+ * `actions`/`actors` params — not by re-filtering an already-fetched page:
+ * a chatty action like `ASSIGNMENT_SWEEP_RUN` can fill the route's 100-row
+ * cap on its own, so a client-side filter over that one fetch could still
+ * miss older events of an action the admin actually wants to see. An empty
+ * selection means "no filter", matching the old dropdown's "Alle Aktionen"
+ * default.
  */
 
 const FILTERS_STORAGE_KEY = 'hh-audit-log-filters';
@@ -62,9 +63,7 @@ function writeStoredFilters(filters: StoredFilters): void {
 
 export function AuditLogSection() {
   const { de } = useStrings();
-  const { data, isLoading } = useAdminAuditEvents();
   const { data: membersData } = useMembers();
-  const events = data?.items ?? [];
   const members = membersData?.items ?? [];
   const allActions = useMemo(() => Object.values(AuditAction), []);
 
@@ -79,6 +78,14 @@ export function AuditLogSection() {
   useEffect(() => {
     writeStoredFilters({ actions: [...selectedActions], actors: [...selectedActors] });
   }, [selectedActions, selectedActors]);
+
+  // Sorted so the query key (and thus the cache/refetch) is stable regardless
+  // of the Set's insertion order — toggling the same selection off and back
+  // on shouldn't look like a different filter to useQuery.
+  const actionsParam = useMemo(() => [...selectedActions].sort(), [selectedActions]);
+  const actorsParam = useMemo(() => [...selectedActors].sort(), [selectedActors]);
+  const { data, isLoading } = useAdminAuditEvents(actionsParam, actorsParam);
+  const events = data?.items ?? [];
 
   const toggleAction = (action: AuditAction) => {
     setSelectedActions((prev) => {
@@ -97,13 +104,6 @@ export function AuditLogSection() {
       return next;
     });
   };
-
-  const filteredEvents = events.filter((event) => {
-    const actionMatches = selectedActions.size === 0 || selectedActions.has(event.action);
-    const actorKey = event.actorType === 'SYSTEM' ? SYSTEM_ACTOR_KEY : (event.actorMemberId ?? '');
-    const actorMatches = selectedActors.size === 0 || selectedActors.has(actorKey);
-    return actionMatches && actorMatches;
-  });
 
   return (
     <section className={styles.section}>
@@ -167,11 +167,11 @@ export function AuditLogSection() {
 
       {isLoading ? (
         <div className={styles.spinner} aria-label="Wird geladen" />
-      ) : filteredEvents.length === 0 ? (
+      ) : events.length === 0 ? (
         <p className={styles.hint}>{de.admin.auditLog.empty}</p>
       ) : (
         <ul className={styles.list}>
-          {filteredEvents.map((event) => {
+          {events.map((event) => {
             const reason = typeof event.payload['reason'] === 'string' ? event.payload['reason'] : null;
             const amount = typeof event.payload['amount'] === 'number' ? event.payload['amount'] : null;
             return (
