@@ -217,7 +217,17 @@
 .fab {
   position: fixed;
   right: var(--s-4);
-  bottom: calc(var(--s-10) + var(--s-4));
+  /* Das Verwaltungs-Untermenü (wo der FAB ausschließlich auftritt) ist auf
+     dem Handy inzwischen 7-teilig und bricht laut Nav.module.css `.grid` in
+     3 Zeilen à min-height 48px um. `var(--s-10)` war auf eine einzeilige Nav
+     berechnet und verschwand unter der dritten Zeile auf iPhones. Die
+     Fallhöhe muss daher der tatsächlichen 3-zeiligen Nav-Höhe folgen
+     (Listen-Padding-oben + 3 Zeilen + Nav-Padding-unten inkl. Safe-Area,
+     siehe dort) statt einer pauschalen Konstante. Ändert sich die Zeilenzahl
+     des Untermenüs, muss der Faktor `3 *` hier mit angepasst werden. */
+  bottom: calc(
+    var(--s-2) + 3 * 48px + max(var(--s-2), env(safe-area-inset-bottom)) + var(--s-4)
+  );
   z-index: 25;
   display: inline-flex;
   align-items: center;
