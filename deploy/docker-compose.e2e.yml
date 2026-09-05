@@ -29,12 +29,20 @@
 # tsx-based dev-server path never hit this because the developer's own
 # `.env` already sets it for local HTTP, but that file is never read by
 # these containers.
-
+#
+# RATE_LIMIT_MAX (config.ts) is raised well above its production default of
+# 300/minute for the same reason: the suite runs single-worker/sequential
+# (playwright.config.ts's `workers: 1`) and reuses just two real logins
+# (elke, hannes) across every spec file, so their per-session request counts
+# accumulate across the *whole* run instead of resetting per test — a long
+# flow late in the run can exhaust the production-sized bucket and tip an
+# unrelated, earlier-passing test into a `429` on `/auth/me`.
 services:
   api:
     environment:
       SWEEP_INTERVAL_SECONDS: "0"
       COOKIE_SECURE: "false"
+      RATE_LIMIT_MAX: "5000"
 
   web:
     build:

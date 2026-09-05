@@ -273,6 +273,17 @@ export function useVolunteer() {
       void qc.invalidateQueries({ queryKey: ['tasks'] });
       void qc.invalidateQueries({ queryKey: ['history'] });
     },
+    // Multi-worker-tasks: `body.expectedVersion` is this member's own last
+    // fetch of `task.version` — a concurrent completion by a *different*
+    // slot-holder bumps it server-side (`completeTask.ts` increments
+    // `version` on every branch, not just the last-slot one), so this
+    // member's still-open tab gets `409 STALE_VIEW` on its very first
+    // retry too, forever, unless the stale `task` this component read
+    // `expectedVersion` from is refetched. Without this, the CTA looks
+    // permanently broken until a manual reload.
+    onError: (_: unknown, vars: { id: string; body: VolunteerRequest }) => {
+      void qc.invalidateQueries({ queryKey: ['tasks', vars.id] });
+    },
   });
 }
 
@@ -289,6 +300,16 @@ export function useCompleteTask() {
       void qc.invalidateQueries({ queryKey: ['tasks'] });
       void qc.invalidateQueries({ queryKey: ['members', 'me'] });
       void qc.invalidateQueries({ queryKey: ['history'] });
+    },
+    // Same staleness class as `useVolunteer` above, and the one that
+    // actually surfaced it: on a multi-worker task, one slot-holder
+    // completing bumps `instance.version` for every other still-open slot
+    // too, so the next slot-holder's own completion attempt gets rejected
+    // with `409 STALE_VIEW` on a `task.version` that's now out of date —
+    // refetch so their retry uses the current version instead of repeating
+    // the same failed request indefinitely.
+    onError: (_: unknown, vars: { id: string; body: CompleteRequest }) => {
+      void qc.invalidateQueries({ queryKey: ['tasks', vars.id] });
     },
   });
 }

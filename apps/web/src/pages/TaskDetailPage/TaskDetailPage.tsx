@@ -170,7 +170,10 @@ export function TaskDetailPage() {
             </p>
           )}
           {task.estimatedMinutes && <p>ca. {task.estimatedMinutes} Min</p>}
-          {task.workerCount > 1 && (
+          {/* Once the "Zugewiesen" card renders below, its own header carries
+              the slot count instead — showing it here too would just repeat
+              the same text twice on the page. */}
+          {task.workerCount > 1 && activeAssignments.length === 0 && (
             <p>
               {interpolate(de.task.slotsOccupied, {
                 occupied: task.activeSlotCount,
@@ -183,7 +186,14 @@ export function TaskDetailPage() {
 
       {activeAssignments.length > 0 && (
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Zugewiesen</h2>
+          <h2 className={styles.sectionTitle}>
+            Zugewiesen
+            {task.workerCount > 1 &&
+              ` ${interpolate(de.task.slotsOccupied, {
+                occupied: task.activeSlotCount,
+                total: task.workerCount,
+              })}`}
+          </h2>
           {activeAssignments.map((a) => {
             const mine = a.memberId === me?.id;
             const rowPending = a.response === 'PENDING';
@@ -200,7 +210,12 @@ export function TaskDetailPage() {
             return (
               <div key={a.id} className={styles.assigneeRow}>
                 <p className={styles.assignee}>{label}</p>
-                {a.kind === 'RANDOM' && !rowPending && (
+                {/* The viewer's own explanation moved above the action
+                    buttons (see the `isAssignedToMe` block below) so it
+                    reads next to the decision it explains, matching the
+                    pending-decision screen's placement — only a co-assignee's
+                    still shows here, next to their name. */}
+                {a.kind === 'RANDOM' && !rowPending && !mine && (
                   <AssignmentExplanation assignmentId={a.id} />
                 )}
                 {me?.role === 'ADMIN' && (
@@ -232,12 +247,21 @@ export function TaskDetailPage() {
             }
             loading={busy}
           >
-            {de.action.volunteer}
+            {/* Multi-worker-tasks: joining a slot someone else already
+                started reads as "Mithelfen" rather than "Freiwillig
+                übernehmen" — the latter stays for a fresh task nobody has
+                taken yet. */}
+            {task.workerCount > 1 && task.activeSlotCount > 0
+              ? de.action.helpOut
+              : de.action.volunteer}
           </Button>
         )}
 
         {isAssignedToMe && task.status === 'ASSIGNED' && !isPendingDecision && (
           <>
+            {myAssignment!.kind === 'RANDOM' && (
+              <AssignmentExplanation assignmentId={myAssignment!.id} />
+            )}
             <Button
               onClick={() =>
                 run(
@@ -270,20 +294,22 @@ export function TaskDetailPage() {
                 {de.action.buyout.replace('{cost}', String(quote.cost))}
               </Button>
             )}
-            <Button
-              variant="ghost"
-              onClick={() =>
-                run(
-                  release.mutateAsync({
-                    instanceId: id,
-                    assignmentId: myAssignment!.id,
-                  }),
-                )
-              }
-              loading={busy}
-            >
-              {de.action.release}
-            </Button>
+            {myAssignment!.kind === 'VOLUNTARY' && (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  run(
+                    release.mutateAsync({
+                      instanceId: id,
+                      assignmentId: myAssignment!.id,
+                    }),
+                  )
+                }
+                loading={busy}
+              >
+                {de.action.release}
+              </Button>
+            )}
           </>
         )}
 

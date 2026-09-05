@@ -43,7 +43,7 @@ test.describe('Mobile Darstellung (390×844)', () => {
     });
 
     test('Dashboard scrollt nicht seitlich', async ({ page }) => {
-      await expect(page.getByRole('heading', { name: 'Familie' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Meine Aufgaben' })).toBeVisible();
 
       await expectNoHorizontalScroll(page);
     });
@@ -73,7 +73,7 @@ test.describe('Mobile Darstellung (390×844)', () => {
 
       const buttons = page
         .getByRole('article')
-        .getByRole('button', { name: /Freiwillig übernehmen|Als erledigt markieren/ });
+        .getByRole('button', { name: /Freiwillig übernehmen|Öffnen/ });
       // `count()` reads the DOM at this exact instant and does not wait —
       // the list is still loading right after navigation, so the first
       // button becoming visible is what actually waits out that race.

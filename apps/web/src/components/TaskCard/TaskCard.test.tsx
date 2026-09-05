@@ -63,17 +63,17 @@ describe('TaskCard', () => {
     expect(screen.getByText(/freiwillig/)).toBeInTheDocument();
   });
 
-  it('zeigt "N/M besetzt" für eine Multi-Worker-Aufgabe', () => {
+  it('zeigt "N/M" für eine Multi-Worker-Aufgabe', () => {
     render(<TaskCard task={taskFixture({ workerCount: 3, activeSlotCount: 2 })} />);
-    expect(screen.getByText(/2\/3 besetzt/)).toBeInTheDocument();
+    expect(screen.getByText(/2\/3/)).toBeInTheDocument();
   });
 
   it('zeigt keine Belegungsanzeige für workerCount === 1 (Standardfall)', () => {
     render(<TaskCard task={taskFixture({ workerCount: 1, activeSlotCount: 1 })} />);
-    expect(screen.queryByText(/besetzt/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+\/\d+/)).not.toBeInTheDocument();
   });
 
-  it('bietet weiterhin "Freiwillig übernehmen" für eine ASSIGNED Multi-Worker-Aufgabe mit freiem Slot, die der Viewer noch nicht hält', () => {
+  it('bietet "Mithelfen" für eine ASSIGNED Multi-Worker-Aufgabe mit freiem Slot, die der Viewer noch nicht hält', () => {
     const onAction = vi.fn();
     render(
       <TaskCard
@@ -87,11 +87,21 @@ describe('TaskCard', () => {
         onAction={onAction}
       />,
     );
-    const button = screen.getByRole('button', { name: 'Freiwillig übernehmen' });
+    const button = screen.getByRole('button', { name: 'Mithelfen' });
     expect(button).not.toBeDisabled();
   });
 
-  it('bietet "Als erledigt markieren" für eine ASSIGNED-Aufgabe, deren Slot der Viewer selbst hält', () => {
+  it('bietet "Freiwillig übernehmen" für eine frische Multi-Worker-Aufgabe ohne bisherige Zusage', () => {
+    render(
+      <TaskCard
+        task={taskFixture({ workerCount: 2, activeSlotCount: 0, canVolunteer: true })}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Freiwillig übernehmen' })).toBeInTheDocument();
+  });
+
+  it('bietet "Öffnen" für eine ASSIGNED-Aufgabe, deren Slot der Viewer selbst hält', () => {
     const onAction = vi.fn();
     render(
       <TaskCard
@@ -103,6 +113,6 @@ describe('TaskCard', () => {
         onAction={onAction}
       />,
     );
-    expect(screen.getByRole('button', { name: 'Als erledigt markieren' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Öffnen' })).toBeInTheDocument();
   });
 });

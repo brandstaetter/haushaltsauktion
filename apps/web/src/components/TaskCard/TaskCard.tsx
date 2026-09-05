@@ -51,7 +51,13 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
   // while still recruiting, so this list can show an ASSIGNED row the viewer
   // hasn't joined; `viewerHasActiveSlot` is the actual per-viewer signal.
   const isHeld = task.viewerHasActiveSlot;
-  const ctaLabel = actionLabel ?? (isHeld ? de.action.complete : de.action.volunteer);
+  // Multi-worker-tasks: joining a slot someone else already started reads as
+  // "Mithelfen" rather than "Freiwillig übernehmen" — the latter stays for a
+  // fresh task nobody has taken yet (`activeSlotCount === 0`), single- or
+  // multi-worker alike.
+  const isJoiningStartedTask = !isHeld && task.workerCount > 1 && task.activeSlotCount > 0;
+  const ctaLabel =
+    actionLabel ?? (isHeld ? de.action.open : isJoiningStartedTask ? de.action.helpOut : de.action.volunteer);
 
   return (
     <article className={styles.card} aria-labelledby={`task-${task.id}-title`}>

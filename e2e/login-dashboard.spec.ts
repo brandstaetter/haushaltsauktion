@@ -54,13 +54,6 @@ test.describe('Dashboard', () => {
     await expect(balanceCard).toHaveText(/Dein Punktestand\s*[−-]?\d/);
   });
 
-  test('zeigt die vier Mitglieder des Demo-Haushalts', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Familie' })).toBeVisible();
-
-    const memberCell = page.getByText('Mitglieder', { exact: true }).locator('..');
-    await expect(memberCell).toHaveText(/4\s*Mitglieder/);
-  });
-
   test('zeigt Aufgaben aus dem Seed im Verlauf des Haushalts', async ({ page }) => {
     await page.getByRole('link', { name: 'Verlauf' }).click();
     await expect(page).toHaveURL(/\/verlauf$/);

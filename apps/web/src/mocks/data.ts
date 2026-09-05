@@ -5,7 +5,12 @@
  * consistent member names, task titles matching the seed data in
  * `apps/api/prisma/seed.ts`, plausible point values.
  */
-import type { AvailableTaskDto, TaskInstanceDetailDto } from '@haushaltsauktion/shared';
+import type {
+  AssignmentSummaryDto,
+  AvailableTaskDto,
+  SelectionExplanationDto,
+  TaskInstanceDetailDto,
+} from '@haushaltsauktion/shared';
 import type { DashboardDto, NotificationRow, SessionDto } from '../api/types';
 import type { OperatorMetricsDto, OperatorSessionDto } from '../api/operatorTypes';
 
@@ -115,6 +120,151 @@ export const mockAssignedTask: TaskInstanceDetailDto = {
   activeAssignments: [],
 };
 
+/**
+ * `TaskDetailPage` fixtures (`TaskDetailPage.stories.tsx`). Distinct from
+ * `mockAssignedTask` above (which only needs to look right as a `TaskCard`
+ * row on the dashboard, so its `activeAssignments` is left empty) — the
+ * detail page resolves "is this mine" from `activeAssignments`, so these
+ * populate it for real.
+ */
+const mockBuyoutQuote = {
+  assignmentId: 'assignment-detail-1',
+  allowed: true,
+  disallowedReason: null,
+  cost: 6,
+  balanceBefore: mockSession.member!.balance,
+  balanceAfter: mockSession.member!.balance - 6,
+  taskValueBefore: 6,
+  taskValueAfter: 9,
+  costStrategy: 'CURRENT_TASK_VALUE' as const,
+  valueIncreaseStrategy: 'MULTIPLIER' as const,
+  buyoutsUsedThisWeek: 0,
+  buyoutsAllowedThisWeek: null,
+  configVersion: 1,
+};
+
+/** RANDOM assignment, still awaiting the viewer's decision — §21's "Du wurdest ausgewählt". */
+export const mockAssignmentPending: AssignmentSummaryDto = {
+  id: 'assignment-detail-1',
+  memberId: mockSession.member!.id,
+  kind: 'RANDOM',
+  response: 'PENDING',
+  assignedAt: new Date().toISOString(),
+  valueAtAssignment: 6,
+  rewardOnCompletion: 0,
+  buyoutQuote: mockBuyoutQuote,
+};
+
+/** Same assignment, already accepted — the "erledigen / freikaufen / zurückgeben" screen. */
+export const mockAssignmentAccepted: AssignmentSummaryDto = {
+  ...mockAssignmentPending,
+  id: 'assignment-detail-2',
+  response: 'ACCEPTED',
+};
+
+/**
+ * PRD §3B — a voluntary takeover is released, never bought out: no fairness
+ * trace either (only a `RANDOM` assignment has a `selectionTrace`), so the
+ * screen is just "erledigen / zurückgeben". `buyoutQuote` mirrors what
+ * `evaluateBuyoutRules` (`apps/api/src/domain/buyout/rules.ts`) actually
+ * returns for a `VOLUNTARY` kind — `allowed: false` with
+ * `NOT_RANDOM_ASSIGNMENT`, not `null` — so the mocked `/buyout-quote`
+ * response stays true to the real API.
+ */
+export const mockAssignmentVoluntary: AssignmentSummaryDto = {
+  id: 'assignment-detail-3',
+  memberId: mockSession.member!.id,
+  kind: 'VOLUNTARY',
+  response: 'ACCEPTED',
+  assignedAt: new Date().toISOString(),
+  valueAtAssignment: 6,
+  rewardOnCompletion: 6,
+  buyoutQuote: {
+    ...mockBuyoutQuote,
+    assignmentId: 'assignment-detail-3',
+    allowed: false,
+    disallowedReason: 'NOT_RANDOM_ASSIGNMENT',
+  },
+};
+
+export const mockTaskDetailAvailable: TaskInstanceDetailDto = {
+  ...mockAvailableTasks[1],
+  id: 'instance-bathroom',
+  taskDefinitionId: 'def-bathroom',
+  scheduledFor: new Date().toISOString(),
+  publishedAt: new Date().toISOString(),
+  completedAt: null,
+  completedBy: null,
+  activeAssignment: null,
+  activeAssignments: [],
+};
+
+export const mockTaskDetailPending: TaskInstanceDetailDto = {
+  ...mockTaskDetailAvailable,
+  status: 'ASSIGNED',
+  canVolunteer: false,
+  viewerHasActiveSlot: true,
+  potentialReward: 0,
+  activeAssignment: mockAssignmentPending,
+  activeAssignments: [mockAssignmentPending],
+};
+
+export const mockTaskDetailAssigned: TaskInstanceDetailDto = {
+  ...mockTaskDetailPending,
+  activeAssignment: mockAssignmentAccepted,
+  activeAssignments: [mockAssignmentAccepted],
+};
+
+/** Voluntarily taken (not randomly assigned) — "erledigen / zurückgeben", no buyout, no fairness sheet. */
+export const mockTaskDetailVoluntaryAssigned: TaskInstanceDetailDto = {
+  ...mockTaskDetailPending,
+  potentialReward: 6,
+  activeAssignment: mockAssignmentVoluntary,
+  activeAssignments: [mockAssignmentVoluntary],
+};
+
+/** §32 "Warum wurde mir diese Aufgabe zugewiesen?" — behind the pending story's fairness sheet. */
+export const mockSelectionExplanation: SelectionExplanationDto = {
+  assignmentId: mockAssignmentPending.id,
+  strategy: 'WEIGHTED_FAIRNESS',
+  decidedAt: new Date().toISOString(),
+  configVersion: 1,
+  eligibleCount: 3,
+  constraintsRelaxed: [],
+  candidates: [
+    {
+      memberId: mockMembers[1].id,
+      displayName: mockMembers[1].displayName,
+      included: true,
+      exclusionReason: null,
+      weightTerms: null,
+      weight: 0.8,
+      probability: 0.27,
+      selected: false,
+    },
+    {
+      memberId: mockMembers[2].id,
+      displayName: mockMembers[2].displayName,
+      included: false,
+      exclusionReason: 'CATEGORY_EXCLUDED',
+      weightTerms: null,
+      weight: null,
+      probability: null,
+      selected: false,
+    },
+    {
+      memberId: mockSession.member!.id,
+      displayName: mockSession.member!.displayName,
+      included: true,
+      exclusionReason: null,
+      weightTerms: null,
+      weight: 1.2,
+      probability: 0.4,
+      selected: true,
+    },
+  ],
+};
+
 export const mockDashboard: DashboardDto = {
   me: {
     memberId: mockSession.member!.id,
@@ -145,7 +295,7 @@ export const mockDashboard: DashboardDto = {
 
 export const mockOperatorSession: OperatorSessionDto = {
   operator: { id: 'operator-1', email: 'ops@example.com' },
-  csrfToken: 'mock-operator-csrf-token',
+  csrfToken: 'dummy-operator-csrf-token',
 };
 
 export const mockOperatorMetrics: OperatorMetricsDto = {

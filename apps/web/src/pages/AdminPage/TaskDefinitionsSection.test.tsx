@@ -455,7 +455,7 @@ describe('TaskDefinitionsSection', () => {
     ).toBeInTheDocument();
   });
 
-  it('zeigt "N/M besetzt" und alle Zuweisungen für eine Multi-Worker-Instanz, aber nicht für EXACTLY(1)', async () => {
+  it('zeigt "N/M" und alle Zuweisungen für eine Multi-Worker-Instanz, aber nicht für EXACTLY(1)', async () => {
     const user = userEvent.setup();
     const definition = definitionFixture({ workerCountMode: 'AT_LEAST', workerCount: 2 });
     const detail: AdminTaskDefinitionDetailDto = {
@@ -513,7 +513,7 @@ describe('TaskDefinitionsSection', () => {
       ),
     ).toBeInTheDocument();
     // inst-2 is EXACTLY(1) — unchanged rendering, no occupancy text for it.
-    expect(within(dialog).getAllByText(new RegExp(`^${1}/${2} besetzt$`))).toHaveLength(1);
+    expect(within(dialog).getAllByText(new RegExp(`^${1}/${2}$`))).toHaveLength(1);
   });
 
   it(

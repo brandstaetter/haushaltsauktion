@@ -233,24 +233,6 @@ export function DashboardPage() {
         </div>
       </section>
 
-      <section className={styles.household}>
-        <h2 className={styles.sectionTitle}>{de.dashboard.household}</h2>
-        <div className={styles.summaryGrid}>
-          <div className={styles.summaryCell}>
-            <span className={styles.summaryValue}>{data.family.openTasks.length}</span>
-            <span className={styles.summaryLabel}>{de.dashboard.openTasks}</span>
-          </div>
-          <div className={styles.summaryCell}>
-            <span className={styles.summaryValue}>{data.family.members.length}</span>
-            <span className={styles.summaryLabel}>{de.dashboard.members}</span>
-          </div>
-          <div className={styles.summaryCell}>
-            <span className={styles.summaryValue}>{formatNumber(data.family.openTasks.reduce((sum, t) => sum + t.currentValue, 0))}</span>
-            <span className={styles.summaryLabel}>{de.dashboard.currentValue}</span>
-          </div>
-        </div>
-      </section>
-
       {data.family.recentlyCompleted.length > 0 && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>{de.dashboard.recent}</h2>
