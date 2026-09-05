@@ -307,6 +307,7 @@ model Household {
   memberIntegrations   MemberIntegration[]
   integrationOutbox    IntegrationOutbox[]
   integrationTaskLinks IntegrationTaskLink[]
+  pushOutboxItems      PushOutboxItem[]
 
   rewardDefinitions RewardDefinition[]
   rewardRedemptions RewardRedemption[]
@@ -364,10 +365,13 @@ model HouseholdMember {
   integrations         MemberIntegration[]
   integrationOutbox    IntegrationOutbox[]
   integrationTaskLinks IntegrationTaskLink[]
+  pushOutboxItems      PushOutboxItem[]
 
   rewardRedemptions    RewardRedemption[] @relation("RewardBuyer")
   fulfilledRedemptions RewardRedemption[] @relation("RewardFulfiller")
   effects              MemberEffect[]
+
+  pushSubscriptions PushSubscription[]
 
   @@unique([householdId, userId])
   @@index([householdId, isActive])
@@ -389,6 +393,26 @@ model MemberAbsence {
 
   @@index([householdId, memberId, startsAt, endsAt])
   @@map("member_absences")
+}
+
+/// Web-Push-Registrierung (Architektur push-notifications §Architekturvorschlag).
+/// Bewusst an `HouseholdMember`, nicht an `User` gebunden: die Zustellentscheidung
+/// ("Push für diesen Haushalt aktiviert?") ist haushaltsspezifisch, auch wenn ein
+/// Gerät für mehrere Haushalte registriert sein kann (§26 Multi-Household). Kein
+/// `householdId`-Feld — die Subscription selbst gehört dem Gerät/Browser, nicht
+/// dem Haushalt; `member.householdId` ist bei Bedarf über die Relation erreichbar.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  memberId  String   @map("member_id")
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member HouseholdMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("push_subscriptions")
 }
 
 model TaskCategory {
@@ -611,6 +635,7 @@ model TaskInstance {
 
   integrationOutbox    IntegrationOutbox[]
   integrationTaskLinks IntegrationTaskLink[]
+  pushOutboxItems      PushOutboxItem[]
 
   @@index([householdId, status, offerExpiresAt])
   @@index([householdId, status, dueAt])
@@ -1026,6 +1051,38 @@ model IntegrationTaskLink {
   @@unique([householdId, assignmentId])
   @@index([taskInstanceId])
   @@map("integration_task_links")
+}
+
+// ───────────────────────── Web Push outbox ─────────────────────────
+// push-notifications §Architekturvorschlag Phase 2 fix (regression: a push
+// must never fire for a transaction that later rolls back). Modeled on
+// IntegrationOutbox's write/dispatch split, deliberately without its
+// complexity: `pushNotifier.emit` only ever INSERTs rows here, inside the
+// caller's transaction `tx` — so they roll back with everything else for
+// free — and `dispatchPushOutbox` is the only reader, running with no
+// transaction open across the actual HTTP send. No status machine and no
+// retry ladder: a push is best-effort (research doc), so every row is
+// deleted right after one delivery attempt, success or not.
+model PushOutboxItem {
+  id             String   @id @default(cuid())
+  householdId    String   @map("household_id")
+  memberId       String   @map("member_id")
+  type           String
+  payload        Json
+  taskInstanceId String?  @map("task_instance_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  household Household       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  member    HouseholdMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  instance  TaskInstance?   @relation(fields: [taskInstanceId], references: [id], onDelete: Cascade)
+
+  /// Trägt den globalen "älteste zuerst"-Claim des Dispatchers (bewusst NICHT
+  /// nach householdId vorgefiltert — siehe dispatchPushOutbox.ts).
+  @@index([createdAt])
+  @@index([householdId])
+  @@index([memberId])
+  @@index([taskInstanceId])
+  @@map("push_outbox_items")
 }
 
 // ───────────────────────── rewards (Punkte-Shop) ─────────────────────────

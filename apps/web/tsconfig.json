@@ -22,5 +22,9 @@
     }
   },
   "include": ["src"],
+  // `sw.ts` needs the `webworker` lib, which TS cannot mix with the `DOM` lib
+  // the rest of the app uses in one program (conflicting global declarations
+  // like `Cache`/`Client`). See `tsconfig.sw.json` and `sw.ts`'s module doc.
+  "exclude": ["src/sw.ts"],
   "references": [{ "path": "../../packages/shared" }]
 }

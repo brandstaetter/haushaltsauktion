@@ -104,6 +104,8 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
   notifications: Object.freeze({
     inAppEnabled: true, // §24
     dueSoonLeadMinutes: 120,
+    // push-notifications §Architekturvorschlag — pure opt-in, off by default.
+    pushEnabled: false,
   }),
 
   integrations: Object.freeze({
@@ -169,5 +171,7 @@ export function toPublicConfig(cfg: HouseholdConfig): PublicHouseholdConfig {
     // The switch only. A member's token, project and triggers are personal and
     // never travel through the household projection.
     integrations: { todoist: { enabled: cfg.integrations.todoist.enabled } },
+    // The switch only — same reasoning as `integrations.todoist` above.
+    notifications: { pushEnabled: cfg.notifications.pushEnabled },
   };
 }

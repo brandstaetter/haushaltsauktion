@@ -119,6 +119,9 @@ const SCOPED_MODELS = new Set([
   'memberIntegration',
   'integrationOutbox',
   'integrationTaskLink',
+  // Web Push outbox (push-notifications, rollback-safety fix): same shape as
+  // integrationOutbox, same risk if a query ever forgot householdId.
+  'pushOutboxItem',
   // Punkte-Shop (intake "points-shop-real-life-rewards").
   'rewardDefinition',
   'rewardRedemption',

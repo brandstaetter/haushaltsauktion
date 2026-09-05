@@ -31,6 +31,7 @@
 
 import type { SelectionTrace } from '@haushaltsauktion/shared';
 
+import { canVolunteer } from '../../domain/assignment/eligibility.js';
 import { selectAssignee } from '../../domain/assignment/strategies.js';
 import {
   dueAtFor,
@@ -144,6 +145,12 @@ export async function runAssignmentSweep(
       // the auto-materialization path never actually exercised the feature.
       workerCountMode: true,
       workerCount: true,
+      // Push-notifications Phase 3: needed by `loadCandidates`/`canVolunteer`
+      // below to compute who is eligible to volunteer for the freshly
+      // materialized instance (TASK_AVAILABLE).
+      categoryId: true,
+      requiredRole: true,
+      minAdminSlots: true,
     },
   });
 
@@ -218,6 +225,49 @@ export async function runAssignmentSweep(
           payload: { title: definition.title, value: instance.currentValue },
         },
       ]);
+
+      // Push-notifications Phase 3 (closing a pre-existing gap): every member
+      // currently eligible to *volunteer* for this task is notified that it
+      // is open. Reuses `canVolunteer` (`domain/assignment/eligibility.ts`) —
+      // rules 1-5 plus the role/admin-slot additions, the exact predicate
+      // `assertCanVolunteer`/`volunteerForTask` itself consults — never the
+      // soft fairness-only rules 6-7 (weekly cap, reassignment cooldown) that
+      // gate only the random draw: choosing to help is never blocked by
+      // "you were assigned this recently" (§6.9). A freshly materialized
+      // instance holds no assignments yet, so the admin-slot reservation is
+      // evaluated from a clean slate (`currentCount`/`currentAdminCount: 0`).
+      const { candidates: t1Candidates, definitionHasAllowlist: t1HasAllowlist } =
+        await loadCandidates(tx, {
+          householdId: input.householdId,
+          timezone,
+          taskDefinitionId: definition.id,
+          categoryId: definition.categoryId,
+          now,
+          cfg: config,
+        });
+      const t1EligibilityOptions = {
+        definitionHasAllowlist: t1HasAllowlist,
+        requiredRole: definition.requiredRole,
+        adminSlotReserved: adminSlotReservationActive({
+          min: minRequired(instance.workerCountMode as never, instance.workerCount),
+          currentCount: 0,
+          currentAdminCount: 0,
+          minAdminSlots: definition.minAdminSlots,
+        }),
+      };
+      await deps.notifier.emit(
+        tx,
+        t1Candidates
+          .filter((c) => canVolunteer(c, t1EligibilityOptions))
+          .map((c) => ({
+            householdId: input.householdId,
+            memberId: c.memberId,
+            type: 'TASK_AVAILABLE',
+            payload: { taskInstanceId: instance.id, value: instance.currentValue },
+            taskInstanceId: instance.id,
+          })),
+      );
+
       report.materialized += 1;
       report.published += 1;
     });
@@ -242,7 +292,10 @@ export async function runAssignmentSweep(
       }
       const draftDefinition = await tx.taskDefinition.findFirst({
         where: { id: instance.taskDefinitionId, householdId: input.householdId },
-        select: { title: true },
+        // categoryId/requiredRole/minAdminSlots: push-notifications Phase 3,
+        // needed by `loadCandidates`/`canVolunteer` below — see the T1 site's
+        // comment above for the full rationale.
+        select: { title: true, categoryId: true, requiredRole: true, minAdminSlots: true },
       });
       const cfg = await loadConfigVersion(tx, input.householdId, instance.configVersion);
       const expires = offerExpiresAt({
@@ -267,6 +320,45 @@ export async function runAssignmentSweep(
           payload: { title: draftDefinition?.title ?? '', value: instance.currentValue },
         },
       ]);
+
+      // Push-notifications Phase 3 (closing a pre-existing gap) — same
+      // reasoning as the T1 site above. `draftDefinition === null` only in
+      // the defensive case the definition vanished underneath an open draft;
+      // nothing to notify about in that case.
+      if (draftDefinition !== null) {
+        const { candidates: t2Candidates, definitionHasAllowlist: t2HasAllowlist } =
+          await loadCandidates(tx, {
+            householdId: input.householdId,
+            timezone,
+            taskDefinitionId: instance.taskDefinitionId,
+            categoryId: draftDefinition.categoryId,
+            now,
+            cfg,
+          });
+        const t2EligibilityOptions = {
+          definitionHasAllowlist: t2HasAllowlist,
+          requiredRole: draftDefinition.requiredRole,
+          adminSlotReserved: adminSlotReservationActive({
+            min: minRequired(instance.workerCountMode as never, instance.workerCount),
+            currentCount: 0,
+            currentAdminCount: 0,
+            minAdminSlots: draftDefinition.minAdminSlots,
+          }),
+        };
+        await deps.notifier.emit(
+          tx,
+          t2Candidates
+            .filter((c) => canVolunteer(c, t2EligibilityOptions))
+            .map((c) => ({
+              householdId: input.householdId,
+              memberId: c.memberId,
+              type: 'TASK_AVAILABLE',
+              payload: { taskInstanceId: instance.id, value: instance.currentValue },
+              taskInstanceId: instance.id,
+            })),
+        );
+      }
+
       report.published += 1;
     });
   }

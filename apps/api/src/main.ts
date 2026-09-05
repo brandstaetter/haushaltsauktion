@@ -17,10 +17,13 @@ import {
   type Deps,
   type Logger,
 } from './app/deps.js';
+import { pushNotifier } from './app/notifications/pushNotifier.js';
 import { loadEnv } from './config.js';
 import { buildServer } from './infra/http/server.js';
+import { createPushSender } from './infra/integrations/push-sender.js';
 import { createSecretBox, parseKeyring } from './infra/integrations/secret-box.js';
 import { createTodoistClient } from './infra/integrations/todoist-client.js';
+import { startPushOutboxWorker } from './infra/jobs/push-outbox-worker.js';
 import { startSweepWorker } from './infra/jobs/worker.js';
 import { startTodoistWorker } from './infra/jobs/todoist-worker.js';
 
@@ -55,16 +58,57 @@ async function main(): Promise<void> {
     : undefined;
   const todoist = hasKey ? createTodoistClient() : undefined;
 
+  /**
+   * Web Push is composed only when both VAPID keys are configured
+   * (push-notifications §Architekturvorschlag, Phase 1) — the same `hasKey`
+   * shape as Todoist above. A deployment that never sets them gets
+   * `Deps.push === undefined`, which a later phase's `pushNotifier` decorator
+   * must treat as "push not configured", not as a crash.
+   */
+  // Forwards to whatever `logger` is currently bound to, same trick as
+  // `deps.logger`'s getter below — `createPushSender` is called before the
+  // Fastify (pino) logger exists, so it cannot close over the final value.
+  const lazyLogger: Logger = {
+    debug: (obj, msg) => logger.debug(obj, msg),
+    info: (obj, msg) => logger.info(obj, msg),
+    warn: (obj, msg) => logger.warn(obj, msg),
+    error: (obj, msg) => logger.error(obj, msg),
+  };
+  const push =
+    env.VAPID_PUBLIC_KEY !== undefined &&
+    env.VAPID_PUBLIC_KEY !== '' &&
+    env.VAPID_PRIVATE_KEY !== undefined &&
+    env.VAPID_PRIVATE_KEY !== ''
+      ? createPushSender(
+          {
+            publicKey: env.VAPID_PUBLIC_KEY,
+            privateKey: env.VAPID_PRIVATE_KEY,
+            subject: env.VAPID_SUBJECT ?? 'mailto:admin@localhost',
+          },
+          lazyLogger,
+        )
+      : undefined;
+
   const deps: Deps = {
     db,
     clock: systemClock,
     rng: cryptoRng,
-    notifier: dbNotifier,
+    // Push-notifications §Architekturvorschlag, Phase 2 (rollback-safety
+    // fix): when Web Push is configured, `dbNotifier` is wrapped so every
+    // emit also enqueues `PushOutboxItem` rows, inside the same transaction
+    // `inner.emit` just used — the decorator itself never touches the
+    // transactional guarantee, and a rollback of the caller's transaction
+    // takes the outbox rows with it. Actual delivery happens later, with no
+    // transaction open, in `startPushOutboxWorker` below. A deployment
+    // without VAPID keys keeps the bare `dbNotifier`, byte-for-byte today's
+    // behaviour.
+    notifier: push !== undefined ? pushNotifier(dbNotifier) : dbNotifier,
     get logger() {
       return logger;
     },
     ...(secrets !== undefined ? { secrets } : {}),
     ...(todoist !== undefined ? { todoist } : {}),
+    ...(push !== undefined ? { push } : {}),
   };
 
   const app = await buildServer({ env, deps });
@@ -86,10 +130,20 @@ async function main(): Promise<void> {
     );
   }
 
+  // Push-notifications §Architekturvorschlag, Phase 2 (rollback-safety fix):
+  // started only when push is actually configured — no point polling an
+  // empty `push_outbox_items` table forever on a deployment with no VAPID
+  // keys, and `startPushOutboxWorker` itself already no-ops on
+  // `deps.push === undefined`, but skipping the `setInterval` entirely here
+  // keeps the intent visible at the call site too.
+  const pushOutboxWorker =
+    push !== undefined ? startPushOutboxWorker(deps, env.PUSH_OUTBOX_INTERVAL_SECONDS) : { stop: () => undefined };
+
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, 'shutting down');
     worker.stop();
     todoistWorker.stop();
+    pushOutboxWorker.stop();
     await app.close();
     await db.$disconnect();
     process.exit(0);

@@ -343,6 +343,24 @@ export const de = {
     lastSuccess: 'Zuletzt erfolgreich',
     saveFailed: 'Konnte nicht gespeichert werden.',
   },
+  push: {
+    title: 'Push-Benachrichtigungen',
+    // §31: die Konsequenz steht vor dem Button, nicht danach.
+    intro:
+      'Erhalte eine Benachrichtigung, wenn dir eine Aufgabe zugewiesen wird oder jemand eine freiwillig übernimmt — auch wenn die App gerade geschlossen ist.',
+    iosNote:
+      'Auf iPhone/iPad funktioniert das nur, wenn die App vorher zum Home-Bildschirm hinzugefügt wurde (Teilen-Symbol → „Zum Home-Bildschirm“). In einem normalen Safari-Tab funktioniert Push nicht.',
+    subscribe: 'Benachrichtigungen aktivieren',
+    subscribing: 'Wird aktiviert…',
+    unsubscribe: 'Benachrichtigungen deaktivieren',
+    unsubscribing: 'Wird deaktiviert…',
+    subscribed: 'Push-Benachrichtigungen sind auf diesem Gerät aktiv.',
+    unsupported: 'Dieser Browser unterstützt keine Push-Benachrichtigungen.',
+    permissionDenied:
+      'Benachrichtigungen wurden für diese Seite blockiert. Erlaube sie in den Browser- oder Systemeinstellungen, um Push zu nutzen.',
+    notConfigured: 'Push ist auf diesem Server nicht eingerichtet.',
+    saveFailed: 'Konnte nicht gespeichert werden.',
+  },
   ledger: {
     title: 'Punktekonto',
     empty: 'Noch keine Punktebewegungen.',

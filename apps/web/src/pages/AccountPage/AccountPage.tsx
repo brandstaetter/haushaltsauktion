@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useLogout, useMemberMe, usePublicConfig, useSession } from '../../api/hooks';
+import { PushSection } from './PushSection';
 import { TodoistSection } from './TodoistSection';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../../components/Button/Button';
@@ -64,6 +65,9 @@ export function AccountPage() {
           the flag comes from the public config projection, so a household that
           never enabled it sees nothing at all. */}
       <TodoistSection enabled={publicConfig?.values.integrations.todoist.enabled === true} />
+      {/* Same gating pattern — rendered only when the household has Web Push
+          switched on (`notifications.pushEnabled`). */}
+      <PushSection enabled={publicConfig?.values.notifications.pushEnabled === true} />
       <Button
         variant="ghost"
         onClick={() => logout.mutate()}
