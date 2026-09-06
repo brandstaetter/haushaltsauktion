@@ -6,13 +6,13 @@
  * Trigger: an `ASSIGNED` `TaskInstance` with both `dueAt` and
  * `definition.estimatedMinutes` set notifies every currently `ACTIVE`
  * `TaskAssignment` (any `kind`) exactly once, the moment
- * `now >= dueAt - dueSoonDurationMultiplier * estimatedMinutes` (default
- * multiplier `2`, `NotificationsConfig.dueSoonDurationMultiplier`).
+ * `dueAt > now >= dueAt - dueSoonDurationMultiplier * estimatedMinutes`
+ * (default multiplier `2`, `NotificationsConfig.dueSoonDurationMultiplier`).
  *
  * Idempotency is the interesting part: `dueSoonNotifiedAt` lives on
  * `TaskAssignment`, not `TaskInstance`, precisely so a later assignee on the
- * same instance (after a buyout or an expiry-penalty re-offer) still gets
- * their own chance to be warned — see the field's schema comment.
+ * same not-yet-due instance after a buyout still gets their own chance to be
+ * warned — see the field's schema comment.
  *
  * Requires a live Postgres: `docker compose up -d db && npm run db:migrate`.
  */
@@ -177,6 +177,31 @@ test('never fires when estimatedMinutes is null, even past what would be the thr
   expect(count).toBe(0);
 });
 
+test('never fires for an overdue assignment whose stale dueAt survived an expiry-penalty re-offer', async () => {
+  const dueAt = new Date(Date.now() - 5 * 60_000);
+  const instanceId = await createAssignedInstance(ids, dueAt);
+  const assignmentId = await createActiveAssignment(ids, instanceId, 'arthur');
+  await db.taskHistoryEvent.create({
+    data: {
+      householdId: ids.householdId,
+      taskInstanceId: instanceId,
+      type: 'EXPIRY_PENALTY',
+      payload: {},
+    },
+  });
+
+  const report = await runAssignmentSweep(sweepDeps, { householdId: ids.householdId });
+  expect(report.dueSoonNotified).toBe(0);
+  expect(
+    await db.notification.count({
+      where: { householdId: ids.householdId, taskInstanceId: instanceId, type: 'TASK_DUE_SOON' },
+    }),
+  ).toBe(0);
+  expect(
+    (await db.taskAssignment.findUniqueOrThrow({ where: { id: assignmentId } })).dueSoonNotifiedAt,
+  ).toBeNull();
+});
+
 test('fires exactly once per assignment — a second sweep tick after the threshold does not re-notify', async () => {
   const dueAt = new Date(Date.now() + 5 * 60_000);
   const instanceId = await createAssignedInstance(ids, dueAt);
@@ -247,8 +272,8 @@ test('reads TaskDefinition.estimatedMinutes live — an admin edit shifts the ob
 });
 
 test('a new assignment on the same instance (post-buyout shape) gets its own independent chance to be notified', async () => {
-  // Simulates the tail end of a buyout/expiry-penalty re-offer: the same
-  // instance and dueAt, but a fresh TaskAssignment row for the new holder.
+  // Simulates the tail end of a buyout: the same instance and dueAt, but a
+  // fresh TaskAssignment row for the new holder.
   // The prior holder's row already carries dueSoonNotifiedAt (they were
   // warned before losing/leaving the slot) and is closed; if the dedup flag
   // lived on TaskInstance instead, this new row's owner could wrongly never

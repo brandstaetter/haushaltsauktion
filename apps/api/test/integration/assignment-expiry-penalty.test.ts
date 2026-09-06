@@ -226,6 +226,49 @@ test.each(['RANDOM', 'VOLUNTARY'] as const)(
   },
 );
 
+test('a multi-worker expiry broadcasts one aggregated penalty notification per active household member', async () => {
+  const version = await installConfig((config) => {
+    config.buyout.allowNegativeBalance = true;
+    config.buyout.maximumDebt = 30;
+  });
+  const { instanceId } = await createAssigned('RANDOM', version);
+  await db.taskInstance.update({
+    where: { id: instanceId },
+    data: { workerCountMode: 'EXACTLY', workerCount: 2, activeSlotCount: 2 },
+  });
+  await db.taskAssignment.create({
+    data: {
+      householdId: ids.householdId,
+      taskInstanceId: instanceId,
+      memberId: ids.memberId('luise'),
+      kind: 'RANDOM',
+      status: 'ACTIVE',
+      response: 'PENDING',
+      slotIndex: 1,
+      activeSlotKey: `${instanceId}:1`,
+      valueAtAssignment: 6,
+      configVersion: version,
+      assignedAt: BEFORE_DEADLINE,
+    },
+  });
+
+  await runAssignmentSweep(depsAt(AFTER_DEADLINE), { householdId: ids.householdId });
+
+  const notifications = await db.notification.findMany({
+    where: { taskInstanceId: instanceId, type: 'TASK_EXPIRED_PENALTY' },
+    orderBy: { memberId: 'asc' },
+  });
+  expect(notifications).toHaveLength(3);
+  expect(notifications.map((item) => item.memberId).sort()).toEqual(
+    [ids.memberId('elke'), ids.memberId('arthur'), ids.memberId('luise')].sort(),
+  );
+  expect(notifications.map((item) => item.payload)).toEqual([
+    { taskInstanceId: instanceId, by: 'Arthur, Luise', value: 14 },
+    { taskInstanceId: instanceId, by: 'Arthur, Luise', value: 14 },
+    { taskInstanceId: instanceId, by: 'Arthur, Luise', value: 14 },
+  ]);
+});
+
 test.each([
   ['ON_ACCEPT', 6, -1, 2],
   ['ON_COMPLETE', 0, -7, 1],

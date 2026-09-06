@@ -596,21 +596,21 @@ export async function runAssignmentSweep(
           where: { householdId: input.householdId, isActive: true },
           select: { id: true },
         });
+        const penalizedBy = penalties.map((penalty) => penalty.memberName).join(', ');
+        const totalPenalty = penalties.reduce((sum, penalty) => sum + penalty.amount, 0);
         await deps.notifier.emit(
           tx,
-          penalties.flatMap((penalty) =>
-            householdMembers.map((member) => ({
-              householdId: input.householdId,
-              memberId: member.id,
-              type: 'TASK_EXPIRED_PENALTY',
-              payload: {
-                taskInstanceId: instance.id,
-                by: penalty.memberName,
-                value: penalty.amount,
-              },
+          householdMembers.map((member) => ({
+            householdId: input.householdId,
+            memberId: member.id,
+            type: 'TASK_EXPIRED_PENALTY',
+            payload: {
               taskInstanceId: instance.id,
-            })),
-          ),
+              by: penalizedBy,
+              value: totalPenalty,
+            },
+            taskInstanceId: instance.id,
+          })),
         );
 
         report.expired += 1;
@@ -683,11 +683,10 @@ export async function runAssignmentSweep(
   // `TaskInstance` — so it cannot be expressed as a flat SQL predicate
   // without materializing it per row anyway), then acted on inside
   // `withTransaction`. `dueSoonNotifiedAt` lives on `TaskAssignment`, not
-  // `TaskInstance` (see the field's schema comment): a buyout or expiry
-  // re-offer can cycle the same instance through several assignment rows
-  // against the same fixed `dueAt`, and scoping the dedup flag to the
-  // assignment gives each new holder their own independent chance to be
-  // warned instead of inheriting a prior holder's already-sent reminder.
+  // `TaskInstance` (see the field's schema comment): a buyout can cycle the
+  // same not-yet-due instance through several assignment rows, and scoping
+  // the dedup flag to the assignment gives each new holder their own chance
+  // to be warned instead of inheriting a prior holder's sent reminder.
   // `estimatedMinutes` is read live (not pinned at assignment time) — it is
   // display metadata with no fairness/ledger invariant to protect, unlike
   // `valueAtAssignment`/`configVersion`.
@@ -698,7 +697,7 @@ export async function runAssignmentSweep(
       dueSoonNotifiedAt: null,
       instance: {
         status: 'ASSIGNED',
-        dueAt: { not: null },
+        dueAt: { gt: now },
         definition: { estimatedMinutes: { not: null } },
       },
     },
@@ -719,7 +718,9 @@ export async function runAssignmentSweep(
     for (const candidate of dueSoonCandidates) {
       const dueAt = candidate.instance.dueAt;
       const estimatedMinutes = candidate.instance.definition.estimatedMinutes;
-      if (dueAt === null || estimatedMinutes === null) continue; // already guarded by the query
+      if (dueAt === null || dueAt.getTime() <= now.getTime() || estimatedMinutes === null) {
+        continue; // already guarded by the query; retained for nullable relation typing
+      }
       const thresholdMs =
         dueAt.getTime() - dueSoonConfig.notifications.dueSoonDurationMultiplier * estimatedMinutes * 60_000;
       if (now.getTime() >= thresholdMs) ripeInstanceIds.add(candidate.taskInstanceId);
@@ -747,6 +748,7 @@ export async function runAssignmentSweep(
           });
           const estimatedMinutes = definition?.estimatedMinutes ?? null;
           if (estimatedMinutes === null) return;
+          if (now.getTime() >= instance.dueAt.getTime()) return;
           const thresholdMs =
             instance.dueAt.getTime() -
             dueSoonConfig.notifications.dueSoonDurationMultiplier * estimatedMinutes * 60_000;
