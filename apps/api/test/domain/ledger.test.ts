@@ -59,6 +59,8 @@ describe('posting arithmetic (§8.2)', () => {
   it('enforces the per-type sign rules (§1.5)', () => {
     expect(signRuleViolated(PointTransactionType.BUYOUT, 5)).toBe(true);
     expect(signRuleViolated(PointTransactionType.BUYOUT, -5)).toBe(false);
+    expect(signRuleViolated(PointTransactionType.PENALTY, 5)).toBe(true);
+    expect(signRuleViolated(PointTransactionType.PENALTY, -5)).toBe(false);
     expect(signRuleViolated(PointTransactionType.VOLUNTARY_TASK_REWARD, -5)).toBe(true);
     expect(signRuleViolated(PointTransactionType.VOLUNTARY_TASK_REWARD, 5)).toBe(false);
     expect(signRuleViolated(PointTransactionType.DECAY, 5)).toBe(true);
@@ -69,6 +71,12 @@ describe('posting arithmetic (§8.2)', () => {
   it('refuses a positive buyout and a negative reward', () => {
     expect(() =>
       computePosting({ balanceBefore: 0, amount: 5, type: PointTransactionType.BUYOUT, taskAssignmentId: 'a1', assignmentKind: AssignmentKind.RANDOM }),
+    ).toThrow(/Vorzeichenregel/);
+  });
+
+  it('refuses a non-negative penalty', () => {
+    expect(() =>
+      computePosting({ balanceBefore: 0, amount: 1, type: PointTransactionType.PENALTY }),
     ).toThrow(/Vorzeichenregel/);
   });
 

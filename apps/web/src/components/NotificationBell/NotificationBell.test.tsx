@@ -72,6 +72,19 @@ describe('renderMessage', () => {
     expect(message).toBe('„Staubsaugen“: Wert ist von 4 auf 6 gestiegen');
   });
 
+  it('names the penalized member and capped debit for an expired assignment', () => {
+    const message = renderMessage(
+      de,
+      notificationFixture({
+        type: 'TASK_EXPIRED_PENALTY',
+        payload: { by: 'Arthur', value: 7 },
+      }),
+    );
+    expect(message).toBe(
+      '„Bad putzen“ ist bei Arthur abgelaufen — 7 Punkte wurden abgezogen und die Aufgabe erneut angeboten',
+    );
+  });
+
   it('deckt jeden von de.notifications.types definierten Typ ab', () => {
     for (const type of Object.keys(de.notifications.types)) {
       const message = renderMessage(de, notificationFixture({ type }));

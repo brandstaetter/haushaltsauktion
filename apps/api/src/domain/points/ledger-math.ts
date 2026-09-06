@@ -129,6 +129,7 @@ export interface Posting {
 /** The sign rules the database enforces as CHECK constraints (§1.5). */
 export function signRuleViolated(type: PointTransactionType, amount: number): boolean {
   if (type === PointTransactionType.BUYOUT) return !(amount < 0);
+  if (type === PointTransactionType.PENALTY) return !(amount < 0);
   if (type === PointTransactionType.VOLUNTARY_TASK_REWARD) return !(amount > 0);
   if (type === PointTransactionType.STREAK_BONUS) return !(amount > 0);
   if (type === PointTransactionType.DECAY) return !(amount <= 0);

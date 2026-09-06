@@ -36,6 +36,10 @@ describe('DEFAULT_CONFIG matches CLAUDE.md §39 verbatim', () => {
     expect(DEFAULT_CONFIG.buyout.allowNegativeBalance).toBe(false);
   });
 
+  it('enables assignment-expiry penalties with a one-point increment by default', () => {
+    expect(DEFAULT_CONFIG.expiry).toEqual({ enabled: true, penaltyIncrement: 1 });
+  });
+
   it('sets the value-increase defaults', () => {
     expect(DEFAULT_CONFIG.valueIncrease.strategy).toBe('MULTIPLIER');
     expect(DEFAULT_CONFIG.valueIncrease.multiplier).toBe(1.5);
@@ -183,6 +187,22 @@ describe('streak configuration (§16)', () => {
 
   it('rejects a negative base rate', () => {
     expect(pathsOf(patch((c) => (c.streak.baseRate = -1)))).toContain('streak.baseRate');
+  });
+});
+
+describe('assignment-expiry configuration', () => {
+  it('fills the whole block and missing leaves from defaults', () => {
+    expect(parseConfig({}).expiry).toEqual({ enabled: true, penaltyIncrement: 1 });
+    expect(parseConfig({ expiry: { enabled: false } }).expiry).toEqual({
+      enabled: false,
+      penaltyIncrement: 1,
+    });
+  });
+
+  it('accepts zero but rejects negative or fractional penalty increments', () => {
+    expect(parseConfig({ expiry: { penaltyIncrement: 0 } }).expiry.penaltyIncrement).toBe(0);
+    expect(pathsOf({ expiry: { penaltyIncrement: -1 } })).toContain('expiry.penaltyIncrement');
+    expect(pathsOf({ expiry: { penaltyIncrement: 1.5 } })).toContain('expiry.penaltyIncrement');
   });
 });
 

@@ -54,6 +54,11 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
     maximumConsecutiveBuyouts: null,
   }),
 
+  expiry: Object.freeze({
+    enabled: true,
+    penaltyIncrement: 1,
+  }),
+
   valueIncrease: Object.freeze({
     strategy: ValueIncreaseStrategy.MULTIPLIER, // §39
     increment: 2,
