@@ -40,6 +40,16 @@ export type HistoryEventPayload =
   | Event<'POINTS_CLAWED_BACK', { memberId: string; amount: number; transactionId: string }>
   | Event<'VALUE_RESET', { from: number; to: number; strategy: string }>
   | Event<'EXPIRED', { value: number }>
+  | Event<
+      'EXPIRY_PENALTY',
+      {
+        memberId: string;
+        memberName: string;
+        amount: number;
+        requestedAmount: number;
+        transactionId: string | null;
+      }
+    >
   | Event<'CANCELLED', { reason: string | null }>
   | Event<'PAUSED', Record<string, never>>
   | Event<'RESUMED', Record<string, never>>;

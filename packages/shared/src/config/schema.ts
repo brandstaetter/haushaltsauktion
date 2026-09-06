@@ -101,6 +101,17 @@ const BuyoutSchema = z
   })
   .default(DEFAULT_CONFIG.buyout);
 
+const ExpirySchema = z
+  .strictObject({
+    enabled: z.boolean().default(DEFAULT_CONFIG.expiry.enabled),
+    penaltyIncrement: z
+      .number()
+      .int()
+      .min(0)
+      .default(DEFAULT_CONFIG.expiry.penaltyIncrement),
+  })
+  .default(DEFAULT_CONFIG.expiry);
+
 const ValueIncreaseSchema = z
   .strictObject({
     strategy: z.enum(ValueIncreaseStrategy).default(DEFAULT_CONFIG.valueIncrease.strategy),
@@ -231,6 +242,7 @@ const HouseholdConfigShape = z
     voluntary: VoluntarySchema,
     assignment: AssignmentSchema,
     buyout: BuyoutSchema,
+    expiry: ExpirySchema,
     valueIncrease: ValueIncreaseSchema,
     completion: CompletionSchema,
     rewards: RewardsSchema,

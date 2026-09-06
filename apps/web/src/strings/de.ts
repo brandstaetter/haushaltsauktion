@@ -220,6 +220,7 @@ export const de = {
       RELEASED: '{member} hat {task} zurückgegeben',
       REVOKED: 'Zuweisung von {task} an {member} wurde aufgehoben',
       EXPIRED: 'Angebot für {task} abgelaufen',
+      EXPIRY_PENALTY: '{member} wurden für den Ablauf von {task} {points} Punkte abgezogen',
       CONFIG_CHANGED: '{member} hat eine Regel geändert: {key}',
       CREATED: '{task} angelegt — Wert {value}',
       CONSTRAINT_RELAXED: 'Regel ausgesetzt für {task}: {constraint}',
@@ -247,6 +248,8 @@ export const de = {
       TASK_DUE_SOON: '„{task}“ wird bald fällig',
       TASK_COMPLETED: '„{task}“ wurde von {by} erledigt',
       TASK_VALUE_INCREASED: '„{task}“: Wert ist von {from} auf {to} gestiegen',
+      TASK_EXPIRED_PENALTY:
+        '„{task}“ ist bei {by} abgelaufen — {value} Punkte wurden abgezogen und die Aufgabe erneut angeboten',
       ADMIN_NO_CANDIDATES: 'Für „{task}“ gab es keine geeigneten Kandidaten',
     },
   },

@@ -71,6 +71,16 @@ export interface BuyoutConfig {
   maximumConsecutiveBuyouts: number | null;
 }
 
+/**
+ * Consequence for letting an accepted assignment pass its hard deadline.
+ * The single supported formula is `currentValue + penaltyIncrement`.
+ */
+export interface ExpiryConfig {
+  enabled: boolean;
+  /** Non-negative whole points added to the instance's current value. */
+  penaltyIncrement: number;
+}
+
 export interface ValueIncreaseConfig {
   strategy: ValueIncreaseStrategy;
   /** used iff `FIXED_INCREMENT` */
@@ -218,6 +228,7 @@ export interface HouseholdConfig {
   voluntary: VoluntaryConfig;
   assignment: AssignmentConfig;
   buyout: BuyoutConfig;
+  expiry: ExpiryConfig;
   valueIncrease: ValueIncreaseConfig;
   completion: CompletionConfig;
   rewards: RewardsConfig;

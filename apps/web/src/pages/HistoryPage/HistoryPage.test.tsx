@@ -59,6 +59,18 @@ describe('renderEvent', () => {
     );
   });
 
+  it('shows the member and actual capped debit for an expiry penalty', () => {
+    expect(
+      renderEvent(
+        de,
+        event('EXPIRY_PENALTY', {
+          member: { displayName: 'Arthur' },
+          payload: { amount: 2, requestedAmount: 7, transactionId: 'tx-1' },
+        }),
+      ),
+    ).toBe('Arthur wurden für den Ablauf von Bad putzen 2 Punkte abgezogen');
+  });
+
   it('names the member, the bonus amount and the task for a streak bonus — not the raw enum', () => {
     expect(
       renderEvent(

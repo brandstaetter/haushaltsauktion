@@ -33,6 +33,8 @@ import type { SelectionTrace } from '@haushaltsauktion/shared';
 
 import { canVolunteer } from '../../domain/assignment/eligibility.js';
 import { selectAssignee } from '../../domain/assignment/strategies.js';
+import { minimumAllowedBalance } from '../../domain/buyout/rules.js';
+import { ConflictError, NotFoundError } from '../../domain/errors.js';
 import {
   dueAtFor,
   expiryDeadline,
@@ -48,10 +50,12 @@ import {
 import type { Deps } from '../deps.js';
 import { loadCurrentConfig, loadConfigVersion } from '../config/load.js';
 import { writeAudit, writeHistory } from '../events.js';
+import { postTransaction } from '../points/postTransaction.js';
 import {
   acquireSweepLock,
   lockActiveAssignmentsOfInstance,
   lockInstance,
+  lockMember,
   withTransaction,
 } from '../tx.js';
 import { loadCandidates } from './candidates.js';
@@ -387,10 +391,20 @@ export async function runAssignmentSweep(
           dueOffsetMinutes: true,
         },
       },
+      // Once the hard deadline has produced an expiry penalty, the same stale
+      // `dueAt` must not terminal-expire the freshly re-offered instance on
+      // every later sweep. The append-only history row is the durable marker;
+      // preserving `dueAt` keeps the user-visible occurrence semantics intact.
+      historyEvents: {
+        where: { type: 'EXPIRY_PENALTY' },
+        select: { id: true },
+        take: 1,
+      },
     },
   });
 
   for (const candidate of openInstances) {
+    if (candidate.historyEvents.length > 0) continue;
     const deadline = expiryDeadline(
       ruleOf(candidate.definition),
       { scheduledFor: candidate.scheduledFor, dueAt: candidate.dueAt },
@@ -411,17 +425,199 @@ export async function runAssignmentSweep(
         report.skipped += 1;
         return;
       }
+      // The outer relation filter keeps ordinary/dry sweeps cheap; this
+      // transaction-local read is the race barrier. A concurrent sweep may
+      // have written the marker while this candidate waited on the household
+      // advisory lock, and must not levy the same deadline twice.
+      const alreadyHandled = await tx.taskHistoryEvent.findFirst({
+        where: {
+          householdId: input.householdId,
+          taskInstanceId: instance.id,
+          type: 'EXPIRY_PENALTY',
+        },
+        select: { id: true },
+      });
+      if (alreadyHandled !== null) {
+        report.skipped += 1;
+        return;
+      }
+
+      // Multi-worker-tasks Phase 2: an expiring instance closes EVERY
+      // currently active slot, not just one — generalizes the old
+      // single-assignee close. For EXACTLY(1) this is always exactly one row.
+      const activeAssignments =
+        instance.status === 'ASSIGNED'
+          ? await lockActiveAssignmentsOfInstance(
+              tx,
+              input.householdId,
+              instance.id,
+            )
+          : [];
+      const { version: configVersion, config: currentConfig } = await loadCurrentConfig(
+        tx,
+        input.householdId,
+      );
+
+      if (
+        instance.status === 'ASSIGNED' &&
+        activeAssignments.length > 0 &&
+        currentConfig.expiry.enabled
+      ) {
+        const offerExpires = new Date(
+          now.getTime() + currentConfig.assignment.offerDurationMinutes * 60_000,
+        );
+        const requestedAmount = instance.currentValue + currentConfig.expiry.penaltyIncrement;
+        const floor = minimumAllowedBalance(currentConfig);
+        const penalties: Array<{
+          assignmentId: string;
+          memberId: string;
+          memberName: string;
+          amount: number;
+          transactionId: string | null;
+        }> = [];
+
+        // Stable member order prevents two multi-slot expiries from ever
+        // taking their level-3 member locks in opposite order.
+        const assignmentsByMember = [...activeAssignments].sort((a, b) =>
+          a.memberId.localeCompare(b.memberId),
+        );
+        for (const assignment of assignmentsByMember) {
+          const closed = await tx.taskAssignment.updateMany({
+            where: { id: assignment.id, householdId: input.householdId, status: 'ACTIVE' },
+            data: {
+              status: 'EXPIRED',
+              closedAt: now,
+              activeForInstanceId: null,
+              activeSlotKey: null,
+            },
+          });
+          if (closed.count === 0) {
+            throw new ConflictError(
+              'ASSIGNMENT_CLOSED',
+              'Die abgelaufene Zuweisung ist nicht mehr offen.',
+              { assignmentId: assignment.id },
+            );
+          }
+
+          // `postTransaction` locks this row again before writing. Taking the
+          // same lock here first is deliberate: the cap must be computed from
+          // the exact balance that the ledger entry will extend, atomically.
+          const member = await lockMember(tx, input.householdId, assignment.memberId);
+          if (member === null) {
+            throw new NotFoundError('Mitglied der abgelaufenen Zuweisung nicht gefunden.', {
+              memberId: assignment.memberId,
+              assignmentId: assignment.id,
+            });
+          }
+          const amount = Math.min(requestedAmount, Math.max(0, member.pointsCache - floor));
+          const transaction =
+            amount > 0
+              ? await postTransaction(tx, {
+                  householdId: input.householdId,
+                  memberId: assignment.memberId,
+                  amount: -amount,
+                  type: 'PENALTY',
+                  taskInstanceId: instance.id,
+                  taskAssignmentId: assignment.id,
+                  assignmentKind: assignment.kind,
+                  initiatorType: 'SYSTEM',
+                  idempotencyKey: `expiry-penalty:${assignment.id}`,
+                  description: 'Strafe wegen abgelaufener Zuweisung',
+                })
+              : null;
+
+          penalties.push({
+            assignmentId: assignment.id,
+            memberId: assignment.memberId,
+            memberName: member.displayName,
+            amount,
+            transactionId: transaction?.id ?? null,
+          });
+        }
+
+        const reopened = await tx.taskInstance.updateMany({
+          where: { id: instance.id, householdId: input.householdId, version: instance.version },
+          data: {
+            status: 'AVAILABLE',
+            activeSlotCount: 0,
+            offerExpiresAt: offerExpires,
+            closedAt: null,
+            version: { increment: 1 },
+          },
+        });
+        if (reopened.count === 0) {
+          throw new ConflictError(
+            'TASK_NOT_AVAILABLE',
+            'Die abgelaufene Aufgabe hat sich zwischenzeitlich geändert.',
+            { currentStatus: instance.status, heldBy: null },
+          );
+        }
+
+        await writeHistory(tx, [
+          ...penalties.map((penalty) => ({
+            householdId: input.householdId,
+            taskInstanceId: instance.id,
+            assignmentId: penalty.assignmentId,
+            memberId: penalty.memberId,
+            type: 'EXPIRY_PENALTY' as const,
+            payload: {
+              memberId: penalty.memberId,
+              memberName: penalty.memberName,
+              amount: penalty.amount,
+              requestedAmount,
+              transactionId: penalty.transactionId,
+            },
+          })),
+          {
+            householdId: input.householdId,
+            taskInstanceId: instance.id,
+            type: 'RE_OFFERED' as const,
+            payload: { value: instance.currentValue, offerExpiresAt: offerExpires.toISOString() },
+          },
+        ]);
+
+        await writeAudit(tx, {
+          householdId: input.householdId,
+          actorType: 'SYSTEM',
+          action: 'INSTANCE_EXPIRED',
+          entityType: 'TaskInstance',
+          entityId: instance.id,
+          payload: {
+            deadline: deadline.toISOString(),
+            outcome: 'PENALIZED_AND_RE_OFFERED',
+            configVersion,
+            requestedAmount,
+            offerExpiresAt: offerExpires.toISOString(),
+            penalties,
+          },
+        });
+
+        const householdMembers = await tx.householdMember.findMany({
+          where: { householdId: input.householdId, isActive: true },
+          select: { id: true },
+        });
+        const penalizedBy = penalties.map((penalty) => penalty.memberName).join(', ');
+        const totalPenalty = penalties.reduce((sum, penalty) => sum + penalty.amount, 0);
+        await deps.notifier.emit(
+          tx,
+          householdMembers.map((member) => ({
+            householdId: input.householdId,
+            memberId: member.id,
+            type: 'TASK_EXPIRED_PENALTY',
+            payload: {
+              taskInstanceId: instance.id,
+              by: penalizedBy,
+              value: totalPenalty,
+            },
+            taskInstanceId: instance.id,
+          })),
+        );
+
+        report.expired += 1;
+        return;
+      }
 
       if (instance.status === 'ASSIGNED') {
-        // Multi-worker-tasks Phase 2: an expiring instance closes EVERY
-        // currently active slot, not just one — generalizes the old
-        // single-assignee close. For EXACTLY(1) this is always exactly one
-        // row, unchanged.
-        const activeAssignments = await lockActiveAssignmentsOfInstance(
-          tx,
-          input.householdId,
-          instance.id,
-        );
         for (const assignment of activeAssignments) {
           await tx.taskAssignment.updateMany({
             where: { id: assignment.id, householdId: input.householdId, status: 'ACTIVE' },
@@ -487,11 +683,10 @@ export async function runAssignmentSweep(
   // `TaskInstance` — so it cannot be expressed as a flat SQL predicate
   // without materializing it per row anyway), then acted on inside
   // `withTransaction`. `dueSoonNotifiedAt` lives on `TaskAssignment`, not
-  // `TaskInstance` (see the field's schema comment): a buyout or expiry
-  // re-offer can cycle the same instance through several assignment rows
-  // against the same fixed `dueAt`, and scoping the dedup flag to the
-  // assignment gives each new holder their own independent chance to be
-  // warned instead of inheriting a prior holder's already-sent reminder.
+  // `TaskInstance` (see the field's schema comment): a buyout can cycle the
+  // same not-yet-due instance through several assignment rows, and scoping
+  // the dedup flag to the assignment gives each new holder their own chance
+  // to be warned instead of inheriting a prior holder's sent reminder.
   // `estimatedMinutes` is read live (not pinned at assignment time) — it is
   // display metadata with no fairness/ledger invariant to protect, unlike
   // `valueAtAssignment`/`configVersion`.
@@ -502,7 +697,7 @@ export async function runAssignmentSweep(
       dueSoonNotifiedAt: null,
       instance: {
         status: 'ASSIGNED',
-        dueAt: { not: null },
+        dueAt: { gt: now },
         definition: { estimatedMinutes: { not: null } },
       },
     },
@@ -523,7 +718,9 @@ export async function runAssignmentSweep(
     for (const candidate of dueSoonCandidates) {
       const dueAt = candidate.instance.dueAt;
       const estimatedMinutes = candidate.instance.definition.estimatedMinutes;
-      if (dueAt === null || estimatedMinutes === null) continue; // already guarded by the query
+      if (dueAt === null || dueAt.getTime() <= now.getTime() || estimatedMinutes === null) {
+        continue; // already guarded by the query; retained for nullable relation typing
+      }
       const thresholdMs =
         dueAt.getTime() - dueSoonConfig.notifications.dueSoonDurationMultiplier * estimatedMinutes * 60_000;
       if (now.getTime() >= thresholdMs) ripeInstanceIds.add(candidate.taskInstanceId);
@@ -551,6 +748,7 @@ export async function runAssignmentSweep(
           });
           const estimatedMinutes = definition?.estimatedMinutes ?? null;
           if (estimatedMinutes === null) return;
+          if (now.getTime() >= instance.dueAt.getTime()) return;
           const thresholdMs =
             instance.dueAt.getTime() -
             dueSoonConfig.notifications.dueSoonDurationMultiplier * estimatedMinutes * 60_000;

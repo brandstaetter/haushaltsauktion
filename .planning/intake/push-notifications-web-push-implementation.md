@@ -1,6 +1,6 @@
 ---
 title: "Push-Benachrichtigungen (Web Push/VAPID) implementieren"
-status: in-progress
+status: completed
 priority: normal
 target: apps/api/prisma/schema.prisma, apps/api/src/app/deps.ts, apps/api/src/app/integrations/ports.ts, apps/api/src/app/assignment/runAssignmentSweep.ts, apps/api/src/infra/http/routes/, apps/web/vite.config.ts, apps/web/src/components/NotificationBell/, packages/shared/src/config/
 campaign: push-benachrichtigungen-web-push-vapid-implementieren
@@ -29,7 +29,7 @@ verbindliche Architekturgrundlage für diese Umsetzung — insbesondere:
   mehrere Haushalte registriert ist).
 - **Service-Worker-Strategiewechsel nötig**: `vite-plugin-pwa`s aktueller
   `generateSW`-Modus erlaubt keine eigenen `push`/`notificationclick`-Handler.
-  Umstieg auf `strategies: 'injectManifest'` mit eigener `src/sw.ts`
+  Umstieg auf `strategies: 'injectManifest'` mit eigener `apps/web/src/sw.ts`
   (inklusive `precacheAndRoute(self.__WB_MANIFEST)`, um das bisherige
   Precaching-Verhalten 1:1 zu erhalten) ist der einzige Eingriff in die
   bestehende PWA-Konfiguration.
