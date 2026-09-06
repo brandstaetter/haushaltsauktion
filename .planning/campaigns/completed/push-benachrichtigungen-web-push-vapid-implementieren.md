@@ -13,7 +13,7 @@ worktree_status: null
 
 # Campaign: Push-Benachrichtigungen (Web Push/VAPID) implementieren
 
-Status: active
+Status: completed
 Started: 2026-09-05T04:37:08.968Z
 Direction: Push-Benachrichtigungen (Web Push/VAPID) implementieren
 
@@ -49,7 +49,7 @@ verbindliche Architekturgrundlage für diese Umsetzung — insbesondere:
   mehrere Haushalte registriert ist).
 - **Service-Worker-Strategiewechsel nötig**: `vite-plugin-pwa`s aktueller
   `generateSW`-Modus erlaubt keine eigenen `push`/`notificationclick`-Handler.
-  Umstieg auf `strategies: 'injectManifest'` mit eigener `src/sw.ts`
+  Umstieg auf `strategies: 'injectManifest'` mit eigener `apps/web/src/sw.ts`
   (inklusive `precacheAndRoute(self.__WB_MANIFEST)`, um das bisherige
   Precaching-Verhalten 1:1 zu erhalten) ist der einzige Eingriff in die
   bestehende PWA-Konfiguration.
@@ -132,7 +132,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
 | Target | ID | Type | Required | Evidence | Status | Retries Remaining | Next Action |
 |---|---|---|---|---|---|---|---|
 | phase:2 | implementation-diff | file_diff | yes | git diff --stat (25 files changed, see Decision Log for full list across sub-steps 2.1/2.2/2.2b/2.3) | passed | 2 | none |
-| phase:3 | verification-command | test_result | yes | npm run typecheck (root, clean) + npm run test -w apps/api (46 files / 398 tests) + npm run test -w apps/web (26 files / 156 tests) + npm run build -w apps/web (dist/sw.js generated) | passed | 2 | package delivery for review |
+| phase:3 | verification-command | test_result | yes | npm run typecheck (root, clean) + npm run test -w apps/api (46 files / 398 tests) + npm run test -w apps/web (26 files / 156 tests) + npm run build -w apps/web (generated service worker) | passed | 2 | package delivery for review |
 | phase:4 | review-package | review_package | yes | .planning/review-packages/push-benachrichtigungen-web-push-vapid-implementieren.md | resolved | 2 | review local handoff package |
 
 ## Decision Log
@@ -157,7 +157,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
   fresh from DB, per-member multi-device fan-out, dead-subscription cleanup
   on gone:true, never throws — verified by dedicated tests), config schema
   notifications.pushEnabled, GET /push/vapid-public-key, service worker
-  switched to injectManifest (src/sw.ts) with push/notificationclick
+  switched to injectManifest (apps/web/src/sw.ts) with push/notificationclick
   handlers, opt-in UI (PushSection) under "Ich" with iOS homescreen note.
   Navigation-fallback equivalence after the generateSW→injectManifest switch
   was manually verified in a real browser (killed the server, confirmed a
@@ -165,7 +165,7 @@ No map index available. Run `node scripts/map-index.js --generate --root .` befo
   this feature that could have silently regressed existing PWA behavior.
   Full repo typecheck clean; apps/api 390 tests passing (7 new), apps/web 156
   tests passing (all pre-existing, none broken); apps/web production build
-  succeeds with dist/sw.js generated. Known, accepted simplification (stated
+  succeeds with the generated service worker. Known, accepted simplification (stated
   in the phase-2 brief, not a defect): push send happens synchronously
   inside notifier.emit using a plain db client, not deferred past commit via
   an outbox — so a push can in principle fire even if the same transaction
