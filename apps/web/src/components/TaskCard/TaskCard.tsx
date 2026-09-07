@@ -1,5 +1,5 @@
 import type { AvailableTaskDto, HouseholdTaskAssigneeDto } from '@haushaltsauktion/shared';
-import { Clock } from 'lucide-react';
+import { Clock, TriangleAlert } from 'lucide-react';
 import { useStrings } from '../../context/StringsContext';
 import { formatShortDate, formatTime, interpolate } from '../../utils/format';
 import { Button } from '../Button/Button';
@@ -94,6 +94,12 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
         <p className={styles.meta}>
           <Clock size={14} strokeWidth={1.75} aria-hidden="true" />
           {meta.join(' · ')}
+        </p>
+      )}
+      {task.isOverdue && task.expiryPenaltyIssued && (
+        <p className={styles.clawbackNotice}>
+          <TriangleAlert size={14} strokeWidth={1.75} aria-hidden="true" />
+          {de.task.alreadyClawedBack}
         </p>
       )}
       <div className={styles.row}>

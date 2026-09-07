@@ -17,6 +17,7 @@ function makeTask(overrides: Partial<AvailableTaskDto> = {}): AvailableTaskDto {
     dueAt: null,
     isOverdue: false,
     offerExpiresAt: null,
+    expiryPenaltyIssued: false,
     status: 'AVAILABLE',
     canVolunteer: true,
     ineligibleReason: null,
@@ -94,6 +95,24 @@ export const Overdue: Story = {
       dueAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
       isOverdue: true,
     }),
+  },
+};
+
+/**
+ * Overdue AND already levied its one-time expiry penalty once (reopened,
+ * randomly reassigned) — no further automatic clawback is coming for this
+ * occurrence, so the card calls that out instead of implying a countdown.
+ */
+export const AlreadyClawedBack: Story = {
+  args: {
+    task: makeTask({
+      dueAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+      isOverdue: true,
+      expiryPenaltyIssued: true,
+      status: 'ASSIGNED',
+      potentialReward: 0,
+    }),
+    assignee: { id: 'member-luise', displayName: 'Luise', avatarUrl: null, kind: 'RANDOM' },
   },
 };
 

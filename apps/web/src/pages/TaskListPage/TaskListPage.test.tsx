@@ -41,6 +41,7 @@ function availableTaskFixture(overrides: Partial<AvailableTaskDto> = {}): Availa
     dueAt: null,
     isOverdue: false,
     offerExpiresAt: null,
+    expiryPenaltyIssued: false,
     status: 'AVAILABLE',
     canVolunteer: true,
     ineligibleReason: null,
