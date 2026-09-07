@@ -206,6 +206,7 @@ export const de = {
   history: {
     title: 'Verlauf',
     empty: 'Noch nichts passiert. Sobald eine Aufgabe angeboten wird, steht es hier.',
+    pushSentLabel: 'Auch als Push-Benachrichtigung gesendet',
     eventTypes: {
       OFFERED: '{task} wurde angeboten — Wert {value}',
       NO_VOLUNTEER: 'Keine freiwillige Übernahme für {task}',

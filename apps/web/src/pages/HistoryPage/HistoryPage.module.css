@@ -33,8 +33,19 @@
   gap: var(--s-1);
 }
 
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
 .time {
   font: var(--t-label);
+  color: var(--ink-3);
+}
+
+.pushIcon {
+  display: inline-flex;
   color: var(--ink-3);
 }
 

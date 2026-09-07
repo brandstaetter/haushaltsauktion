@@ -79,6 +79,8 @@ export interface HistoryEventRow {
   member: { id: string; displayName: string } | null;
   type: string;
   payload: Record<string, unknown>;
+  /** Was this event's type also sent as a VAPID push? A display hint, not a delivery receipt. */
+  pushNotified: boolean;
 }
 
 export interface NotificationRow {
