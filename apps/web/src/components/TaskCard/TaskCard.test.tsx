@@ -115,4 +115,16 @@ describe('TaskCard', () => {
     );
     expect(screen.getByRole('button', { name: 'Öffnen' })).toBeInTheDocument();
   });
+
+  it('zeigt das Ablaufdatum/-zeit des Angebots, wenn offerExpiresAt in der Zukunft liegt', () => {
+    const offerExpiresAt = new Date(Date.now() + 60 * 60_000).toISOString();
+    render(<TaskCard task={taskFixture({ offerExpiresAt })} />);
+    expect(screen.getByText(/Angebot bis/)).toBeInTheDocument();
+  });
+
+  it('zeigt kein Ablaufdatum, wenn offerExpiresAt bereits in der Vergangenheit liegt', () => {
+    const offerExpiresAt = new Date(Date.now() - 60 * 60_000).toISOString();
+    render(<TaskCard task={taskFixture({ offerExpiresAt })} />);
+    expect(screen.queryByText(/Angebot bis/)).not.toBeInTheDocument();
+  });
 });
