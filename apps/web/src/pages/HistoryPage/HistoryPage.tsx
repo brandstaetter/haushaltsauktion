@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useHistory } from '../../api/hooks';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../../components/Button/Button';
-import { formatDate } from '../../utils/format';
+import { formatDate, formatTime } from '../../utils/format';
 import styles from './HistoryPage.module.css';
 
 export function HistoryPage() {
@@ -31,9 +31,26 @@ export function HistoryPage() {
         <ol className={styles.list} aria-live="polite">
           {events.map((event) => (
             <li key={event.id} className={styles.item}>
-              <time dateTime={event.createdAt} className={styles.time}>
-                {formatDate(event.createdAt)}
-              </time>
+              <div className={styles.meta}>
+                <time dateTime={event.createdAt} className={styles.time}>
+                  {formatDate(event.createdAt)}, {formatTime(event.createdAt)}
+                </time>
+                {event.pushNotified && (
+                  <span
+                    className={styles.pushIcon}
+                    role="img"
+                    aria-label={de.history.pushSentLabel}
+                    title={de.history.pushSentLabel}
+                  >
+                    <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M2 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5Zm1.4.2 6.1 4.9a1 1 0 0 0 1 0l6.1-4.9-.5-.9H3.9l-.5.9ZM3 6.3V15h14V6.3l-6.1 4.9a2 2 0 0 1-2.6 0L3 6.3Z"
+                      />
+                    </svg>
+                  </span>
+                )}
+              </div>
               <p className={styles.summary}>{renderEvent(de, event)}</p>
             </li>
           ))}

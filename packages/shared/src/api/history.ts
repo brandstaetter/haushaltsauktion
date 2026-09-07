@@ -61,4 +61,6 @@ export type HistoryEventDto = HistoryEventPayload & {
   taskInstanceId: string;
   taskTitle: string;
   member: { id: string; displayName: string } | null;
+  /** Was this event's type also sent as a VAPID push (see `pushNotifier.ts`'s `PUSH_NOTIFIED_HISTORY_EVENT_TYPES`)? A display hint, not a delivery receipt. */
+  pushNotified: boolean;
 };

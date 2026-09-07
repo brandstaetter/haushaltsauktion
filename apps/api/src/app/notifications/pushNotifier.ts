@@ -62,6 +62,28 @@ export const PUSH_ENABLED_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * `HistoryEventType`s (§22) whose row is written in the same use-case call as
+ * a push-eligible notification above, so the Verlauf can show "this was also
+ * pushed": `OFFERED` next to `TASK_AVAILABLE` (`runAssignmentSweep.ts`'s T1/T2
+ * sites), `VOLUNTEERED` next to `TASK_TAKEN` (`volunteerForTask.ts`), and
+ * `RANDOMLY_ASSIGNED` next to `TASK_ASSIGNED` (`runAssignmentSweep.ts`'s T4/T5
+ * random draw). `TASK_DUE_SOON` has no corresponding history row at all
+ * (informational nudge only, see the T19 site).
+ *
+ * A display hint, not a delivery receipt: whether the push actually reached a
+ * device depends on the household's/member's push configuration at dispatch
+ * time, which `PushOutboxItem` deliberately never persists (its rows are
+ * deleted after one attempt, success or not — see that model's doc comment).
+ * This only reflects "was push-eligible by event type", the same thing
+ * `PUSH_ENABLED_NOTIFICATION_TYPES` above already decides for notifications.
+ */
+export const PUSH_NOTIFIED_HISTORY_EVENT_TYPES: ReadonlySet<string> = new Set([
+  'OFFERED',
+  'VOLUNTEERED',
+  'RANDOMLY_ASSIGNED',
+]);
+
+/**
  * No household `notifications.pushEnabled` check happens here. A household
  * could flip that setting between enqueue and dispatch, and checking fresh
  * at dispatch time (`dispatchPushOutbox.ts`) is both simpler — this function

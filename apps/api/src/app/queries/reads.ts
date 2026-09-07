@@ -22,6 +22,7 @@ import type {
 
 import { ConflictError, NotFoundError } from '../../domain/errors.js';
 import type { PrismaTx } from '../deps.js';
+import { PUSH_NOTIFIED_HISTORY_EVENT_TYPES } from '../notifications/pushNotifier.js';
 import { listAssignedToMe, listAvailableTasks, type ViewerContext } from './taskDto.js';
 
 // ───────────────────────── cursors ─────────────────────────
@@ -216,6 +217,7 @@ export async function listHistory(
         taskTitle: r.instance.definition.title,
         member: r.member ? { id: r.member.id, displayName: r.member.displayName } : null,
         payload: r.payload,
+        pushNotified: PUSH_NOTIFIED_HISTORY_EVENT_TYPES.has(r.type),
       }) as unknown as HistoryEventDto,
   );
 }
