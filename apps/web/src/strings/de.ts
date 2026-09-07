@@ -725,6 +725,14 @@ export const de = {
       // per action — the same generic-placeholder idiom HistoryPage.tsx uses.
       amount: 'Betrag {value}',
       reason: 'Begründung: {reason}',
+      // taskTitle/assigneeName are server-resolved from entityId (see
+      // `GET /admin/audit-events`), same generic-placeholder idiom as
+      // amount/reason above — one label each covers every TaskInstance-
+      // or TaskAssignment-rooted action, not just RANDOM_SELECTION/
+      // INSTANCE_EXPIRED.
+      taskTitle: 'Aufgabe: {task}',
+      assigneeName: 'Zuweisung: {member}',
+      selectionWeight: 'Gewicht: {value}',
       /** Deckt exakt `AuditAction` aus packages/shared/src/domain/enums.ts ab. */
       actions: {
         HOUSEHOLD_REGISTERED: 'Haushalt registriert',

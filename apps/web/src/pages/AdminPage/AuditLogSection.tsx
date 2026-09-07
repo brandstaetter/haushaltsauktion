@@ -174,6 +174,19 @@ export function AuditLogSection() {
           {events.map((event) => {
             const reason = typeof event.payload['reason'] === 'string' ? event.payload['reason'] : null;
             const amount = typeof event.payload['amount'] === 'number' ? event.payload['amount'] : null;
+            const taskTitle =
+              typeof event.payload['taskTitle'] === 'string' ? event.payload['taskTitle'] : null;
+            const assigneeName =
+              typeof event.payload['assigneeName'] === 'string' ? event.payload['assigneeName'] : null;
+            // The "why" of a RANDOM_SELECTION card: the selected candidate's
+            // weight out of the full trace §6/§6.10 already writes to the
+            // audit payload — reading it back is the only bespoke bit here,
+            // everything else (task/assignee) is the generic payload fields above.
+            const selectionWeight =
+              event.action === 'RANDOM_SELECTION'
+                ? ((event.payload['trace'] as { candidates?: Array<{ selected: boolean; weight: number | null }> } | undefined)
+                    ?.candidates?.find((c) => c.selected)?.weight ?? null)
+                : null;
             return (
               <li key={event.id} className={styles.memberRow}>
                 <div className={styles.memberHeader}>
@@ -198,6 +211,23 @@ export function AuditLogSection() {
                   {reason && (
                     <div className={styles.field}>
                       <span>{interpolate(de.admin.auditLog.reason, { reason })}</span>
+                    </div>
+                  )}
+                  {taskTitle && (
+                    <div className={styles.field}>
+                      <span>{interpolate(de.admin.auditLog.taskTitle, { task: taskTitle })}</span>
+                    </div>
+                  )}
+                  {assigneeName && (
+                    <div className={styles.field}>
+                      <span>{interpolate(de.admin.auditLog.assigneeName, { member: assigneeName })}</span>
+                    </div>
+                  )}
+                  {selectionWeight !== null && (
+                    <div className={styles.field}>
+                      <span>
+                        {interpolate(de.admin.auditLog.selectionWeight, { value: selectionWeight })}
+                      </span>
                     </div>
                   )}
                 </div>
