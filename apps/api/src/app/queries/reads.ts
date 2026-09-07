@@ -22,7 +22,10 @@ import type {
 
 import { ConflictError, NotFoundError } from '../../domain/errors.js';
 import type { PrismaTx } from '../deps.js';
-import { PUSH_NOTIFIED_HISTORY_EVENT_TYPES } from '../notifications/pushNotifier.js';
+import {
+  PUSH_ENABLED_NOTIFICATION_TYPES,
+  PUSH_NOTIFIED_HISTORY_EVENT_TYPES,
+} from '../notifications/pushNotifier.js';
 import { listAssignedToMe, listAvailableTasks, type ViewerContext } from './taskDto.js';
 
 // ───────────────────────── cursors ─────────────────────────
@@ -232,6 +235,8 @@ export interface NotificationRow {
   taskTitle: string | null;
   readAt: string | null;
   createdAt: string;
+  /** Was this notification's type also sent as a VAPID push? A display hint, not a delivery receipt. */
+  pushNotified: boolean;
 }
 
 export async function listNotifications(
@@ -276,6 +281,7 @@ export async function listNotifications(
       taskTitle: n.instance?.definition.title ?? null,
       readAt: n.readAt?.toISOString() ?? null,
       createdAt: n.createdAt.toISOString(),
+      pushNotified: PUSH_ENABLED_NOTIFICATION_TYPES.has(n.type),
     })),
     unreadCount,
     nextCursor:

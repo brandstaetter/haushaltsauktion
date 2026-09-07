@@ -27,6 +27,7 @@ function notificationFixture(overrides: Partial<NotificationRow> = {}): Notifica
     taskTitle: 'Bad putzen',
     readAt: null,
     createdAt: '2026-08-30T12:00:00.000Z',
+    pushNotified: false,
     ...overrides,
   };
 }
