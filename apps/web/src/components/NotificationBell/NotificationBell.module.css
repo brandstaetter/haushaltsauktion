@@ -74,7 +74,18 @@
   font: var(--t-body);
 }
 
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
 .time {
   font: var(--t-body-sm);
+  color: var(--ink-3);
+}
+
+.pushIcon {
+  display: inline-flex;
   color: var(--ink-3);
 }

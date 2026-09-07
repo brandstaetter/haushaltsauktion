@@ -242,6 +242,7 @@ export const de = {
     empty: 'Keine Benachrichtigungen.',
     markAllRead: 'Alle als gelesen markieren',
     unreadBadge: '{n} ungelesen',
+    pushSentLabel: 'Auch als Push-Benachrichtigung gesendet',
     types: {
       TASK_AVAILABLE: '„{task}“ ist jetzt freiwillig verfügbar — aktueller Wert {value}',
       TASK_ASSIGNED: 'Dir wurde „{task}“ zufällig zugewiesen — aktueller Wert {value}',

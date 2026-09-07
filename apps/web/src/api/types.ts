@@ -91,6 +91,8 @@ export interface NotificationRow {
   taskTitle: string | null;
   readAt: string | null;
   createdAt: string;
+  /** Was this notification's type also sent as a VAPID push? A display hint, not a delivery receipt. */
+  pushNotified: boolean;
 }
 
 /**

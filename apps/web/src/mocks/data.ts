@@ -325,6 +325,7 @@ export const mockNotifications: { items: NotificationRow[]; unreadCount: number;
       taskTitle: 'Müll hinausbringen',
       readAt: null,
       createdAt: new Date(Date.now() - 600_000).toISOString(),
+      pushNotified: true,
     },
   ],
   unreadCount: 1,
