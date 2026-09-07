@@ -22,6 +22,7 @@ import { afterAll, beforeAll, expect, test } from 'vitest';
 
 import {
   buildTestServer,
+  createAvailableInstance,
   createHousehold,
   dropHousehold,
   idsFor,
@@ -45,7 +46,7 @@ beforeAll(async () => {
       { key: 'elke', displayName: 'Elke', role: 'ADMIN' },
       { key: 'paul', displayName: 'Paul', role: 'MEMBER' },
     ],
-    definitions: [],
+    definitions: [{ key: 'chore', title: 'Bad putzen', baseValue: 5 }],
   });
   app = await buildTestServer(db);
   await app.ready();
@@ -159,4 +160,74 @@ test('ein Mitglied ohne Admin-Rolle bekommt keinen Zugriff auf den Audit-Log-End
     headers: { cookie: paul.cookie },
   });
   expect(response.statusCode).toBe(403);
+});
+
+test('reichert eine TaskInstance-Aktion mit Aufgabentitel an, statt nur den bloßen Aktionsnamen zu zeigen', async () => {
+  const instanceId = await createAvailableInstance(db, ids, 'chore', 5);
+  await db.auditEvent.create({
+    data: {
+      householdId: ids.householdId,
+      actorType: 'SYSTEM',
+      action: 'INSTANCE_EXPIRED',
+      entityType: 'TaskInstance',
+      entityId: instanceId,
+      payload: { deadline: new Date().toISOString() },
+    },
+  });
+
+  const response = await app.inject({
+    method: 'GET',
+    url: '/api/admin/audit-events?limit=100&actions=INSTANCE_EXPIRED',
+    headers: { cookie: elke.cookie },
+  });
+  expect(response.statusCode).toBe(200);
+  const items = (response.json() as { items: { payload: Record<string, unknown> }[] }).items;
+  expect(items).toHaveLength(1);
+  expect(items[0]!.payload['taskInstanceId']).toBe(instanceId);
+  expect(items[0]!.payload['taskTitle']).toBe('Bad putzen');
+  // The event's own payload fields survive the merge, they aren't clobbered.
+  expect(items[0]!.payload['deadline']).toEqual(expect.any(String));
+});
+
+test('reichert eine TaskAssignment-Aktion mit Aufgabentitel und ausgewähltem Mitglied an', async () => {
+  const instanceId = await createAvailableInstance(db, ids, 'chore', 5);
+  const assignment = await db.taskAssignment.create({
+    data: {
+      householdId: ids.householdId,
+      taskInstanceId: instanceId,
+      memberId: ids.memberId('paul'),
+      kind: 'RANDOM',
+      status: 'ACTIVE',
+      response: 'PENDING',
+      activeForInstanceId: instanceId,
+      activeSlotKey: `${instanceId}:0`,
+      valueAtAssignment: 5,
+      configVersion: 1,
+      assignedAt: new Date(),
+    },
+    select: { id: true },
+  });
+  await db.auditEvent.create({
+    data: {
+      householdId: ids.householdId,
+      actorType: 'SYSTEM',
+      action: 'RANDOM_SELECTION',
+      entityType: 'TaskAssignment',
+      entityId: assignment.id,
+      payload: { draw: 0.42 },
+    },
+  });
+
+  const response = await app.inject({
+    method: 'GET',
+    url: '/api/admin/audit-events?limit=100&actions=RANDOM_SELECTION',
+    headers: { cookie: elke.cookie },
+  });
+  expect(response.statusCode).toBe(200);
+  const items = (response.json() as { items: { payload: Record<string, unknown> }[] }).items;
+  expect(items).toHaveLength(1);
+  expect(items[0]!.payload['taskInstanceId']).toBe(instanceId);
+  expect(items[0]!.payload['taskTitle']).toBe('Bad putzen');
+  expect(items[0]!.payload['assigneeName']).toBe('Paul');
+  expect(items[0]!.payload['draw']).toBe(0.42);
 });
