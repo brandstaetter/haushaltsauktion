@@ -135,6 +135,7 @@ export const de = {
     dueTomorrow: 'fällig morgen, {time}',
     dueSince: 'fällig seit {when}, {time}',
     due: 'fällig {when}, {time}',
+    offerExpires: 'Angebot bis {when}, {time}',
     estimatedMinutes: 'ca. {minutes} Min',
     assignedTo: 'an {name}',
     assignmentKind: {

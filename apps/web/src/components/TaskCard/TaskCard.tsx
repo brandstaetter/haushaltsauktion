@@ -28,6 +28,17 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
   if (task.dueAt) {
     meta.push(formatDue(de, task.dueAt, task.isOverdue));
   }
+  // A currently-running voluntary offer window: once it expires, the random
+  // assignment sweep may pick this task up (§6). An already-past timestamp
+  // means the sweep just hasn't run yet — not worth surfacing.
+  if (task.offerExpiresAt && new Date(task.offerExpiresAt).getTime() > Date.now()) {
+    meta.push(
+      interpolate(de.task.offerExpires, {
+        when: formatShortDate(task.offerExpiresAt),
+        time: formatTime(task.offerExpiresAt),
+      }),
+    );
+  }
   if (task.estimatedMinutes) {
     meta.push(
       de.task.estimatedMinutes.replace('{minutes}', String(task.estimatedMinutes)),
