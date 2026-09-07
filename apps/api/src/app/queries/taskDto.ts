@@ -77,6 +77,14 @@ const INSTANCE_INCLUDE = {
       member: { select: { id: true, displayName: true, avatarUrl: true } },
     },
   },
+  // Same durable marker `runAssignmentSweep.ts`'s T16-T18 checks to avoid
+  // re-levying its one-time expiry penalty — `take: 1` is enough to answer
+  // "has this ever happened", never surfaced beyond that boolean.
+  historyEvents: {
+    where: { type: 'EXPIRY_PENALTY' },
+    select: { id: true },
+    take: 1,
+  },
 } as const;
 
 async function findInstance(tx: PrismaTx, householdId: string, instanceId: string) {
@@ -198,6 +206,7 @@ async function toAvailableDto(
     dueAt: instance.dueAt?.toISOString() ?? null,
     isOverdue: isOverdue(instance, ctx.now),
     offerExpiresAt: instance.offerExpiresAt?.toISOString() ?? null,
+    expiryPenaltyIssued: instance.historyEvents.length > 0,
     status: instance.status,
     canVolunteer: hasOpenSlot && eligibility.canVolunteer,
     ineligibleReason: eligibility.reason,

@@ -136,6 +136,8 @@ export const de = {
     dueSince: 'fällig seit {when}, {time}',
     due: 'fällig {when}, {time}',
     offerExpires: 'Angebot bis {when}, {time}',
+    /** T16-T18's one-time expiry penalty already fired for this instance — no further automatic clawback is coming, however overdue it still is. */
+    alreadyClawedBack: 'Bereits einmal automatisch zurückgefordert — keine weitere automatische Strafe',
     estimatedMinutes: 'ca. {minutes} Min',
     assignedTo: 'an {name}',
     assignmentKind: {

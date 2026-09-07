@@ -203,3 +203,73 @@ test(
   },
   60_000,
 );
+
+test(
+  'expiryPenaltyIssued spiegelt, ob die Instanz bereits einmal automatisch zurückgefordert wurde',
+  async () => {
+    const now = new Date();
+    const penalizedOnce = await db.taskInstance.create({
+      data: {
+        householdId: ids.householdId,
+        taskDefinitionId: ids.definitionId('bad'),
+        status: 'ASSIGNED',
+        currentValue: 6,
+        baseValue: 6,
+        scheduledFor: now,
+        dueAt: new Date(now.getTime() - 3_600_000),
+        publishedAt: now,
+        configVersion: 1,
+        activeSlotCount: 1,
+      },
+      select: { id: true },
+    });
+    await db.taskAssignment.create({
+      data: {
+        householdId: ids.householdId,
+        taskInstanceId: penalizedOnce.id,
+        memberId: anna.memberId,
+        kind: 'RANDOM',
+        status: 'ACTIVE',
+        response: 'PENDING',
+        activeForInstanceId: penalizedOnce.id,
+        valueAtAssignment: 6,
+        configVersion: 1,
+        assignedAt: now,
+      },
+    });
+    // Same durable marker T16-T18 checks (runAssignmentSweep.ts) to avoid
+    // re-levying the penalty — this instance already went through one
+    // clawback-and-reassignment cycle, so it's still overdue but immune to
+    // another automatic one.
+    await db.taskHistoryEvent.create({
+      data: {
+        householdId: ids.householdId,
+        taskInstanceId: penalizedOnce.id,
+        type: 'EXPIRY_PENALTY',
+        payload: { amount: 7, requestedAmount: 7 },
+      },
+    });
+
+    const neverPenalized = await createAvailableInstance(db, ids, 'staub', 4);
+
+    try {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/tasks/all',
+        headers: authHeaders(elke),
+      });
+      expect(response.statusCode).toBe(200);
+      const items = (
+        response.json() as { items: { id: string; expiryPenaltyIssued: boolean }[] }
+      ).items;
+
+      expect(items.find((i) => i.id === penalizedOnce.id)?.expiryPenaltyIssued).toBe(true);
+      expect(items.find((i) => i.id === neverPenalized)?.expiryPenaltyIssued).toBe(false);
+    } finally {
+      await db.taskHistoryEvent.deleteMany({ where: { taskInstanceId: penalizedOnce.id } });
+      await db.taskAssignment.deleteMany({ where: { taskInstanceId: penalizedOnce.id } });
+      await db.taskInstance.deleteMany({ where: { id: { in: [penalizedOnce.id, neverPenalized] } } });
+    }
+  },
+  60_000,
+);

@@ -44,6 +44,15 @@ export interface AvailableTaskDto {
   /** Computed, not stored (§1.4). */
   isOverdue: boolean;
   offerExpiresAt: string | null;
+  /**
+   * Whether the assignment sweep has already levied its one-time expiry
+   * penalty on this instance (T16–T18: closes the overdue assignment, posts
+   * a `PENALTY`, reopens the instance). That penalty fires at most once per
+   * instance — a stale `dueAt` never re-triggers it on a later sweep — so
+   * `true` here means no further automatic clawback is coming for this
+   * occurrence, no matter how overdue it still is.
+   */
+  expiryPenaltyIssued: boolean;
   status: TaskStatus;
   /** Server-computed. If false, the volunteer CTA is disabled with a reason. */
   canVolunteer: boolean;

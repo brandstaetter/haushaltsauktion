@@ -18,6 +18,7 @@ function taskFixture(overrides: Partial<AvailableTaskDto> = {}): AvailableTaskDt
     dueAt: null,
     isOverdue: false,
     offerExpiresAt: null,
+    expiryPenaltyIssued: false,
     status: 'AVAILABLE',
     canVolunteer: true,
     ineligibleReason: null,
@@ -126,5 +127,44 @@ describe('TaskCard', () => {
     const offerExpiresAt = new Date(Date.now() - 60 * 60_000).toISOString();
     render(<TaskCard task={taskFixture({ offerExpiresAt })} />);
     expect(screen.queryByText(/Angebot bis/)).not.toBeInTheDocument();
+  });
+
+  it('zeigt einen prominenten Hinweis, wenn eine überfällige Aufgabe bereits einmal automatisch zurückgefordert wurde', () => {
+    render(
+      <TaskCard
+        task={taskFixture({
+          status: 'ASSIGNED',
+          isOverdue: true,
+          expiryPenaltyIssued: true,
+        })}
+      />,
+    );
+    expect(screen.getByText(/Bereits einmal automatisch zurückgefordert/)).toBeInTheDocument();
+  });
+
+  it('zeigt keinen Zurückforderungs-Hinweis, wenn die Aufgabe überfällig, aber noch nie zurückgefordert wurde', () => {
+    render(
+      <TaskCard
+        task={taskFixture({
+          status: 'ASSIGNED',
+          isOverdue: true,
+          expiryPenaltyIssued: false,
+        })}
+      />,
+    );
+    expect(screen.queryByText(/zurückgefordert/)).not.toBeInTheDocument();
+  });
+
+  it('zeigt keinen Zurückforderungs-Hinweis für eine bereits zurückgeforderte, aber (noch) nicht überfällige Aufgabe', () => {
+    render(
+      <TaskCard
+        task={taskFixture({
+          status: 'ASSIGNED',
+          isOverdue: false,
+          expiryPenaltyIssued: true,
+        })}
+      />,
+    );
+    expect(screen.queryByText(/zurückgefordert/)).not.toBeInTheDocument();
   });
 });

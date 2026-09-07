@@ -42,6 +42,7 @@ function taskFixture(overrides: Partial<TaskInstanceDetailDto> = {}): TaskInstan
     dueAt: null,
     isOverdue: false,
     offerExpiresAt: null,
+    expiryPenaltyIssued: false,
     status: 'ASSIGNED',
     canVolunteer: false,
     ineligibleReason: null,
