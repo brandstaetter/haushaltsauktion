@@ -91,7 +91,7 @@ export const de = {
     leaderboard: 'Rangliste',
     recent: 'Kürzlich erledigt',
     ledgerLink: 'Punktekonto',
-    allTasks: 'Alle',
+    allTasks: 'Alle Aufgaben anzeigen',
     /** §31 / §6.12 — aktive Trank-Effekte, mit Restzeit/-ladungen sichtbar
      * bevor gehandelt wird. */
     activeEffects: {
