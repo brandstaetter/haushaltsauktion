@@ -126,6 +126,22 @@ export interface AssignedTaskDto extends AvailableTaskDto {
   activeAssignments: AssignmentSummaryDto[];
 }
 
+/**
+ * Multi-worker-tasks: a slot on this occurrence that already finished.
+ * `completeTask.ts`'s "more slots remain open" branch closes a finisher's
+ * assignment (status COMPLETED) and drops it from `activeAssignments` — with
+ * no other signal, a task that started fully staffed and a task that only
+ * ever had one volunteer look identical (both show one open slot). This DTO
+ * exists so the UI can tell them apart: "Arthur ist fertig" instead of
+ * Arthur silently vanishing.
+ */
+export interface CompletedAssignmentSummaryDto {
+  id: string;
+  memberId: string;
+  kind: AssignmentKind;
+  completedAt: string;
+}
+
 /** Who holds an `ASSIGNED` task, and how they got it — for the household-wide view. */
 export interface HouseholdTaskAssigneeDto extends MemberRefDto {
   kind: AssignmentKind;
@@ -157,6 +173,8 @@ export interface TaskInstanceDetailDto extends AvailableTaskDto {
   completedBy: MemberRefDto | null;
   activeAssignment: AssignmentSummaryDto | null;
   activeAssignments: AssignmentSummaryDto[];
+  /** Multi-worker-tasks: slots on this occurrence already finished, ordered by completion time. See `CompletedAssignmentSummaryDto`. */
+  completedAssignments: CompletedAssignmentSummaryDto[];
 }
 
 export interface BuyoutResultDto {

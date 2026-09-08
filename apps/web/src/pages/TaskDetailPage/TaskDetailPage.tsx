@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import cn from 'classnames';
 import type { AssignmentSummaryDto } from '@haushaltsauktion/shared';
 import {
   useTaskDetail,
@@ -111,7 +112,11 @@ export function TaskDetailPage() {
   const [unassignTarget, setUnassignTarget] = useState<AssignmentSummaryDto | null>(null);
 
   const activeAssignments = task?.activeAssignments ?? [];
-  const multiSlot = activeAssignments.length > 1;
+  const completedAssignments = task?.completedAssignments ?? [];
+  // A finished co-assignee still counts toward "more than one person is on
+  // this" — otherwise the one still-active row would lose its resolved name
+  // the moment their co-worker finishes.
+  const multiSlot = activeAssignments.length + completedAssignments.length > 1;
   // A member can hold at most one active slot per instance, so `find` (not
   // `filter`) is correct here.
   const myAssignment = activeAssignments.find((a) => a.memberId === me?.id) ?? null;
@@ -184,13 +189,16 @@ export function TaskDetailPage() {
         </div>
       </div>
 
-      {activeAssignments.length > 0 && (
+      {(activeAssignments.length > 0 || completedAssignments.length > 0) && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>
             Zugewiesen
             {task.workerCount > 1 &&
               ` ${interpolate(de.task.slotsOccupied, {
-                occupied: task.activeSlotCount,
+                // Multi-worker-tasks: a finished co-assignee leaves
+                // `activeAssignments` (completeTask.ts) but stays counted
+                // here — the slot was occupied, just no longer in progress.
+                occupied: activeAssignments.length + completedAssignments.length,
                 total: task.workerCount,
               })}`}
           </h2>
@@ -223,6 +231,27 @@ export function TaskDetailPage() {
                     {de.task.adminUnassign.trigger}
                   </button>
                 )}
+              </div>
+            );
+          })}
+          {/* Multi-worker-tasks: a finished co-assignee's slot leaves
+              `activeAssignments` entirely (completeTask.ts) — rendered here,
+              in the same list, so a task that started fully staffed and one
+              that only ever had a single volunteer don't look identical. */}
+          {completedAssignments.map((a) => {
+            const mine = a.memberId === me?.id;
+            const resolvedName = memberName(a.memberId);
+            const label = mine
+              ? de.task.completedYou
+              : resolvedName !== null
+                ? interpolate(de.task.completedNamed, { name: resolvedName })
+                : de.task.completedOther;
+            return (
+              <div key={a.id} className={styles.assigneeRow}>
+                <p className={cn(styles.assignee, styles.completedAssignee)}>
+                  <span aria-hidden="true">✓ </span>
+                  {label}
+                </p>
               </div>
             );
           })}
