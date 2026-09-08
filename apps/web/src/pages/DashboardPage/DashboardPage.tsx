@@ -213,7 +213,7 @@ export function DashboardPage() {
           {data.me.assigned.length === 0 ? (
             <p className={styles.empty}>{de.task.noAssigned}</p>
           ) : (
-            data.me.assigned.slice(0, 3).map((task) => (
+            data.me.assigned.map((task) => (
               <TaskCard key={task.id} task={task} onAction={() => navigate(`/aufgaben/${task.id}`)} />
             ))
           )}
