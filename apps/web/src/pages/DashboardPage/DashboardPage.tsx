@@ -205,9 +205,9 @@ export function DashboardPage() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{de.dashboard.myTasks}</h2>
-          <button className={styles.link} onClick={() => navigate('/aufgaben')}>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/aufgaben')}>
             {de.dashboard.allTasks}
-          </button>
+          </Button>
         </div>
         <div className={styles.stack}>
           {data.me.assigned.length === 0 ? (
