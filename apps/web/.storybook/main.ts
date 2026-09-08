@@ -1,5 +1,15 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { StorybookConfig } from '@storybook/react-vite';
 import type { PluginOption, Plugin } from 'vite';
+
+/**
+ * Storybook loads this file as real ESM (`apps/web/package.json` is
+ * `"type": "module"`), so there is no `__dirname` here — unlike
+ * `vitest.config.ts`, which Vitest bundles to CJS before evaluating and where
+ * `__dirname` therefore still works.
+ */
+const storybookDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Standalone dev tool for `apps/web` — component prototyping in isolation
@@ -52,6 +62,25 @@ const config: StorybookConfig = {
     return {
       ...viteConfig,
       plugins: plugins.filter((plugin) => !plugin.name?.startsWith('vite-plugin-pwa')),
+      resolve: {
+        ...viteConfig.resolve,
+        alias: {
+          ...(viteConfig.resolve?.alias as Record<string, string> | undefined),
+          // Dropping `vite-plugin-pwa` above also drops the virtual module it
+          // generates, and `VersionMismatchOverlay` imports
+          // `virtual:pwa-register/react` directly — so without this alias the
+          // preview bundle fails to resolve it the moment any story pulls that
+          // component in (its own, or `Layout`'s). Points at the same stub
+          // `vitest.config.ts` already uses for the identical reason; the real
+          // `updateServiceWorker` is a no-op there, which is what a story
+          // wants anyway — nothing should be registering a service worker
+          // inside Storybook.
+          'virtual:pwa-register/react': path.resolve(
+            storybookDir,
+            '../src/test/mocks/pwaRegister.ts',
+          ),
+        },
+      },
     };
   },
 };
