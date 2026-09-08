@@ -65,6 +65,7 @@ const multiWorkerBase: TaskInstanceDetailDto = {
   workerCount: 2,
   activeAssignment: null,
   activeAssignments: [],
+  completedAssignments: [],
 };
 
 /** 1 of 2 filled, viewer hasn't joined — only Arthur's slot shows, without a resolved name (`multiSlot` needs 2+ concurrent assignees). */
@@ -92,6 +93,42 @@ const multiWorkerFullyStaffedDetail: TaskInstanceDetailDto = {
   potentialReward: 0,
   activeAssignment: mockAssignmentAccepted,
   activeAssignments: [mockAssignmentAccepted, arthurAssignment],
+};
+
+/**
+ * Multi-worker-tasks (Phase 3): the task *was* fully staffed (2 of 2), but
+ * Arthur already completed his slot. Per `completeTask.ts`'s "more slots
+ * remain open" branch, a completed assignment leaves `activeAssignments` and
+ * `activeSlotCount` decrements — the instance itself stays `ASSIGNED` until
+ * the *last* active slot completes (§11's reset only fires then). Without
+ * `completedAssignments`, this would be indistinguishable from
+ * `MultiWorkerOpenSlot` (both show `activeSlotCount: 1` of `workerCount: 2`);
+ * that field is what lets the "Zugewiesen" card render Arthur's row as
+ * finished instead of silently dropping him. The remaining active slot is
+ * the *viewer's own* — they still need to finish their part, not join an
+ * unclaimed one — so `canVolunteer` is `false` and the usual
+ * complete/buyout/fairness-sheet actions apply. Viewed as a plain MEMBER
+ * (no "Zuweisung aufheben" admin action).
+ */
+const multiWorkerOneDoneDetail: TaskInstanceDetailDto = {
+  ...multiWorkerBase,
+  id: 'instance-multiworker-2of2-onedone',
+  title: 'Garage aufräumen',
+  status: 'ASSIGNED',
+  activeSlotCount: 1,
+  canVolunteer: false,
+  viewerHasActiveSlot: true,
+  potentialReward: 0,
+  activeAssignment: mockAssignmentAccepted,
+  activeAssignments: [mockAssignmentAccepted],
+  completedAssignments: [
+    {
+      id: 'assignment-multiworker-arthur-done',
+      memberId: mockMembers[1].id,
+      kind: 'VOLUNTARY',
+      completedAt: new Date(Date.now() - 900_000).toISOString(),
+    },
+  ],
 };
 
 /** 0 of 2 filled — plain "Freiwillig übernehmen", no "Zugewiesen" card at all. */
@@ -229,6 +266,32 @@ export const MultiWorkerFullyStaffed: Story = {
         http.get('/api/tasks/:id', () => HttpResponse.json(multiWorkerFullyStaffedDetail)),
         http.get('/api/assignments/:id/buyout-quote', () =>
           HttpResponse.json(multiWorkerFullyStaffedDetail.activeAssignment!.buyoutQuote),
+        ),
+        http.get('/api/assignments/:id/explain', () => HttpResponse.json(mockSelectionExplanation)),
+      ],
+    },
+  },
+};
+
+/**
+ * Multi-worker-tasks (Phase 3), was fully staffed, Arthur's slot is now
+ * COMPLETED and gone from `activeAssignments` — only the viewer's own
+ * (still-active) slot counts toward the header's "2/2 besetzt" (occupied =
+ * active + completed, so the count still reflects the original staffing).
+ * Arthur stays in the same "Zugewiesen" list as the viewer's row, styled
+ * green with a checkmark instead of vanishing — the fix for this exact
+ * ambiguity (see `multiWorkerOneDoneDetail`'s comment). As a plain MEMBER
+ * (not ADMIN), mirroring `AssignedAsMember`.
+ */
+export const MultiWorkerFullyStaffedOneDoneAsMember: Story = {
+  parameters: {
+    reactRouter: { initialEntries: [`/aufgaben/${multiWorkerOneDoneDetail.id}`] },
+    msw: {
+      handlers: [
+        ...memberSessionHandlers,
+        http.get('/api/tasks/:id', () => HttpResponse.json(multiWorkerOneDoneDetail)),
+        http.get('/api/assignments/:id/buyout-quote', () =>
+          HttpResponse.json(multiWorkerOneDoneDetail.activeAssignment!.buyoutQuote),
         ),
         http.get('/api/assignments/:id/explain', () => HttpResponse.json(mockSelectionExplanation)),
       ],

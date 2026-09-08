@@ -48,7 +48,7 @@ const historyEvents: HistoryEventRow[] = [
     taskInstanceId: 'instance-bathroom-1',
     taskTitle: 'Bad putzen',
     member: mockMembers[1],
-    type: 'BUYOUT',
+    type: 'BOUGHT_OUT',
     payload: { cost: 6 },
     pushNotified: false,
   },
@@ -140,7 +140,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Full lifecycle from offer to completion: NO_VOLUNTEER → RANDOMLY_ASSIGNED → BUYOUT → RE_OFFERED → VOLUNTEERED → COMPLETED → VALUE_RESET. */
+/** Full lifecycle from offer to completion: NO_VOLUNTEER → RANDOMLY_ASSIGNED → BOUGHT_OUT → RE_OFFERED → VOLUNTEERED → COMPLETED → VALUE_RESET. */
 export const Default: Story = {
   parameters: {
     msw: {

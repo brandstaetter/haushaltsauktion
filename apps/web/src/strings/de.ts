@@ -166,6 +166,15 @@ export const de = {
     assignedOther: 'Jemandem sonst zugewiesen',
     /** Multi-worker-tasks (Phase 4): per co-assignee row when >1 active slot. */
     assignedNamed: '{name} zugewiesen',
+    /**
+     * Multi-worker-tasks: a co-assignee's slot that already finished — shown
+     * in the same "Zugewiesen" list as `assignedYou`/`assignedOther`/
+     * `assignedNamed`, just styled and worded to read as done rather than
+     * "still working on it" (green + checkmark, see `.completedAssignee`).
+     */
+    completedYou: 'Von dir erledigt',
+    completedOther: 'Von jemandem sonst erledigt',
+    completedNamed: 'Von {name} erledigt',
     adminUnassign: {
       trigger: 'Zuweisung aufheben',
       title: 'Zuweisung aufheben',

@@ -12,6 +12,7 @@ import type {
   AssignedTaskDto,
   AssignmentSummaryDto,
   AvailableTaskDto,
+  CompletedAssignmentSummaryDto,
   HouseholdTaskDto,
   MemberRefDto,
   TaskInstanceDetailDto,
@@ -95,6 +96,34 @@ async function findInstance(tx: PrismaTx, householdId: string, instanceId: strin
 }
 
 type LoadedInstance = NonNullable<Awaited<ReturnType<typeof findInstance>>>;
+
+/**
+ * Multi-worker-tasks: every slot on this occurrence that already finished.
+ * Deliberately a second, separate query rather than folding into
+ * `INSTANCE_INCLUDE.assignments` (which is `status: 'ACTIVE'`-scoped, on
+ * purpose — every other reader of `instance.assignments` needs exactly the
+ * active set). `taskInstanceId` scopes this to the current occurrence only:
+ * a recurring task's earlier occurrences are separate `TaskInstance` rows
+ * (§27), so nothing here ever bleeds across them.
+ */
+async function loadCompletedAssignments(
+  tx: PrismaTx,
+  householdId: string,
+  instanceId: string,
+): Promise<CompletedAssignmentSummaryDto[]> {
+  const rows = await tx.taskAssignment.findMany({
+    where: { householdId, taskInstanceId: instanceId, status: 'COMPLETED' },
+    orderBy: { completedAt: 'asc' },
+    select: { id: true, memberId: true, kind: true, completedAt: true },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    memberId: r.memberId,
+    kind: r.kind,
+    // Always set once status is COMPLETED (completeTask.ts sets both together).
+    completedAt: r.completedAt!.toISOString(),
+  }));
+}
 
 function isOverdue(row: { dueAt: Date | null; status: string }, now: Date): boolean {
   // §1.4 — derivable, so it is derived. Persisting it would double every
@@ -308,6 +337,8 @@ export async function buildInstanceDetail(
     instance.assignments.map((a) => toAssignmentSummary(tx, ctx, instance, a, viewerBalance)),
   );
 
+  const completedAssignments = await loadCompletedAssignments(tx, ctx.householdId, instance.id);
+
   return {
     ...base,
     taskDefinitionId: instance.taskDefinitionId,
@@ -317,6 +348,7 @@ export async function buildInstanceDetail(
     completedBy,
     activeAssignment: activeAssignments[0] ?? null,
     activeAssignments,
+    completedAssignments,
   };
 }
 

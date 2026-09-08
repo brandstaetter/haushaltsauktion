@@ -9,6 +9,7 @@ export type {
   BuyoutResultDto,
   CategoryRefDto,
   CompleteRequest,
+  CompletedAssignmentSummaryDto,
   CompletionResultDto,
   HouseholdTaskAssigneeDto,
   HouseholdTaskDto,

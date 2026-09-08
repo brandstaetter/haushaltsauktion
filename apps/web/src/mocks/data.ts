@@ -120,6 +120,7 @@ export const mockAssignedTask: TaskInstanceDetailDto = {
     },
   },
   activeAssignments: [],
+  completedAssignments: [],
 };
 
 /**
@@ -199,6 +200,7 @@ export const mockTaskDetailAvailable: TaskInstanceDetailDto = {
   completedBy: null,
   activeAssignment: null,
   activeAssignments: [],
+  completedAssignments: [],
 };
 
 export const mockTaskDetailPending: TaskInstanceDetailDto = {

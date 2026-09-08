@@ -58,6 +58,7 @@ function taskFixture(overrides: Partial<TaskInstanceDetailDto> = {}): TaskInstan
     completedBy: null,
     activeAssignment: null,
     activeAssignments: [],
+    completedAssignments: [],
     ...overrides,
   };
 }

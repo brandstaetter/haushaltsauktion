@@ -4,7 +4,7 @@ import { PushSection } from './PushSection';
 import { TodoistSection } from './TodoistSection';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../../components/Button/Button';
-import { formatNumber } from '../../utils/format';
+import { PointsCard } from '../../components/PointsCard/PointsCard';
 import styles from './AccountPage.module.css';
 
 export function AccountPage() {
@@ -23,10 +23,7 @@ export function AccountPage() {
         <section className={styles.card}>
           <h2 className={styles.name}>{me.displayName}</h2>
           <p className={styles.email}>{session?.user?.email}</p>
-          <div className={styles.balance}>
-            <span className={styles.balanceLabel}>{de.account.balance}</span>
-            <span className={styles.balanceValue}>{formatNumber(me.balance)}</span>
-          </div>
+          <PointsCard balance={me.balance} />
           {session?.household && (
             <p className={styles.household}>
               {de.account.household}: {session.household.name}

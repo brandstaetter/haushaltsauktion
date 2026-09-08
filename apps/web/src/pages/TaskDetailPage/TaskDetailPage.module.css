@@ -59,6 +59,10 @@
   margin: 0;
 }
 
+.completedAssignee {
+  color: var(--success);
+}
+
 /* Multi-worker-tasks (Phase 4): one row per active slot when a task has
    more than one. Each row already spaces its own children (text, fairness
    trigger, admin action) with the gap below. */
