@@ -226,7 +226,7 @@ export function DashboardPage() {
           {data.me.available.length === 0 ? (
             <p className={styles.empty}>{de.task.noTasks}</p>
           ) : (
-            data.me.available.slice(0, 3).map((task) => (
+            data.me.available.map((task) => (
               <TaskCard key={task.id} task={task} onAction={() => navigate(`/aufgaben/${task.id}`)} />
             ))
           )}
