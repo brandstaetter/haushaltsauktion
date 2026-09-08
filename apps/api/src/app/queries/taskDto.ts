@@ -108,10 +108,11 @@ type LoadedInstance = NonNullable<Awaited<ReturnType<typeof findInstance>>>;
  */
 async function loadCompletedAssignments(
   tx: PrismaTx,
+  householdId: string,
   instanceId: string,
 ): Promise<CompletedAssignmentSummaryDto[]> {
   const rows = await tx.taskAssignment.findMany({
-    where: { taskInstanceId: instanceId, status: 'COMPLETED' },
+    where: { householdId, taskInstanceId: instanceId, status: 'COMPLETED' },
     orderBy: { completedAt: 'asc' },
     select: { id: true, memberId: true, kind: true, completedAt: true },
   });
@@ -336,7 +337,7 @@ export async function buildInstanceDetail(
     instance.assignments.map((a) => toAssignmentSummary(tx, ctx, instance, a, viewerBalance)),
   );
 
-  const completedAssignments = await loadCompletedAssignments(tx, instance.id);
+  const completedAssignments = await loadCompletedAssignments(tx, ctx.householdId, instance.id);
 
   return {
     ...base,
