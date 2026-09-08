@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { usePointTransactions } from '../../api/hooks';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../../components/Button/Button';
-import { formatDate, formatNumber, signedNumber } from '../../utils/format';
+import { LedgerRow } from '../../components/LedgerRow/LedgerRow';
 import styles from './LedgerPage.module.css';
 
 export function LedgerPage() {
@@ -30,25 +30,7 @@ export function LedgerPage() {
       ) : (
         <ol className={styles.list}>
           {rows.map((row) => (
-            <li key={row.id} className={styles.row}>
-              <div className={styles.heading}>
-                <span className={styles.type}>
-                  {de.ledger.type[row.type as keyof typeof de.ledger.type] ?? row.type}
-                </span>
-                <time dateTime={row.createdAt} className={styles.time}>
-                  {formatDate(row.createdAt)}
-                </time>
-              </div>
-              {row.taskInstanceTitle && (
-                <p className={styles.task}>{row.taskInstanceTitle}</p>
-              )}
-              <div className={styles.numbers}>
-                <span className={row.amount >= 0 ? styles.positive : styles.negative}>
-                  {signedNumber(row.amount)}
-                </span>
-                <span className={styles.balance}>{formatNumber(row.balanceAfter)}</span>
-              </div>
-            </li>
+            <LedgerRow key={row.id} transaction={row} />
           ))}
         </ol>
       )}
