@@ -55,6 +55,7 @@ export const MultipleUnreadNotifications: Story = {
               taskTitle: 'Bad putzen',
               readAt: null,
               createdAt: new Date(Date.now() - 600_000).toISOString(),
+              pushNotified: true,
             },
             {
               id: 'notif-2',
@@ -64,6 +65,7 @@ export const MultipleUnreadNotifications: Story = {
               taskTitle: 'Staubsaugen',
               readAt: null,
               createdAt: new Date(Date.now() - 300_000).toISOString(),
+              pushNotified: false,
             },
             {
               id: 'notif-3',
@@ -73,6 +75,7 @@ export const MultipleUnreadNotifications: Story = {
               taskTitle: 'Müll hinausbringen',
               readAt: null,
               createdAt: new Date(Date.now() - 150_000).toISOString(),
+              pushNotified: true,
             },
             {
               id: 'notif-4',
@@ -82,6 +85,7 @@ export const MultipleUnreadNotifications: Story = {
               taskTitle: 'Küche reinigen',
               readAt: null,
               createdAt: new Date(Date.now() - 60_000).toISOString(),
+              pushNotified: false,
             },
             {
               id: 'notif-5',
@@ -91,6 +95,7 @@ export const MultipleUnreadNotifications: Story = {
               taskTitle: 'Geschirrspüler ausräumen',
               readAt: null,
               createdAt: new Date(Date.now() - 30_000).toISOString(),
+              pushNotified: false,
             },
           ];
           return HttpResponse.json({
@@ -120,6 +125,7 @@ export const ManyUnreadNotifications: Story = {
             taskTitle: `Aufgabe ${i + 1}`,
             readAt: null,
             createdAt: new Date(Date.now() - (1000 - i * 50)).toISOString(),
+            pushNotified: i % 2 === 0,
           }));
           return HttpResponse.json({
             items,
@@ -147,6 +153,7 @@ export const MixedReadUnread: Story = {
               taskTitle: 'Bad putzen',
               readAt: new Date(Date.now() - 3600_000).toISOString(),
               createdAt: new Date(Date.now() - 7200_000).toISOString(),
+              pushNotified: true,
             },
             {
               id: 'notif-unread-1',
@@ -156,6 +163,7 @@ export const MixedReadUnread: Story = {
               taskTitle: 'Staubsaugen',
               readAt: null,
               createdAt: new Date(Date.now() - 300_000).toISOString(),
+              pushNotified: false,
             },
             {
               id: 'notif-read-2',
@@ -165,6 +173,7 @@ export const MixedReadUnread: Story = {
               taskTitle: 'Wäsche aufhängen',
               readAt: new Date(Date.now() - 1800_000).toISOString(),
               createdAt: new Date(Date.now() - 3600_000).toISOString(),
+              pushNotified: false,
             },
             {
               id: 'notif-unread-2',
@@ -174,6 +183,7 @@ export const MixedReadUnread: Story = {
               taskTitle: 'Geschirrspüler ausräumen',
               readAt: null,
               createdAt: new Date(Date.now() - 60_000).toISOString(),
+              pushNotified: true,
             },
           ];
           return HttpResponse.json({
