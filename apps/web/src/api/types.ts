@@ -91,6 +91,8 @@ export interface NotificationRow {
   taskTitle: string | null;
   readAt: string | null;
   createdAt: string;
+  /** Was this notification's type also sent as a VAPID push? A display hint, not a delivery receipt. */
+  pushNotified: boolean;
 }
 
 /**
@@ -316,7 +318,13 @@ export interface AdminAuditEventDto {
   action: AuditAction;
   entityType: string;
   entityId: string | null;
-  /** { before?, after?, diff?, reason?, amount?, balanceAfter?, ... } — shape varies by action. */
+  /**
+   * { before?, after?, diff?, reason?, amount?, balanceAfter?, ... } — shape
+   * varies by action. `taskInstanceId`/`taskTitle` (any `TaskInstance`- or
+   * `TaskAssignment`-rooted action) and `assigneeName` (`TaskAssignment` only)
+   * are resolved server-side from `entityId` and merged in — see
+   * `GET /admin/audit-events`.
+   */
   payload: Record<string, unknown>;
   createdAt: string;
 }

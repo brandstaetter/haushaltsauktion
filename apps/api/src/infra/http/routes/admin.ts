@@ -1567,8 +1567,68 @@ export async function registerAdminRoutes(app: FastifyInstance, deps: Deps): Pro
       take: Math.min(query.limit ?? 50, 100),
       include: { actor: { select: { id: true, displayName: true } } },
     });
+
+    // `entityId` is a loose polymorphic reference (no FK, see AuditEvent's
+    // schema comment), so it can't be `include`d — resolved here instead with
+    // two batched lookups, merged into `payload` so the frontend keeps reading
+    // display fields the same way it already does for `reason`/`amount`
+    // (AuditLogSection.tsx). This is what turns a bare "Zufallsauswahl" or
+    // "Instanz abgelaufen" card into one naming the task (and, for a
+    // TaskAssignment-rooted action, who it was assigned to).
+    const instanceIds = [
+      ...new Set(rows.filter((r) => r.entityType === 'TaskInstance' && r.entityId).map((r) => r.entityId!)),
+    ];
+    const assignmentIds = [
+      ...new Set(rows.filter((r) => r.entityType === 'TaskAssignment' && r.entityId).map((r) => r.entityId!)),
+    ];
+    const [instances, assignments] = await Promise.all([
+      instanceIds.length === 0
+        ? []
+        : deps.db.taskInstance.findMany({
+            where: { id: { in: instanceIds }, householdId: ctx.householdId },
+            select: { id: true, definition: { select: { title: true } } },
+          }),
+      assignmentIds.length === 0
+        ? []
+        : deps.db.taskAssignment.findMany({
+            where: { id: { in: assignmentIds }, householdId: ctx.householdId },
+            select: {
+              id: true,
+              taskInstanceId: true,
+              member: { select: { displayName: true } },
+              instance: { select: { definition: { select: { title: true } } } },
+            },
+          }),
+    ]);
+    const taskTitleByInstanceId = new Map(instances.map((i) => [i.id, i.definition.title]));
+    const assignmentInfoById = new Map(
+      assignments.map((a) => [
+        a.id,
+        {
+          taskInstanceId: a.taskInstanceId,
+          taskTitle: a.instance.definition.title,
+          assigneeName: a.member.displayName,
+        },
+      ]),
+    );
+
     return {
-      items: rows.map((r) => ({ ...r, seq: String(r.seq), createdAt: r.createdAt.toISOString() })),
+      items: rows.map((r) => {
+        const enrichment =
+          r.entityType === 'TaskInstance' && r.entityId
+            ? { taskInstanceId: r.entityId, taskTitle: taskTitleByInstanceId.get(r.entityId) }
+            : r.entityType === 'TaskAssignment' && r.entityId
+              ? assignmentInfoById.get(r.entityId)
+              : undefined;
+        return {
+          ...r,
+          seq: String(r.seq),
+          createdAt: r.createdAt.toISOString(),
+          payload: enrichment
+            ? { ...(r.payload as Record<string, unknown>), ...enrichment }
+            : r.payload,
+        };
+      }),
     };
   });
 

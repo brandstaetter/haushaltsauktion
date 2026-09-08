@@ -43,6 +43,23 @@
   margin: 0;
 }
 
+.clawbackNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-1);
+  font: var(--t-body-sm);
+  font-weight: 600;
+  color: var(--danger);
+  border-left: 3px solid var(--danger);
+  padding: var(--s-1) var(--s-2);
+  margin: 0;
+}
+
+.clawbackNotice svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .row {
   display: flex;
   align-items: center;

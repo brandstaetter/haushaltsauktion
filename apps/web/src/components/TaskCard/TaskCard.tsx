@@ -1,7 +1,7 @@
 import type { AvailableTaskDto, HouseholdTaskAssigneeDto } from '@haushaltsauktion/shared';
-import { Clock } from 'lucide-react';
+import { Clock, TriangleAlert } from 'lucide-react';
 import { useStrings } from '../../context/StringsContext';
-import { formatShortDate, interpolate } from '../../utils/format';
+import { formatShortDate, formatTime, interpolate } from '../../utils/format';
 import { Button } from '../Button/Button';
 import { CategoryBadge } from '../CategoryBadge/CategoryBadge';
 import { StatusBadge } from '../StatusBadge/StatusBadge';
@@ -27,6 +27,17 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
   const meta: string[] = [];
   if (task.dueAt) {
     meta.push(formatDue(de, task.dueAt, task.isOverdue));
+  }
+  // A currently-running voluntary offer window: once it expires, the random
+  // assignment sweep may pick this task up (§6). An already-past timestamp
+  // means the sweep just hasn't run yet — not worth surfacing.
+  if (task.offerExpiresAt && new Date(task.offerExpiresAt).getTime() > Date.now()) {
+    meta.push(
+      interpolate(de.task.offerExpires, {
+        when: formatShortDate(task.offerExpiresAt),
+        time: formatTime(task.offerExpiresAt),
+      }),
+    );
   }
   if (task.estimatedMinutes) {
     meta.push(
@@ -85,6 +96,12 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
           {meta.join(' · ')}
         </p>
       )}
+      {task.isOverdue && task.expiryPenaltyIssued && (
+        <p className={styles.clawbackNotice}>
+          <TriangleAlert size={14} strokeWidth={1.75} aria-hidden="true" />
+          {de.task.alreadyClawedBack}
+        </p>
+      )}
       <div className={styles.row}>
         <ValueChip
           value={task.currentValue}
@@ -112,17 +129,22 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
 function formatDue(de: typeof import('../../strings/de').de, iso: string, overdue: boolean): string {
   const date = new Date(iso);
   const today = new Date();
+  const time = formatTime(iso);
   const isToday =
     date.getFullYear() === today.getFullYear() &&
     date.getMonth() === today.getMonth() &&
     date.getDate() === today.getDate();
-  if (isToday) return overdue ? de.task.dueSince.replace('{when}', 'heute') : de.task.dueToday;
+  if (isToday) {
+    return overdue
+      ? interpolate(de.task.dueSince, { when: 'heute', time })
+      : interpolate(de.task.dueToday, { time });
+  }
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
   const isTomorrow =
     date.getFullYear() === tomorrow.getFullYear() &&
     date.getMonth() === tomorrow.getMonth() &&
     date.getDate() === tomorrow.getDate();
-  if (isTomorrow) return de.task.dueTomorrow;
-  return de.task.due.replace('{when}', formatShortDate(iso));
+  if (isTomorrow) return interpolate(de.task.dueTomorrow, { time });
+  return interpolate(de.task.due, { when: formatShortDate(iso), time });
 }

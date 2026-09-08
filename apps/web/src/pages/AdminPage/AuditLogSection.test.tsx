@@ -201,6 +201,56 @@ describe('AuditLogSection', () => {
     expect(within(screen.getByRole('list')).getByText('Paul')).toBeInTheDocument();
   });
 
+  it('zeigt Aufgabe, ausgewähltes Mitglied und Gewicht für eine Zufallsauswahl — nicht nur die rohe Aktion', async () => {
+    mockApiWithEvents([
+      eventFixture({
+        action: 'RANDOM_SELECTION',
+        actorType: 'SYSTEM',
+        actor: null,
+        actorMemberId: null,
+        entityType: 'TaskAssignment',
+        entityId: 'assign-1',
+        payload: {
+          taskInstanceId: 'inst-1',
+          taskTitle: 'Bad putzen',
+          assigneeName: 'Luise',
+          trace: {
+            candidates: [
+              { memberId: 'mem-paul', selected: false, weight: 0.8 },
+              { memberId: 'mem-luise', selected: true, weight: 1.2 },
+            ],
+          },
+        },
+      }),
+    ]);
+
+    renderSection();
+
+    const list = await screen.findByRole('list');
+    expect(within(list).getByText('Aufgabe: Bad putzen')).toBeInTheDocument();
+    expect(within(list).getByText('Zuweisung: Luise')).toBeInTheDocument();
+    expect(within(list).getByText('Gewicht: 1.2')).toBeInTheDocument();
+  });
+
+  it('zeigt die betroffene Aufgabe für eine abgelaufene Instanz — nicht nur "Instanz abgelaufen"', async () => {
+    mockApiWithEvents([
+      eventFixture({
+        action: 'INSTANCE_EXPIRED',
+        actorType: 'SYSTEM',
+        actor: null,
+        actorMemberId: null,
+        entityType: 'TaskInstance',
+        entityId: 'inst-2',
+        payload: { deadline: '2026-09-04T12:00:00.000Z', taskInstanceId: 'inst-2', taskTitle: 'Müll hinausbringen' },
+      }),
+    ]);
+
+    renderSection();
+
+    const list = await screen.findByRole('list');
+    expect(within(list).getByText('Aufgabe: Müll hinausbringen')).toBeInTheDocument();
+  });
+
   it('merkt sich die Filterauswahl über einen Reload hinweg (localStorage)', async () => {
     const user = userEvent.setup();
     mockApiWithEvents([eventFixture()]);

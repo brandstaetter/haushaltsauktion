@@ -16,7 +16,7 @@ import {
   useNotifications,
 } from '../../api/hooks';
 import { useStrings } from '../../context/StringsContext';
-import { formatDate, interpolate } from '../../utils/format';
+import { formatDate, formatTime, interpolate } from '../../utils/format';
 import { Button } from '../Button/Button';
 import { Sheet } from '../Sheet/Sheet';
 import type { NotificationRow } from '../../api/types';
@@ -101,9 +101,26 @@ export function NotificationBell() {
                     }}
                   >
                     <span className={styles.message}>{renderMessage(de, n)}</span>
-                    <time dateTime={n.createdAt} className={styles.time}>
-                      {formatDate(n.createdAt)}
-                    </time>
+                    <span className={styles.meta}>
+                      <time dateTime={n.createdAt} className={styles.time}>
+                        {formatDate(n.createdAt)}, {formatTime(n.createdAt)}
+                      </time>
+                      {n.pushNotified && (
+                        <span
+                          className={styles.pushIcon}
+                          role="img"
+                          aria-label={de.notifications.pushSentLabel}
+                          title={de.notifications.pushSentLabel}
+                        >
+                          <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">
+                            <path
+                              fill="currentColor"
+                              d="M2 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5Zm1.4.2 6.1 4.9a1 1 0 0 0 1 0l6.1-4.9-.5-.9H3.9l-.5.9ZM3 6.3V15h14V6.3l-6.1 4.9a2 2 0 0 1-2.6 0L3 6.3Z"
+                            />
+                          </svg>
+                        </span>
+                      )}
+                    </span>
                   </button>
                 </li>
               ))}

@@ -131,10 +131,13 @@ export const de = {
     currentValue: 'Aktueller Wert',
     baseValue: 'Basiswert {value}',
     buyoutCount: '×{count} freigekauft',
-    dueToday: 'fällig heute',
-    dueTomorrow: 'fällig morgen',
-    dueSince: 'fällig seit {when}',
-    due: 'fällig {when}',
+    dueToday: 'fällig heute, {time}',
+    dueTomorrow: 'fällig morgen, {time}',
+    dueSince: 'fällig seit {when}, {time}',
+    due: 'fällig {when}, {time}',
+    offerExpires: 'Angebot bis {when}, {time}',
+    /** T16-T18's one-time expiry penalty already fired for this instance — no further automatic clawback is coming, however overdue it still is. */
+    alreadyClawedBack: 'Bereits einmal automatisch zurückgefordert — keine weitere automatische Strafe',
     estimatedMinutes: 'ca. {minutes} Min',
     assignedTo: 'an {name}',
     assignmentKind: {
@@ -242,6 +245,7 @@ export const de = {
     empty: 'Keine Benachrichtigungen.',
     markAllRead: 'Alle als gelesen markieren',
     unreadBadge: '{n} ungelesen',
+    pushSentLabel: 'Auch als Push-Benachrichtigung gesendet',
     types: {
       TASK_AVAILABLE: '„{task}“ ist jetzt freiwillig verfügbar — aktueller Wert {value}',
       TASK_ASSIGNED: 'Dir wurde „{task}“ zufällig zugewiesen — aktueller Wert {value}',
@@ -724,6 +728,14 @@ export const de = {
       // per action — the same generic-placeholder idiom HistoryPage.tsx uses.
       amount: 'Betrag {value}',
       reason: 'Begründung: {reason}',
+      // taskTitle/assigneeName are server-resolved from entityId (see
+      // `GET /admin/audit-events`), same generic-placeholder idiom as
+      // amount/reason above — one label each covers every TaskInstance-
+      // or TaskAssignment-rooted action, not just RANDOM_SELECTION/
+      // INSTANCE_EXPIRED.
+      taskTitle: 'Aufgabe: {task}',
+      assigneeName: 'Zuweisung: {member}',
+      selectionWeight: 'Gewicht: {value}',
       /** Deckt exakt `AuditAction` aus packages/shared/src/domain/enums.ts ab. */
       actions: {
         HOUSEHOLD_REGISTERED: 'Haushalt registriert',
