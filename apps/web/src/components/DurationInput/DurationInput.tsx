@@ -47,22 +47,6 @@ export function DurationInput({ id, valueMinutes, onChange, placeholder }: Durat
 
   return (
     <div className={styles.group}>
-      <input
-        id={id}
-        type="number"
-        min={0}
-        step="any"
-        value={displayValue}
-        placeholder={placeholder}
-        onChange={(e) => {
-          if (e.target.value === '') {
-            onChange(null);
-            return;
-          }
-          const parsed = parseFloat(e.target.value);
-          onChange(Number.isFinite(parsed) ? Math.round(parsed * factor) : null);
-        }}
-      />
       <select
         aria-label={de.components.duration.unitLabel}
         value={unit}
@@ -72,6 +56,31 @@ export function DurationInput({ id, valueMinutes, onChange, placeholder }: Durat
         <option value="HOURS">{de.components.duration.hours}</option>
         <option value="DAYS">{de.components.duration.days}</option>
       </select>
+      <input
+        id={id}
+        type="number"
+        min={0}
+        step="any"
+        value={displayValue}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === '') {
+            onChange(null);
+            return;
+          }
+          // Browsers let "0" + typed digit sit as "05" in the DOM, and the
+          // controlled re-render below doesn't reliably overwrite it back to
+          // "5" (React's number-input value diffing treats them as equal).
+          // Strip the leading zero here so the field never shows it.
+          const normalized = raw.replace(/^0+(?=\d)/, '');
+          if (normalized !== raw) {
+            e.target.value = normalized;
+          }
+          const parsed = parseFloat(normalized);
+          onChange(Number.isFinite(parsed) ? Math.round(parsed * factor) : null);
+        }}
+      />
     </div>
   );
 }

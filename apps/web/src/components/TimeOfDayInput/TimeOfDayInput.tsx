@@ -6,6 +6,8 @@
  * affordance a raw regex-validated text box never had.
  */
 
+import styles from './TimeOfDayInput.module.css';
+
 export interface TimeOfDayInputProps {
   id?: string;
   value: string;
@@ -13,5 +15,13 @@ export interface TimeOfDayInputProps {
 }
 
 export function TimeOfDayInput({ id, value, onChange }: TimeOfDayInputProps) {
-  return <input id={id} type="time" value={value} onChange={(e) => onChange(e.target.value)} />;
+  return (
+    <input
+      id={id}
+      type="time"
+      className={styles.input}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
 }

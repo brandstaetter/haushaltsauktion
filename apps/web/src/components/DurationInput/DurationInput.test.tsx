@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -63,5 +64,30 @@ describe('DurationInput', () => {
     await user.clear(screen.getByRole('spinbutton'));
 
     expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('replaces a leading zero instead of concatenating when typing to its right', () => {
+    const onChangeSpy = vi.fn();
+    function Wrapper() {
+      const [value, setValue] = useState<number | null>(0);
+      return (
+        <DurationInput
+          valueMinutes={value}
+          onChange={(v) => {
+            onChangeSpy(v);
+            setValue(v);
+          }}
+        />
+      );
+    }
+    render(<Wrapper />);
+
+    // Simulates the browser momentarily holding "05" in the DOM after
+    // typing "5" to the right of an existing "0".
+    const input = screen.getByRole('spinbutton');
+    fireEvent.change(input, { target: { value: '05' } });
+
+    expect(onChangeSpy).toHaveBeenLastCalledWith(5);
+    expect(input).toHaveValue(5);
   });
 });
