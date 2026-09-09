@@ -69,7 +69,7 @@ test.describe('Dashboard', () => {
     // öffnet, sind der sichtbare Beweis, dass die Rolle aus der Sitzung stammt.
     const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
     await nav.getByRole('link', { name: 'Verwaltung', exact: true }).click();
-    await expect(page).toHaveURL(/\/verwaltung\/einstellungen$/);
+    await expect(page).toHaveURL(/\/verwaltung\/aufgaben$/);
 
     await expect(nav.getByRole('link', { name: 'Einstellungen' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Benutzer' })).toBeVisible();
