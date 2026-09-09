@@ -1516,6 +1516,19 @@ Ein Punkt, den ich in der Spezifikation bewusst ergänzt habe, ist die Trennung 
 
 ---
 
+## Development Tooling
+
+### Storybook
+
+Storybook is set up for `apps/web` (React component development/preview).
+
+- Start: `npm run storybook -w apps/web` (serves on **http://localhost:6006**)
+- Static build: `npm run build-storybook -w apps/web`
+- Config lives in `apps/web/.storybook/`
+- Before starting it, check whether it's already running: `curl -s -o /dev/null -w "%{http_code}" http://localhost:6006` returns `200` if so — just open the URL instead of starting a second instance.
+
+---
+
 ## Citadel Harness
 
 This project is configured with the Citadel harness. Configuration lives in
