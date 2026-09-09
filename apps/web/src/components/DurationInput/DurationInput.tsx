@@ -47,15 +47,13 @@ export function DurationInput({ id, valueMinutes, onChange, placeholder }: Durat
 
   return (
     <div className={styles.group}>
-      <select
-        aria-label={de.components.duration.unitLabel}
-        value={unit}
-        onChange={(e) => setUnit(e.target.value as DurationUnit)}
-      >
-        <option value="MINUTES">{de.components.duration.minutes}</option>
-        <option value="HOURS">{de.components.duration.hours}</option>
-        <option value="DAYS">{de.components.duration.days}</option>
-      </select>
+      {/* Every call site wraps this in `<label><span>Text</span>
+          <DurationInput/></label>` with no explicit `htmlFor` — relying on
+          implicit label association, which HTML only grants to the first
+          labelable descendant. This input has to stay that first descendant
+          (DOM order, independent of any visual order) or the wrapping
+          label's text silently detaches from it — `getByLabel('Angebotsdauer')`
+          and friends start finding nothing. */}
       <input
         id={id}
         type="number"
@@ -81,6 +79,15 @@ export function DurationInput({ id, valueMinutes, onChange, placeholder }: Durat
           onChange(Number.isFinite(parsed) ? Math.round(parsed * factor) : null);
         }}
       />
+      <select
+        aria-label={de.components.duration.unitLabel}
+        value={unit}
+        onChange={(e) => setUnit(e.target.value as DurationUnit)}
+      >
+        <option value="MINUTES">{de.components.duration.minutes}</option>
+        <option value="HOURS">{de.components.duration.hours}</option>
+        <option value="DAYS">{de.components.duration.days}</option>
+      </select>
     </div>
   );
 }
