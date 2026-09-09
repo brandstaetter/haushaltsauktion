@@ -129,7 +129,7 @@ test.describe('Mobile Darstellung (390×844)', () => {
 
     test('Verwaltungs-Untermenü: kein Label bricht um oder wird abgeschnitten, bricht kontrolliert auf zwei Zeilen um', async ({ page }) => {
       await page.getByRole('link', { name: 'Verwaltung', exact: true }).click();
-      await expect(page).toHaveURL(/\/verwaltung\/einstellungen$/);
+      await expect(page).toHaveURL(/\/verwaltung\/aufgaben$/);
 
       const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
       const links = nav.getByRole('link');

@@ -121,7 +121,7 @@ export const router = createBrowserRouter([
             path: 'verwaltung',
             element: (
               <AdminRoute>
-                <Navigate to="/verwaltung/einstellungen" replace />
+                <Navigate to="/verwaltung/aufgaben" replace />
               </AdminRoute>
             ),
           },

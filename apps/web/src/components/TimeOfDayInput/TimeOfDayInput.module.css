@@ -1,0 +1,14 @@
+.input {
+  min-height: 48px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: var(--t-body);
+  /* Without this, the browser always draws the clock picker indicator in
+     its light-theme tint, which is nearly invisible against a dark
+     --surface — it needs to know the control supports both schemes so it
+     can pick the one matching the user's actual preference. */
+  color-scheme: light dark;
+}

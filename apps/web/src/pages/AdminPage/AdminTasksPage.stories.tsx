@@ -6,7 +6,11 @@ import { RecurrenceType, WorkerCountMode } from '@haushaltsauktion/shared';
 import { AdminTasksPage } from './AdminTasksPage';
 import { Layout } from '../../components/Layout/Layout';
 import { mockMembers, mockSession } from '../../mocks/data';
-import type { AdminTaskDefinitionDto } from '../../api/types';
+import type {
+  AdminTaskDefinitionDetailDto,
+  AdminTaskDefinitionDto,
+  AdminTaskInstanceRowDto,
+} from '../../api/types';
 
 /** Shared with `AsMember` — a plain MEMBER instead of the default fixture's ADMIN. */
 const memberSessionHandler = http.get('/api/auth/me', () =>
@@ -150,6 +154,44 @@ const mockTaskDefinitions: AdminTaskDefinitionDto[] = [
     preferredAssignees: [],
   },
 ];
+
+/**
+ * Per-definition open-instance counts for `GET /admin/task-definitions/:id`
+ * (`LiveInstancesList`, inside the edit sheet's "Laufende Instanzen"
+ * section) — keyed by id so a story can claim a specific count for one task
+ * without every other definition needing an instance too.
+ */
+const instanceCountByDefinitionId: Record<string, number> = {
+  'def-dishwasher': 1,
+  'def-trash': 2,
+};
+
+/** `GET /admin/task-definitions/:id` — resolves against `mockTaskDefinitions`,
+ * attaching `instanceCountByDefinitionId`'s count of plausible open instances. */
+function taskDefinitionDetailHandler() {
+  return http.get('/api/admin/task-definitions/:id', ({ params }) => {
+    const definition = mockTaskDefinitions.find((d) => d.id === params.id);
+    if (!definition) {
+      return HttpResponse.json({ error: { message: 'Not found' } }, { status: 404 });
+    }
+    const count = instanceCountByDefinitionId[definition.id] ?? 0;
+    const instances: AdminTaskInstanceRowDto[] = Array.from({ length: count }, (_, i) => ({
+      id: `${definition.id}-inst-${i + 1}`,
+      status: 'AVAILABLE',
+      currentValue: definition.baseValue,
+      dueAt: null,
+      workerCountMode: definition.workerCountMode,
+      workerCount: definition.workerCount,
+      activeSlotCount: 0,
+      assignments: [],
+    }));
+    return HttpResponse.json<AdminTaskDefinitionDetailDto>({
+      ...definition,
+      instances,
+      marketValue: { averageVoluntaryTakeoverValue: null, sampleSize: 0 },
+    });
+  });
+}
 
 /**
  * Proof-of-concept for full-page stories: renders the real page against MSW
@@ -356,7 +398,12 @@ export const AsMember: Story = {
   },
 };
 
-/** iPhone 13 viewport, logged in as ADMIN — primary mobile-first layout target (§19). */
+/**
+ * iPhone 13 viewport, logged in as ADMIN — primary mobile-first layout
+ * target (§19). Also mocks the per-definition detail endpoint so opening the
+ * edit sheet's "Laufende Instanzen" section shows a plausible instance count
+ * for "Geschirrspüler ausräumen" (1) and "Müll hinausbringen" (2).
+ */
 export const MobileAdmin: Story = {
   globals: { viewport: iphone13Viewport },
   parameters: {
@@ -376,6 +423,7 @@ export const MobileAdmin: Story = {
         http.get('/api/members', () =>
           HttpResponse.json({ items: mockMembers }),
         ),
+        taskDefinitionDetailHandler(),
       ],
     },
   },

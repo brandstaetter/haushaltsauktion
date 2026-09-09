@@ -6,3 +6,42 @@
   padding: var(--s-1) var(--s-2);
   border-radius: var(--r-sm);
 }
+
+/* Not yet published to members. */
+.draft {
+  background: var(--neutral-soft);
+  color: var(--ink-3);
+}
+
+/* Open for voluntary pickup. */
+.available {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Held by someone, awaiting completion or buyout. */
+.assigned {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.completed {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.cancelled {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Temporarily inactive, same treatment as DRAFT. */
+.paused {
+  background: var(--neutral-soft);
+  color: var(--ink-3);
+}
+
+.expired {
+  background: var(--danger-soft);
+  color: var(--danger);
+}

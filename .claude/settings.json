@@ -1,4 +1,7 @@
 {
+  "enabledPlugins": {
+    "citadel@citadel-local": true
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -92,6 +95,19 @@
         ]
       }
     ],
+    "PostToolBatch": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/post-tool-batch.js",
+            "timeout": 10,
+            "async": true,
+            "asyncRewake": true
+          }
+        ]
+      }
+    ],
     "PostToolUseFailure": [
       {
         "hooks": [
@@ -136,12 +152,34 @@
         ]
       }
     ],
-    "StopFailure": [
+    "Setup": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/stop-failure.js",
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/init-project.js",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/user-prompt-submit.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/user-prompt-expansion.js",
             "timeout": 5
           }
         ]
@@ -188,57 +226,68 @@
         ]
       }
     ],
-    "SubagentStop": [
+    "PermissionRequest": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/subagent-stop.js",
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/permission-request.js",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/permission-request.js",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/instructions-loaded.js",
             "timeout": 5
           }
         ]
       }
     ],
-    "TaskCreated": [
+    "FileChanged": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/task-events.js",
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/file-changed.js",
             "timeout": 5
           }
         ]
       }
     ],
-    "TaskCompleted": [
+    "CwdChanged": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/task-events.js",
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/cwd-changed.js",
             "timeout": 5
           }
         ]
       }
     ],
-    "WorktreeCreate": [
+    "ConfigChange": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/worktree-setup.js",
-            "timeout": 120
-          }
-        ]
-      }
-    ],
-    "WorktreeRemove": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/worktree-remove.js",
-            "timeout": 10
+            "command": "node C:/Users/micro/AgenticCodingProjects/Citadel/hooks_src/config-change.js",
+            "timeout": 5
           }
         ]
       }

@@ -49,7 +49,7 @@ export function AccountPage() {
             {session?.role === 'ADMIN' && (
               <Button
                 variant="secondary"
-                onClick={() => navigate('/verwaltung/einstellungen')}
+                onClick={() => navigate('/verwaltung/aufgaben')}
                 fullWidth
               >
                 {de.account.adminEntry}

@@ -14,6 +14,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+export const Draft: Story = { args: { status: TaskStatus.DRAFT } };
 export const Available: Story = { args: { status: TaskStatus.AVAILABLE } };
 export const Assigned: Story = { args: { status: TaskStatus.ASSIGNED } };
 export const Completed: Story = { args: { status: TaskStatus.COMPLETED } };

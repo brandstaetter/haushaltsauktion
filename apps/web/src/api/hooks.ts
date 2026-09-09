@@ -415,6 +415,10 @@ export function useRevokeAssignment() {
       void qc.invalidateQueries({ queryKey: ['tasks'] });
       void qc.invalidateQueries({ queryKey: ['members'] });
       void qc.invalidateQueries({ queryKey: ['history'] });
+      // Also usable from the admin definition-detail view (`InstanceRow`'s
+      // unassign button) — that view lives under this key, same as
+      // `useCancelInstance` above.
+      void qc.invalidateQueries({ queryKey: adminTaskDefinitionsQueryKey });
     },
   });
 }

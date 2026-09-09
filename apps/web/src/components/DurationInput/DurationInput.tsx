@@ -47,6 +47,13 @@ export function DurationInput({ id, valueMinutes, onChange, placeholder }: Durat
 
   return (
     <div className={styles.group}>
+      {/* Every call site wraps this in `<label><span>Text</span>
+          <DurationInput/></label>` with no explicit `htmlFor` — relying on
+          implicit label association, which HTML only grants to the first
+          labelable descendant. This input has to stay that first descendant
+          (DOM order, independent of any visual order) or the wrapping
+          label's text silently detaches from it — `getByLabel('Angebotsdauer')`
+          and friends start finding nothing. */}
       <input
         id={id}
         type="number"
@@ -55,11 +62,20 @@ export function DurationInput({ id, valueMinutes, onChange, placeholder }: Durat
         value={displayValue}
         placeholder={placeholder}
         onChange={(e) => {
-          if (e.target.value === '') {
+          const raw = e.target.value;
+          if (raw === '') {
             onChange(null);
             return;
           }
-          const parsed = parseFloat(e.target.value);
+          // Browsers let "0" + typed digit sit as "05" in the DOM, and the
+          // controlled re-render below doesn't reliably overwrite it back to
+          // "5" (React's number-input value diffing treats them as equal).
+          // Strip the leading zero here so the field never shows it.
+          const normalized = raw.replace(/^0+(?=\d)/, '');
+          if (normalized !== raw) {
+            e.target.value = normalized;
+          }
+          const parsed = parseFloat(normalized);
           onChange(Number.isFinite(parsed) ? Math.round(parsed * factor) : null);
         }}
       />

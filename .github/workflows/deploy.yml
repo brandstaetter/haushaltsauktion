@@ -110,7 +110,24 @@ jobs:
           docker compose -f docker-compose.yml -f deploy/docker-compose.e2e.yml \
             -p haushaltsauktion-e2e up -d --build --wait --wait-timeout 180
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        # `--with-deps` runs `apt-get update`, which also hits the Google
+        # Chrome apt repo the GitHub-hosted runner image pre-configures —
+        # even though we only ever install `chromium`, never `google-chrome`.
+        # Its Packages.gz has been observed serving a payload that doesn't
+        # match the InRelease hash it just handed out ("Hash Sum mismatch"),
+        # persisting unchanged for 20+ minutes across retries (an actual
+        # upstream desync, not a per-request race) — so drop that source
+        # instead of depending on it for a package we never install anyway.
+        # The retry loop stays as a defensive fallback for other transient
+        # apt/network hiccups.
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
+          for attempt in 1 2 3; do
+            npx playwright install --with-deps chromium && exit 0
+            echo "Playwright browser install failed (attempt $attempt/3)"
+            [ "$attempt" -lt 3 ] && sleep 20
+          done
+          exit 1
       - name: Run E2E suite against the throwaway stack
         # E2E_EXTERNAL_SERVERS tells playwright.config.ts not to spawn its
         # own tsx/Vite-dev-server webServer entries — API_PORT/WEB_PORT stay

@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import type { AvailableTaskDto, HouseholdTaskAssigneeDto } from '@haushaltsauktion/shared';
 import { Clock, TriangleAlert } from 'lucide-react';
 import { useStrings } from '../../context/StringsContext';
@@ -24,10 +25,9 @@ interface TaskCardProps {
 export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProps) {
   const { de } = useStrings();
 
+  const dueText = task.dueAt ? formatDue(de, task.dueAt, task.isOverdue) : null;
+
   const meta: string[] = [];
-  if (task.dueAt) {
-    meta.push(formatDue(de, task.dueAt, task.isOverdue));
-  }
   // A currently-running voluntary offer window: once it expires, the random
   // assignment sweep may pick this task up (§6). An already-past timestamp
   // means the sweep just hasn't run yet — not worth surfacing.
@@ -90,9 +90,13 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
           <CategoryBadge name={task.category.name} colorHex={task.category.colorHex} />
         )}
       </div>
-      {meta.length > 0 && (
+      {(dueText || meta.length > 0) && (
         <p className={styles.meta}>
           <Clock size={14} strokeWidth={1.75} aria-hidden="true" />
+          {dueText && (
+            <span className={cn(task.isOverdue && styles.due)}>{dueText}</span>
+          )}
+          {dueText && meta.length > 0 && ' · '}
           {meta.join(' · ')}
         </p>
       )}

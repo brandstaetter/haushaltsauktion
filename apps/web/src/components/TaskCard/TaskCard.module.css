@@ -37,6 +37,14 @@
   margin: 0;
 }
 
+.due {
+  display: inline-block;
+  background: var(--danger-soft);
+  color: var(--danger);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
+}
+
 .assignee {
   font: var(--t-body-sm);
   color: var(--ink-3);
