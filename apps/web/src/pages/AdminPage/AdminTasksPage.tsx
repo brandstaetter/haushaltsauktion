@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { useRunSweep } from '../../api/hooks';
 import { useStrings } from '../../context/StringsContext';
 import { Button } from '../../components/Button/Button';
@@ -9,7 +8,6 @@ import styles from './AdminPage.module.css';
 
 export function AdminTasksPage() {
   const { de } = useStrings();
-  const navigate = useNavigate();
   const sweep = useRunSweep();
   const [message, setMessage] = useState<string | null>(null);
 
@@ -44,11 +42,8 @@ export function AdminTasksPage() {
         <Button variant="secondary" onClick={() => handleSweep(false)} loading={sweep.isPending}>
           {de.admin.runSweep}
         </Button>
-        <Button variant="secondary" onClick={() => handleSweep(true)} loading={sweep.isPending}>
+        <Button variant="ghost" onClick={() => handleSweep(true)} loading={sweep.isPending}>
           {de.admin.dryRun}
-        </Button>
-        <Button variant="ghost" onClick={() => navigate('/ich')}>
-          {de.action.back}
         </Button>
       </div>
     </div>

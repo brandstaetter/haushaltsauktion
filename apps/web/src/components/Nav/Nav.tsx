@@ -33,15 +33,15 @@ export function Nav({ role }: NavProps) {
   ];
 
   if (role === 'ADMIN') {
-    mainItems.push({ to: '/verwaltung/einstellungen', icon: Wrench, label: de.nav.maintenance });
+    mainItems.push({ to: '/verwaltung/aufgaben', icon: Wrench, label: de.nav.maintenance });
   }
 
   const submenuItems = [
-    { to: '/verwaltung/einstellungen', icon: Settings, label: de.nav.adminSettings },
-    { to: '/verwaltung/benutzer', icon: Users, label: de.nav.adminMembers },
     { to: '/verwaltung/aufgaben', icon: ClipboardList, label: de.nav.adminTasks },
+    { to: '/verwaltung/benutzer', icon: Users, label: de.nav.adminMembers },
     { to: '/verwaltung/kategorien', icon: Folder, label: de.nav.adminCategories },
     { to: '/verwaltung/punkte-shop', icon: Gift, label: de.nav.adminRewards },
+    { to: '/verwaltung/einstellungen', icon: Settings, label: de.nav.adminSettings },
     { to: '/verwaltung/audit-log', icon: ScrollText, label: de.nav.adminAuditLog },
     { to: '/', icon: ArrowLeft, label: de.nav.back },
   ];

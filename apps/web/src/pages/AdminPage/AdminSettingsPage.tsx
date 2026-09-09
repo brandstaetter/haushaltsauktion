@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
 import type { HouseholdConfig } from '@haushaltsauktion/shared';
 import {
   AssignmentStrategy,
@@ -18,7 +17,6 @@ function clone<T>(value: T): T {
 
 export function AdminSettingsPage() {
   const { de } = useStrings();
-  const navigate = useNavigate();
   const { data: config, isLoading } = useAdminConfig();
   const save = useSaveConfig();
   const [draft, setDraft] = useState<HouseholdConfig | null>(null);
@@ -357,9 +355,6 @@ export function AdminSettingsPage() {
       <div className={styles.actions}>
         <Button onClick={handleSave} loading={save.isPending}>
           {de.admin.save}
-        </Button>
-        <Button variant="ghost" onClick={() => navigate('/ich')}>
-          {de.action.back}
         </Button>
       </div>
     </div>
