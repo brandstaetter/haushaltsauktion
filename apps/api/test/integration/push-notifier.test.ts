@@ -140,7 +140,7 @@ test('one call with a mix of drafts enqueues only the allow-listed ones', async 
   );
 
   const rows = await db.pushOutboxItem.findMany({ where: { householdId: ids.householdId } });
-  expect(rows.map((r) => r.type).sort()).toEqual(['TASK_ASSIGNED', 'TASK_TAKEN']);
+  expect(rows.map((r) => r.type)).toEqual(['TASK_ASSIGNED']);
 });
 
 test('§24 core regression: a transaction that rolls back after emit() leaves zero PushOutboxItem rows', async () => {
