@@ -71,7 +71,6 @@ interface PushWirePayload {
 const PUSH_MESSAGE_TEMPLATES: Record<string, string> = {
   TASK_AVAILABLE: '„{task}“ ist jetzt freiwillig verfügbar — aktueller Wert {value}',
   TASK_ASSIGNED: 'Dir wurde „{task}“ zufällig zugewiesen — aktueller Wert {value}',
-  TASK_TAKEN: 'Du hast „{task}“ übernommen — aktueller Wert {value}',
   TASK_DUE_SOON: '„{task}“ wird bald fällig',
 };
 

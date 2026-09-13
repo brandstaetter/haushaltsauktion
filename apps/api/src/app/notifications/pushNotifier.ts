@@ -42,8 +42,10 @@
 import type { NotificationDraft, Notifier } from '../deps.js';
 
 /**
- * These three types are pushed. The first two — both already worked in-app,
- * so "did the push text match the in-app text" was easy to verify by hand.
+ * These three externally actionable types are pushed. Their recipients need
+ * to know about an available, assigned, or soon-due task even when they are
+ * not currently using the app. Member-initiated changes such as volunteering
+ * for or completing a task remain in-app only.
  * `TASK_AVAILABLE` (Phase 3, .planning/research-push-notifications.md) closes
  * a pre-existing gap: nothing ever emitted this type before
  * `runAssignmentSweep.ts`'s T1/T2 sites started doing so, so both the in-app
@@ -56,7 +58,6 @@ import type { NotificationDraft, Notifier } from '../deps.js';
  */
 export const PUSH_ENABLED_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
   'TASK_ASSIGNED',
-  'TASK_TAKEN',
   'TASK_AVAILABLE',
   'TASK_DUE_SOON',
 ]);
@@ -65,10 +66,10 @@ export const PUSH_ENABLED_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
  * `HistoryEventType`s (§22) whose row is written in the same use-case call as
  * a push-eligible notification above, so the Verlauf can show "this was also
  * pushed": `OFFERED` next to `TASK_AVAILABLE` (`runAssignmentSweep.ts`'s T1/T2
- * sites), `VOLUNTEERED` next to `TASK_TAKEN` (`volunteerForTask.ts`), and
- * `RANDOMLY_ASSIGNED` next to `TASK_ASSIGNED` (`runAssignmentSweep.ts`'s T4/T5
- * random draw). `TASK_DUE_SOON` has no corresponding history row at all
- * (informational nudge only, see the T19 site).
+ * sites) and `RANDOMLY_ASSIGNED` next to `TASK_ASSIGNED`
+ * (`runAssignmentSweep.ts`'s T4/T5 random draw). `TASK_DUE_SOON` has no
+ * corresponding history row at all (informational nudge only, see the T19
+ * site).
  *
  * A display hint, not a delivery receipt: whether the push actually reached a
  * device depends on the household's/member's push configuration at dispatch
@@ -79,7 +80,6 @@ export const PUSH_ENABLED_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
  */
 export const PUSH_NOTIFIED_HISTORY_EVENT_TYPES: ReadonlySet<string> = new Set([
   'OFFERED',
-  'VOLUNTEERED',
   'RANDOMLY_ASSIGNED',
 ]);
 
