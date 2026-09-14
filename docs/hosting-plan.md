@@ -134,8 +134,13 @@ Bewusst zwei Ebenen, damit ein einzelner defekter Mechanismus nicht zum Totalver
 - Nachteil: grobkörnig (ganzer Tag), keine Point-in-Time-Wiederherstellung innerhalb eines Tages.
 
 **Ebene B — Logisches DB-Backup (Anwendungs-Ebene)**
-- Implementiert in `deploy/backup-db.sh`, ausgelöst durch den systemd-Timer `deploy/backup-db.timer` (Service-Unit: `deploy/backup-db.service`). Beide Unit-Dateien werden bei der Ersteinrichtung nach `/etc/systemd/system/` auf der Instanz kopiert und mit `systemctl enable --now backup-db.timer` aktiviert (täglich 03:00 UTC).
-- Das Skript liest `POSTGRES_USER`/`POSTGRES_DB`/`BACKUP_S3_BUCKET` aus der produktiven `.env`, dumpt via `docker compose exec db pg_dump`, komprimiert und lädt SSE-verschlüsselt nach `s3://$BACKUP_S3_BUCKET/backups/<datum>.sql.gz` hoch.
+- Implementiert in `deploy/backup-db.sh`, ausgelöst durch den systemd-Timer `deploy/backup-db.timer` (Service-Unit: `deploy/backup-db.service`), täglich 03:00 UTC.
+- **Skript und Unit-Dateien werden bei jedem Deploy von `.github/workflows/deploy.yml` auf die Instanz kopiert, nach `/etc/systemd/system/` installiert und aktiviert.** Früher war das ein einmaliger Handgriff bei der Ersteinrichtung — dieselbe Sorte Schritt, die bei `INTEGRATION_ENCRYPTION_KEY` schon einmal ausgelassen wurde (§4 unten). Änderungen an den drei Dateien im Repo wirken dadurch auch tatsächlich in Produktion.
+- Die Service-Unit setzt `User=` auf den Deploy-User (der Deploy-Job schreibt den konkreten Namen beim Installieren hinein). Ohne das läuft die Unit als root — und root hat auf dieser Instanz **keine** `~/.aws/credentials`; der IAM-Schlüssel für `haushaltsauktion-box` liegt im Home des Deploy-Users (§4). Derselbe Account besitzt `/opt/haushaltsauktion` und ist in der `docker`-Gruppe, was das `docker compose exec` im Skript überhaupt erst möglich macht.
+- `BACKUP_S3_BUCKET` wird vom Deploy-Job aus dem GitHub-Secret `BACKUP_BUCKET` in die Instanz-`.env` geschrieben — dasselbe Secret, das `restore-drill.yml` liest, womit Backup und Restore per Konstruktion auf denselben Bucket zeigen. Zuvor wurde dieser Wert von **niemandem** gesetzt (weder manuell dokumentiert noch aus CI), sodass das Skript jede Nacht sofort an seiner eigenen Pflichtprüfung abbrach und der S3-Prefix leer blieb.
+- Das Skript liest `POSTGRES_USER`/`POSTGRES_DB`/`BACKUP_S3_BUCKET` gezielt aus der produktiven `.env` (kein `source .env`: `.env` ist Compose-Syntax, in der ein Token mit Leerzeichen oder Klammern völlig zulässig ist, als Shell-Quelltext aber das ganze Skript zerlegt), dumpt via `docker compose exec db pg_dump`, komprimiert und lädt SSE-verschlüsselt nach `s3://$BACKUP_S3_BUCKET/backups/<datum>.sql.gz` hoch.
+- Vor dem Upload wird der Dump geprüft: gültiges gzip, nicht leer, und mit pg_dumps Abschlussmarker versehen. Ein abgeschnittener Dump wird verworfen statt hochgeladen — er sähe sonst bis zum Ernstfall wie ein Backup aus. Vorab prüft `aws sts get-caller-identity`, ob überhaupt nutzbare Zugangsdaten vorliegen, damit „keine Credentials" nicht erst nach einem vollständigen Dump auffällt.
+- Jeder Deploy löst zusätzlich **einen sofortigen Backup-Lauf** aus und schlägt fehl, wenn er fehlschlägt. Das ist die einzige Stelle, an der CI die Kette beweisen kann, ohne bis zum nächsten Restore-Drill zu warten.
 - S3-Lifecycle-Regel: 30 Tage Standard → danach Glacier Instant Retrieval → Löschung nach 12 Monaten (Kostenkontrolle, keine unbegrenzte Anhäufung).
 - Bucket-Versionierung + Server-Side-Encryption (SSE-S3) aktivieren.
 - Vorteil gegenüber Ebene A: granular (jede Nacht), portabel (lässt sich in jede Postgres-Instanz einspielen, unabhängig von Lightsail), kleine Dateigröße bei dieser Datenmenge (Ledger + wenige hundert Task-Instanzen/Jahr, siehe CLAUDE.md §43).
@@ -176,7 +181,7 @@ Ein Backup, das nie wiederhergestellt wurde, ist keine Garantie. Zwei Prüfstufe
 5. `docker compose up -d`, `prisma migrate deploy` läuft automatisch mit hoch.
 6. Admin-Account anlegen (`npm run create-admin` gegen die Produktions-DB, einmalig).
 7. Lightsail Automatic Snapshots aktivieren.
-8. S3-/Lightsail-Bucket + IAM-Nutzer für Backups anlegen; `deploy/backup-db.sh` + `deploy/backup-db.service` + `deploy/backup-db.timer` auf die Instanz kopieren, `chmod +x deploy/backup-db.sh`, `systemctl enable --now backup-db.timer`, ersten Lauf manuell verifizieren (`systemctl start backup-db.service`, dann `journalctl -u backup-db.service`).
+8. S3-/Lightsail-Bucket + IAM-Nutzer für Backups anlegen und das GitHub-Secret `BACKUP_BUCKET` setzen. Das Kopieren, Installieren und Aktivieren von `deploy/backup-db.sh` + `.service` + `.timer` übernimmt seither der `deploy`-Job bei jedem Deploy (§6 Ebene B) — inklusive eines sofortigen Verifikationslaufs. Der frühere Handgriff an dieser Stelle entfällt; `journalctl -u backup-db.service` bleibt der Ort, an dem man einem Fehlschlag nachgeht.
 9. Die bereits im Repo vorhandenen GitHub-Actions-Workflows aktivieren, indem die in §10 gelisteten Secrets/Variablen im Repo hinterlegt werden: `.github/workflows/deploy.yml` (Test → Build+Push nach ECR → Deploy) und `.github/workflows/restore-drill.yml` (wöchentlicher Restore-Test). Den bereits vorhandenen `gitleaks`-Workflow als Required-Status-Check in den Branch-Protection-Regeln für `main` eintragen, damit `deploy.yml` bei einem Secret-Fund gar nicht erst startet.
 10. Einen manuellen Stufe-2-DR-Drill (§7) durchführen, bevor die Familie produktiv auf das System verlassen soll.
 
@@ -191,7 +196,7 @@ Im Repo bereits vorhanden (Code, kein Provisioning):
 | `deploy/docker-compose.e2e.yml` | Compose-Overlay für den `e2e`-Job: baut `web` mit `VITE_DEMO_LOGIN=true`, ergänzt einen Healthcheck für `web`, deaktiviert den Sweep-Worker — nur für CI, nie für lokale Entwicklung oder Produktion |
 | `.github/workflows/restore-drill.yml` | Wöchentlicher automatisierter Restore-Test (§7 Stufe 1) |
 | `apps/api/prisma/verify-restore.ts` (`npm run verify-restore -w apps/api`) | Sanity-Checks nach einem Restore: Kern-Tabellen, Ledger-Konsistenz, Hash-Chain |
-| `deploy/backup-db.sh`, `deploy/backup-db.service`, `deploy/backup-db.timer` | Nächtliches `pg_dump` → S3 auf der Instanz (§6 Ebene B) |
+| `deploy/backup-db.sh`, `deploy/backup-db.service`, `deploy/backup-db.timer` | Nächtliches `pg_dump` → S3 auf der Instanz (§6 Ebene B); vom `deploy`-Job auf die Instanz installiert, nicht von Hand |
 
 **AWS-Ressourcen (Account `637423428697`, Region `eu-central-1`) — provisioniert:**
 
@@ -224,7 +229,8 @@ Dashboard-Account anlegen ohne eigenen Shell-Zugriff auf die Instanz, siehe
 README „Betriebsdashboard"). Wird nie in die Instanz-`.env` geschrieben,
 sondern nur transient per SSH an den laufenden `api`-Container durchgereicht.
 
-`SETUP_TOKEN` und `INTEGRATION_ENCRYPTION_KEY` werden bei jedem Deploy vom
+`SETUP_TOKEN`, `INTEGRATION_ENCRYPTION_KEY`, die `VAPID_*`-Werte und
+`BACKUP_S3_BUCKET` (aus dem Secret `BACKUP_BUCKET`) werden bei jedem Deploy vom
 `deploy`-Job in die Instanz-`.env` geschrieben (`.github/workflows/deploy.yml`)
 — anders als `SESSION_SECRET` und die DB-Zugangsdaten (§4 oben), die
 bewusst nur einmalig von Hand in der Instanz-`.env` liegen und von CI nie
@@ -243,7 +249,7 @@ vergessener manueller Schritt kann sie nicht mehr reproduzieren.
 - **GitHub OIDC-`sub`-Claims enthalten für dieses Repo numerische IDs**, nicht das in den meisten Tutorials gezeigte `repo:OWNER/REPO:ref:...`-Format, sondern `repo:OWNER@OWNER_ID/REPO@REPO_ID:ref:refs/heads/main`. Beide IAM-Rollen-Trust-Policies mussten entsprechend angepasst werden. Ursache: GitHub bietet inzwischen ein anpassbares OIDC-`sub`-Claim-Template pro Repo an; für dieses Repo war offenbar das ID-einschließende Format aktiv. Vor dem Kopieren einer Trust-Policy aus einer Anleitung im Zweifel den tatsächlichen Claim per Debug-Step verifizieren.
 - **Der Lightsail-Instanz fehlt ein ECR-Login vor `docker compose pull`** — ohne IAM-Instanzrolle (siehe oben) muss `deploy.yml`s SSH-Schritt explizit `aws ecr get-login-password | docker login` ausführen, bevor er Images zieht.
 
-**Live-Status:** Die Anwendung läuft unter **https://aufgaben.brandstaetters.net** (gültiges Let's-Encrypt-Zertifikat, automatisch von Caddy bezogen). Alle vier Container (`db`, `api`, `web`, `caddy`) sind healthy. `backup-db.timer` ist aktiv (erster Lauf: nächste 03:00 UTC). Ausstehend: die erste tatsächliche Haushaltsregistrierung über die Weboberfläche (bewusst nicht von hier aus vorgenommen — das ist ein Schritt für die Familie selbst, siehe §11).
+**Live-Status:** Die Anwendung läuft unter **https://aufgaben.brandstaetters.net** (gültiges Let's-Encrypt-Zertifikat, automatisch von Caddy bezogen). Alle vier Container (`db`, `api`, `web`, `caddy`) sind healthy. `backup-db.timer` ist aktiv — er feuerte allerdings monatelang ins Leere: `BACKUP_S3_BUCKET` stand in keiner `.env`, also brach `backup-db.sh` jede Nacht sofort ab und der S3-Prefix blieb leer (sichtbar geworden erst über den Restore-Drill, §7). Seit dem Deploy-seitigen Sync dieses Werts und der Unit-Installation (§6 Ebene B) verifiziert jeder Deploy die Kette mit einem echten Lauf. Ausstehend: die erste tatsächliche Haushaltsregistrierung über die Weboberfläche (bewusst nicht von hier aus vorgenommen — das ist ein Schritt für die Familie selbst, siehe §11).
 
 ## 11. Offene Entscheidungen für den Nutzer
 

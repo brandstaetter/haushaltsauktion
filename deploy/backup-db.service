@@ -1,5 +1,15 @@
 # Installed on the Lightsail instance at /etc/systemd/system/backup-db.service.
 # Triggered by backup-db.timer — see docs/hosting-plan.md §6/§9.
+#
+# .github/workflows/deploy.yml installs this file on every deploy and rewrites
+# `User=` below to the account it deploys as, so the two can never drift apart.
+#
+# `User=` is not cosmetic: without it the unit runs as root, and root has no
+# ~/.aws/credentials on this instance — the IAM key for `haushaltsauktion-box`
+# lives in the deploy user's home (docs/hosting-plan.md §4). A root-run backup
+# therefore cannot authenticate to S3 at all. The same account also owns
+# /opt/haushaltsauktion and is in the `docker` group, which is what lets the
+# `docker compose exec` in backup-db.sh work.
 
 [Unit]
 Description=Haushaltsauktion - naechtliches DB-Backup nach S3
@@ -8,5 +18,9 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+User=ubuntu
 WorkingDirectory=/opt/haushaltsauktion
 ExecStart=/opt/haushaltsauktion/deploy/backup-db.sh
+# A pg_dump that hangs (stuck container, wedged network) must not keep the
+# unit "activating" forever and silently block every later run.
+TimeoutStartSec=900

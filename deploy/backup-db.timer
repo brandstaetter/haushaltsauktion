@@ -1,11 +1,14 @@
 # Installed on the Lightsail instance at /etc/systemd/system/backup-db.timer.
-# Enable with: systemctl enable --now backup-db.timer
+# .github/workflows/deploy.yml enables it on every deploy; `systemctl enable
+# --now backup-db.timer` is the equivalent manual step.
 
 [Unit]
 Description=Taeglicher Trigger fuer haushaltsauktion-backup
 
 [Timer]
 OnCalendar=*-*-* 03:00:00
+# Catches up a run missed while the instance was down (e.g. a reboot across
+# 03:00) instead of silently skipping that night's backup.
 Persistent=true
 
 [Install]
