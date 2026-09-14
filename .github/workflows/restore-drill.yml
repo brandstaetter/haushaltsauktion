@@ -16,9 +16,19 @@ on:
   schedule:
     - cron: '0 4 * * 1' # every Monday, 04:00 UTC
   workflow_dispatch:
+    inputs:
+      max_backup_age_days:
+        description: >-
+          Maximales Alter des jüngsten Backups in Tagen, bevor der Drill
+          fehlschlägt. Backups laufen nächtlich (03:00 UTC), der Default
+          toleriert also zwei ausgefallene Nächte.
+        required: false
+        default: '3'
 
 env:
   AWS_REGION: eu-central-1
+  # `inputs` ist bei `schedule` leer — `|| '3'` deckt diesen Pfad mit ab.
+  MAX_BACKUP_AGE_DAYS: ${{ inputs.max_backup_age_days || '3' }}
 
 jobs:
   restore-test:
@@ -58,22 +68,75 @@ jobs:
 
       - name: Find latest backup
         id: latest
+        env:
+          BACKUP_BUCKET: ${{ secrets.BACKUP_BUCKET }}
         run: |
           set -euo pipefail
-          KEY=$(aws s3api list-objects-v2 \
-            --bucket "${{ secrets.BACKUP_BUCKET }}" \
+
+          # ListObjectsV2 LÄSST `Contents` WEG, wenn nichts auf den Prefix
+          # passt — es liefert keine leere Liste. `sort_by(Contents, ...)`
+          # brach damit im CLI selbst ab
+          #   "In function sort_by(), invalid type for value: None"
+          # (Exit 255), noch bevor die Prüfung unten laufen konnte. Die
+          # eigentliche Diagnose war dadurch toter Code und jeder Lauf seit
+          # Einführung des Workflows scheiterte mit dieser nichtssagenden
+          # Meldung statt mit "kein Backup vorhanden".
+          # `|| `[]`` macht aus dem Leerfall ein reguläres `None`, das hier
+          # ausgewertet werden kann.
+          KEY=""
+          LAST_MODIFIED=""
+          LATEST=$(aws s3api list-objects-v2 \
+            --bucket "$BACKUP_BUCKET" \
             --prefix "backups/" \
-            --query 'sort_by(Contents,&LastModified)[-1].Key' \
+            --query 'sort_by(Contents || `[]`, &LastModified)[-1].[Key,LastModified]' \
             --output text)
+          read -r KEY LAST_MODIFIED <<<"$LATEST" || true
+
           if [ -z "$KEY" ] || [ "$KEY" = "None" ]; then
-            echo "::error::Keine Backups unter s3://${{ secrets.BACKUP_BUCKET }}/backups/ gefunden."
+            echo "::error::Keine Backups unter s3://$BACKUP_BUCKET/backups/ gefunden. Der nächtliche backup-db.timer auf der Instanz hat nie erfolgreich hochgeladen — siehe docs/hosting-plan.md §6/§7."
+            {
+              echo "### ❌ Kein Backup vorhanden"
+              echo
+              echo "Unter dem Prefix \`backups/\` im Backup-Bucket liegt kein einziges Objekt."
+              echo
+              echo "Auf der Lightsail-Instanz prüfen:"
+              echo '```'
+              echo "systemctl status backup-db.timer backup-db.service"
+              echo "journalctl -u backup-db.service -n 50"
+              echo "sudo /opt/haushaltsauktion/deploy/backup-db.sh   # manuell, zeigt den Fehler direkt"
+              echo '```'
+              echo
+              echo "Häufigste Ursachen: \`BACKUP_S3_BUCKET\` fehlt in \`/opt/haushaltsauktion/.env\`,"
+              echo "die Unit-Dateien wurden nie nach \`/etc/systemd/system/\` kopiert und aktiviert,"
+              echo "oder die AWS-Zugangsdaten liegen nicht unter \`/root/.aws/credentials\`"
+              echo "(die Unit läuft ohne \`User=\`, also als root — nicht als Deploy-User)."
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            # Zusatzdiagnose: unterscheidet "Bucket komplett leer" (Backup lief
+            # nie) von "Objekte liegen unter einem anderen Prefix" (Bucket-/
+            # Prefix-Verwechslung). Die OIDC-Rolle darf laut §4 nur unter
+            # `backups/*` listen, ein AccessDenied ist hier also erwartbar und
+            # darf den Schritt nicht zusätzlich abbrechen.
+            echo "--- Objekte im Bucket außerhalb von backups/ (nur Diagnose) ---"
+            aws s3api list-objects-v2 --bucket "$BACKUP_BUCKET" --max-items 5 \
+              --query 'Contents[].Key' --output text 2>&1 || true
+
             exit 1
           fi
+
           echo "key=$KEY" >> "$GITHUB_OUTPUT"
+          echo "last-modified=$LAST_MODIFIED" >> "$GITHUB_OUTPUT"
+
+          AGE_SECONDS=$(( $(date -u +%s) - $(date -u -d "$LAST_MODIFIED" +%s) ))
+          AGE_HOURS=$(( AGE_SECONDS / 3600 ))
+          echo "age-hours=$AGE_HOURS" >> "$GITHUB_OUTPUT"
+          echo "Jüngstes Backup: $KEY ($LAST_MODIFIED, $AGE_HOURS h alt)"
 
       - name: Download latest backup
-        run: |
-          aws s3 cp "s3://${{ secrets.BACKUP_BUCKET }}/${{ steps.latest.outputs.key }}" backup.sql.gz
+        env:
+          BACKUP_BUCKET: ${{ secrets.BACKUP_BUCKET }}
+          KEY: ${{ steps.latest.outputs.key }}
+        run: aws s3 cp "s3://$BACKUP_BUCKET/$KEY" backup.sql.gz
 
       - name: Restore dump into ephemeral Postgres
         run: |
@@ -89,7 +152,35 @@ jobs:
       - name: Run restore sanity checks
         run: npm run verify-restore -w apps/api
 
+      # Bewusst NACH dem Restore: ein veraltetes Backup soll den Drill rot
+      # machen (sonst deckt ein toter backup-db.timer sich hinter einem alten,
+      # weiterhin einspielbaren Dump), aber die Information "der Dump ließ sich
+      # überhaupt wiederherstellen" ist trotzdem wertvoll und geht so nicht
+      # verloren.
+      - name: Assert backup freshness
+        env:
+          KEY: ${{ steps.latest.outputs.key }}
+          AGE_HOURS: ${{ steps.latest.outputs.age-hours }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$MAX_BACKUP_AGE_DAYS" =~ ^[0-9]+$ ]]; then
+            echo "::error::max_backup_age_days muss eine ganze Zahl sein, war: '$MAX_BACKUP_AGE_DAYS'."
+            exit 1
+          fi
+          MAX_AGE_HOURS=$(( MAX_BACKUP_AGE_DAYS * 24 ))
+          if [ "$AGE_HOURS" -gt "$MAX_AGE_HOURS" ]; then
+            echo "::error::Jüngstes Backup ($KEY) ist ${AGE_HOURS} h alt, erlaubt sind ${MAX_AGE_HOURS} h. Der Restore selbst hat funktioniert — es fehlen aber aktuelle Backups, d. h. der nächtliche backup-db.timer auf der Instanz läuft nicht mehr (docs/hosting-plan.md §6)."
+            exit 1
+          fi
+          echo "Backup-Alter ${AGE_HOURS} h liegt innerhalb des Limits von ${MAX_AGE_HOURS} h."
+
       - name: Summary
         if: always()
+        env:
+          KEY: ${{ steps.latest.outputs.key }}
+          LAST_MODIFIED: ${{ steps.latest.outputs.last-modified }}
+          AGE_HOURS: ${{ steps.latest.outputs.age-hours }}
         run: |
-          echo "Restored backup: ${{ steps.latest.outputs.key }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$KEY" ]; then
+            echo "Restored backup: $KEY ($LAST_MODIFIED, ${AGE_HOURS} h alt)" >> "$GITHUB_STEP_SUMMARY"
+          fi
