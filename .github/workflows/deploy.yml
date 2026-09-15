@@ -220,13 +220,19 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7.0.1
-      - name: Sync compose file and Caddyfile to the instance
+      - name: Sync compose file, Caddyfile and backup pipeline to the instance
         uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "deploy/docker-compose.prod.yml,deploy/Caddyfile"
+          # backup-db.* used to reach the instance ONLY via a manual copy at
+          # first provisioning (hosting-plan §6/§9), so edits in this repo
+          # never arrived and the whole nightly backup depended on a one-time
+          # step nobody re-checks. Same reasoning as the SETUP_TOKEN /
+          # INTEGRATION_ENCRYPTION_KEY sync below: a step that has to be
+          # remembered is a step that eventually gets skipped.
+          source: "deploy/docker-compose.prod.yml,deploy/Caddyfile,deploy/backup-db.sh,deploy/backup-db.service,deploy/backup-db.timer"
           target: /opt/haushaltsauktion/.incoming
           strip_components: 1
       - name: Pull latest images and restart the stack on the Lightsail instance
@@ -240,12 +246,35 @@ jobs:
             cd /opt/haushaltsauktion
             mv .incoming/docker-compose.prod.yml docker-compose.yml
             mv .incoming/Caddyfile Caddyfile
+            mkdir -p deploy
+            mv .incoming/backup-db.sh deploy/backup-db.sh
+            chmod +x deploy/backup-db.sh
+            mv .incoming/backup-db.service .incoming/backup-db.timer deploy/
             rmdir .incoming
             aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 637423428697.dkr.ecr.eu-central-1.amazonaws.com
             if grep -q '^SETUP_TOKEN=' .env; then
               sed -i "s#^SETUP_TOKEN=.*#SETUP_TOKEN=${{ secrets.SETUP_TOKEN }}#" .env
             else
               echo "SETUP_TOKEN=${{ secrets.SETUP_TOKEN }}" >> .env
+            fi
+
+            # deploy/backup-db.sh aborts immediately without this value, and
+            # NOTHING ever wrote it to the instance: it was neither part of the
+            # documented manual `.env` (hosting-plan §4) nor synced from CI, so
+            # the nightly backup failed on its very first line every night
+            # since provisioning and the S3 prefix stayed empty. The bucket
+            # name is not a secret in the `.env` sense, but it already exists
+            # as the BACKUP_BUCKET secret that restore-drill.yml uses, so
+            # sourcing it from there keeps both halves of the backup/restore
+            # pair pointed at the same bucket by construction.
+            if grep -q '^BACKUP_S3_BUCKET=' .env; then
+              sed -i "s#^BACKUP_S3_BUCKET=.*#BACKUP_S3_BUCKET=${{ secrets.BACKUP_BUCKET }}#" .env
+            else
+              echo "BACKUP_S3_BUCKET=${{ secrets.BACKUP_BUCKET }}" >> .env
+            fi
+            if ! grep -qE '^BACKUP_S3_BUCKET=.+' .env; then
+              echo "::error::BACKUP_S3_BUCKET ist leer (das GitHub-Secret BACKUP_BUCKET fehlt oder ist leer). Ohne diesen Wert laeuft kein naechtliches Backup (docs/hosting-plan.md §6)."
+              exit 1
             fi
 
             # Synced from GitHub Secrets the same way as SETUP_TOKEN above,
@@ -358,3 +387,43 @@ jobs:
             fi
 
             docker image prune -f
+
+            # ── Naechtliches DB-Backup installieren (hosting-plan §6 Ebene B)
+            # Bisher ein reiner Handgriff bei der Ersteinrichtung. Genau diese
+            # Sorte Schritt wurde hier schon einmal vergessen
+            # (INTEGRATION_ENCRYPTION_KEY, §4) — deshalb bei jedem Deploy.
+            if ! sudo -n true 2>/dev/null; then
+              echo "::error::Der Deploy-User hat kein passwortloses sudo; backup-db.timer laesst sich nicht installieren."
+              exit 1
+            fi
+            sudo install -m 0644 deploy/backup-db.service /etc/systemd/system/backup-db.service
+            sudo install -m 0644 deploy/backup-db.timer /etc/systemd/system/backup-db.timer
+            # Die Unit muss als der Account laufen, dessen ~/.aws/credentials
+            # den IAM-Nutzer haushaltsauktion-box enthaelt — also als genau der
+            # User, der dieses Skript gerade ausfuehrt. Als root (= ohne User=)
+            # findet sie keine Zugangsdaten und kann nichts hochladen.
+            sudo sed -i "s#^User=.*#User=$(id -un)#" /etc/systemd/system/backup-db.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable --now backup-db.timer
+
+            if ! systemctl is-active --quiet backup-db.timer; then
+              echo "::error::backup-db.timer ist nach der Installation nicht aktiv."
+              systemctl status backup-db.timer --no-pager || true
+              exit 1
+            fi
+            systemctl list-timers backup-db.timer --no-pager || true
+
+            # Ein sofortiger Lauf pro Deploy: er ist die einzige Stelle, an der
+            # CI die Backup-Kette tatsaechlich beweisen kann, statt sie bis zum
+            # naechsten Restore-Drill (Montag) ungeprueft zu lassen. Bei dieser
+            # Datenmenge dauert der Dump Sekundenbruchteile, und der Key des
+            # Tages wird im versionierten Bucket lediglich ueberschrieben.
+            # Type=oneshot heisst: `start` kehrt erst nach dem Lauf zurueck und
+            # meldet dessen Exit-Code.
+            echo "Verifiziere die Backup-Kette mit einem sofortigen Lauf..."
+            if ! sudo systemctl start backup-db.service; then
+              echo "::error::Das Backup ist fehlgeschlagen. Die Anwendung selbst laeuft bereits (siehe Health-Poll oben) — es ist die Backup-Kette, die kaputt ist. Journal:"
+              sudo journalctl -u backup-db.service -n 50 --no-pager || true
+              exit 1
+            fi
+            sudo journalctl -u backup-db.service -n 20 --no-pager || true
