@@ -289,3 +289,67 @@ test('setting maxRandomAssignmentsPerInstance to null restores repeated conscrip
   await runAssignmentSweep(depsAt(hoursAfter(1)), { householdId: ids.householdId });
   expect(await randomAssignmentCount(instance)).toBe(2);
 });
+
+const growthNotifications = (instanceId: string) =>
+  db.notification.findMany({
+    where: { taskInstanceId: instanceId, type: 'TASK_VALUE_INCREASED' },
+    select: { memberId: true, payload: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+test('§24 — the household is told when the value climbs a band, not on every step', async () => {
+  const version = await installConfig(); // notifyAfterPoints: 5
+  const instance = await createRipe(version, { currentValue: 4, ripe: false });
+
+  // Four hours: 4 → 8. Below the first band (base 4 + 5 = 9): silence.
+  await runAssignmentSweep(depsAt(hoursAfter(4)), { householdId: ids.householdId });
+  expect(await valueOf(instance)).toBe(8);
+  expect(await growthNotifications(instance)).toHaveLength(0);
+
+  // The fifth hour crosses 9 and speaks — once per active member, not once
+  // per elapsed hour.
+  await runAssignmentSweep(depsAt(hoursAfter(5)), { householdId: ids.householdId });
+  expect(await valueOf(instance)).toBe(9);
+  const first = await growthNotifications(instance);
+  expect(first).toHaveLength(3); // elke, arthur, luise
+  expect(first[0]?.payload).toMatchObject({ from: 4, to: 9 });
+
+  // Hours six through nine climb 10 → 13 without another word.
+  for (const h of [6, 7, 8, 9]) {
+    await runAssignmentSweep(depsAt(hoursAfter(h)), { householdId: ids.householdId });
+  }
+  expect(await valueOf(instance)).toBe(13);
+  expect(await growthNotifications(instance)).toHaveLength(3);
+
+  // The tenth crosses the second band at 14.
+  await runAssignmentSweep(depsAt(hoursAfter(10)), { householdId: ids.householdId });
+  expect(await valueOf(instance)).toBe(14);
+  const second = await growthNotifications(instance);
+  expect(second).toHaveLength(6);
+  expect(second[5]?.payload).toMatchObject({ from: 9, to: 14 });
+});
+
+test('§24 — a sweep outage that crosses several bands still sends exactly one message', async () => {
+  const version = await installConfig();
+  const instance = await createRipe(version, { currentValue: 4, ripe: false });
+
+  // Nothing ran for a day: 4 → 28, crossing 9, 14, 19 and 24.
+  await runAssignmentSweep(depsAt(hoursAfter(24)), { householdId: ids.householdId });
+  expect(await valueOf(instance)).toBe(28);
+
+  const sent = await growthNotifications(instance);
+  expect(sent).toHaveLength(3);
+  // The highest band crossed is what gets reported, not every intermediate one.
+  expect(sent[0]?.payload).toMatchObject({ from: 19, to: 28 });
+});
+
+test('§24 — notifyAfterPoints: 0 keeps the value climbing in silence', async () => {
+  const version = await installConfig((config) => {
+    config.valueGrowth.notifyAfterPoints = 0;
+  });
+  const instance = await createRipe(version, { currentValue: 4, ripe: false });
+
+  await runAssignmentSweep(depsAt(hoursAfter(30)), { householdId: ids.householdId });
+  expect(await valueOf(instance)).toBe(34);
+  expect(await growthNotifications(instance)).toHaveLength(0);
+});

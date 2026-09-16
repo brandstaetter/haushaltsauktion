@@ -23,7 +23,7 @@
  * interleave on one instance.
  */
 
-import { grownValue } from '../../domain/task/value.js';
+import { grownValue, growthNotificationBand } from '../../domain/task/value.js';
 import { loadCurrentConfig } from '../config/load.js';
 import type { Deps } from '../deps.js';
 import { acquireSweepLock, lockInstance, withTransaction } from '../tx.js';
@@ -37,10 +37,15 @@ export interface ValueGrowthReport {
   capped: number;
   /** `AVAILABLE` instances that had no anchor yet and got one (no value change). */
   seeded: number;
+  /**
+   * §24: growth steps that crossed a notification band and told the household.
+   * Far smaller than `grown` by design — see `valueGrowth.notifyAfterPoints`.
+   */
+  notified: number;
 }
 
 export function emptyValueGrowthReport(): ValueGrowthReport {
-  return { grown: 0, pointsAdded: 0, capped: 0, seeded: 0 };
+  return { grown: 0, pointsAdded: 0, capped: 0, seeded: 0, notified: 0 };
 }
 
 export async function runValueGrowthSweep(
@@ -101,6 +106,16 @@ export async function runValueGrowthSweep(
       if (step.steps === 0) return null;
 
       const added = step.value - instance.currentValue;
+      // §24 "Wert einer Aufgabe ist gestiegen". Deliberately NOT one message
+      // per step: at the default rate that would be an hourly ping per open
+      // chore for every member. `growthNotificationBand` fires only when the
+      // value crosses `baseValue + n * notifyAfterPoints`.
+      const band = growthNotificationBand(config, {
+        baseValue: instance.baseValue,
+        before: instance.currentValue,
+        after: step.value,
+      });
+
       if (input.dryRun !== true) {
         await tx.taskInstance.updateMany({
           // §3.2 householdId predicate, plus the usual compare-and-set guard.
@@ -118,9 +133,35 @@ export async function runValueGrowthSweep(
             ...(added > 0 ? { version: { increment: 1 } } : {}),
           },
         });
+
+        if (band !== null) {
+          // Everyone active: unlike a buyout there is no actor to exclude —
+          // nobody caused this, the clock did.
+          const recipients = await tx.householdMember.findMany({
+            where: { householdId: input.householdId, isActive: true },
+            select: { id: true },
+          });
+          await deps.notifier.emit(
+            tx,
+            recipients.map((m) => ({
+              householdId: input.householdId,
+              memberId: m.id,
+              type: 'TASK_VALUE_INCREASED',
+              // `from` is the value the member was last told about (the band
+              // below), not `instance.currentValue` — otherwise the message
+              // would read "+1" and hide the climb it is reporting.
+              payload: {
+                taskInstanceId: instance.id,
+                from: Math.max(instance.baseValue, band - config.valueGrowth.notifyAfterPoints),
+                to: step.value,
+              },
+              taskInstanceId: instance.id,
+            })),
+          );
+        }
       }
 
-      return { added, capped: step.capped };
+      return { added, capped: step.capped, notified: band !== null };
     });
 
     if (outcome === null) continue;
@@ -133,6 +174,7 @@ export async function runValueGrowthSweep(
       report.pointsAdded += outcome.added;
     }
     if (outcome.capped) report.capped += 1;
+    if (outcome.notified) report.notified += 1;
   }
 
   return report;

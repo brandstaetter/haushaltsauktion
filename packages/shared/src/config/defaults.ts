@@ -79,6 +79,9 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
     enabled: true,
     pointsPerInterval: 1,
     intervalMinutes: 60,
+    // At +1/h this is one message per chore roughly every five hours, instead
+    // of one every hour. See ValueGrowthConfig.notifyAfterPoints.
+    notifyAfterPoints: 5,
   }),
 
   completion: Object.freeze({
@@ -186,6 +189,7 @@ export function toPublicConfig(cfg: HouseholdConfig): PublicHouseholdConfig {
       enabled: cfg.valueGrowth.enabled,
       pointsPerInterval: cfg.valueGrowth.pointsPerInterval,
       intervalMinutes: cfg.valueGrowth.intervalMinutes,
+      notifyAfterPoints: cfg.valueGrowth.notifyAfterPoints,
     },
     completion: {
       resetStrategy: cfg.completion.resetStrategy,

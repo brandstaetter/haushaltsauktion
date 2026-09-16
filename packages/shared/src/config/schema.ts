@@ -150,6 +150,15 @@ const ValueGrowthSchema = z
       .min(5)
       .max(MINUTES_PER_WEEK)
       .default(DEFAULT_CONFIG.valueGrowth.intervalMinutes),
+    // 0 = never notify about growth. No upper bound worth enforcing beyond a
+    // fat-finger guard: a threshold above any reachable value simply means
+    // "never", which 0 already expresses more clearly.
+    notifyAfterPoints: z
+      .number()
+      .int()
+      .min(0)
+      .max(10000)
+      .default(DEFAULT_CONFIG.valueGrowth.notifyAfterPoints),
   })
   .default(DEFAULT_CONFIG.valueGrowth);
 

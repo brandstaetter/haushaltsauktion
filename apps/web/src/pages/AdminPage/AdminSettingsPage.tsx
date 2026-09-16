@@ -376,6 +376,17 @@ export function AdminSettingsPage() {
             onChange={(minutes) => update('valueGrowth', { intervalMinutes: minutes ?? 60 })}
           />
         </label>
+        <label className={styles.field}>
+          <span>{de.admin.fields.valueGrowthNotifyAfterPoints}</span>
+          <input
+            type="number"
+            min={0}
+            value={draft.valueGrowth.notifyAfterPoints}
+            onChange={(e) =>
+              update('valueGrowth', { notifyAfterPoints: parseInt(e.target.value, 10) || 0 })
+            }
+          />
+        </label>
         {/*
           The ceiling lives in the valueIncrease section above: it is shared by
           both escalation paths on purpose, so duplicating the control here
