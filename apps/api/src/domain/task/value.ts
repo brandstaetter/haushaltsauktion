@@ -178,6 +178,41 @@ export function grownValue(cfg: HouseholdConfig, input: ValueGrowthInput): Value
   return { value, steps, anchor, capped: cap !== null && value >= cap };
 }
 
+/**
+ * §24 — should a growth step tell the household about it?
+ *
+ * Bands sit at `baseValue + n * notifyAfterPoints`. A step notifies iff it
+ * moved the value across at least one band, so members hear "this chore is
+ * worth noticeably more now" rather than "+1" sixty times a day.
+ *
+ * Stateless on purpose: the answer depends only on the two values and the
+ * config, never on a stored "last notified" marker. A replayed or duplicated
+ * sweep therefore cannot re-send, and a restart cannot lose the thread.
+ *
+ * Returns the value of the highest band crossed — the number worth putting in
+ * the message when several bands were passed at once (a long sweep outage),
+ * rather than every intermediate one.
+ */
+export function growthNotificationBand(
+  cfg: HouseholdConfig,
+  input: { baseValue: number; before: number; after: number },
+): number | null {
+  const threshold = cfg.valueGrowth.notifyAfterPoints;
+  if (threshold <= 0) return null;
+  if (input.after <= input.before) return null;
+
+  // Below the base value there is no band to cross yet: `Math.floor` on a
+  // negative distance would otherwise invent bands beneath the base.
+  const bandOf = (value: number): number =>
+    value < input.baseValue ? 0 : Math.floor((value - input.baseValue) / threshold);
+
+  const crossed = bandOf(input.after);
+  if (crossed <= bandOf(input.before)) return null;
+  if (crossed === 0) return null;
+
+  return input.baseValue + crossed * threshold;
+}
+
 /** §11 / §5.7 — the value a completed instance is reset to. */
 export function resetValue(
   cfg: HouseholdConfig,
