@@ -112,6 +112,7 @@ export function TaskCard({ task, onAction, actionLabel, assignee }: TaskCardProp
           baseValue={task.baseValue}
           buyoutCount={task.buyoutCount}
           size="md"
+          growth={task.valueGrowth}
         />
         {onAction && (
           <Button

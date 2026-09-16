@@ -268,6 +268,11 @@ export async function executeBuyout(deps: Deps, input: BuyoutInput): Promise<Buy
           buyoutCount: { increment: 1 },
           activeSlotCount: remainingAfterRelease,
           offerExpiresAt: offerExpires,
+          // Intake "time-based-value-growth": the buyout bump (§44) and the
+          // clock are additive — the value jumps now and keeps climbing from
+          // there, so the restarted anchor is deliberately `now`, not the one
+          // this instance carried into its assignment.
+          valueGrowthAt: now,
           version: { increment: 1 },
         },
       });

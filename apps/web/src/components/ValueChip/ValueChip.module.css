@@ -47,3 +47,13 @@
 .sm .value { font-size: 18px; }
 .md .value { font-size: 24px; }
 .lg .value { font-size: 36px; }
+
+/* Intake "time-based-value-growth": the §31 disclosure under the number. */
+.growth {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font: var(--t-label);
+  color: var(--ink-3);
+  text-align: center;
+}

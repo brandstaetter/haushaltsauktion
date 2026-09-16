@@ -81,6 +81,28 @@ export interface AvailableTaskDto {
    * still join.
    */
   viewerHasActiveSlot: boolean;
+  /**
+   * Intake "time-based-value-growth". `null` when this instance is not
+   * currently growing — growth disabled, already at
+   * `valueIncrease.maximumValue`, or not on the market.
+   *
+   * §31 forbids hidden rules: a member watching a number climb has to be able
+   * to see what makes it climb, so the rate travels with the card rather than
+   * being something the UI hardcodes.
+   */
+  valueGrowth: TaskValueGrowthDto | null;
+}
+
+export interface TaskValueGrowthDto {
+  /** Points added per interval. */
+  pointsPerInterval: number;
+  intervalMinutes: number;
+  /** When the current growth clock started; ISO-8601. */
+  since: string;
+  /** When the next whole interval lands; ISO-8601. */
+  nextAt: string;
+  /** The ceiling both escalation paths share, or `null` when uncapped. */
+  maximumValue: number | null;
 }
 
 /** §31 — everything the user must see before deciding. All server-computed. */

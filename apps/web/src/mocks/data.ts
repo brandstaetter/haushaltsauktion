@@ -55,6 +55,7 @@ export const mockAvailableTasks: AvailableTaskDto[] = [
     workerCount: 1,
     activeSlotCount: 0,
     viewerHasActiveSlot: false,
+    valueGrowth: null,
   },
   {
     id: 'instance-bathroom',
@@ -78,6 +79,7 @@ export const mockAvailableTasks: AvailableTaskDto[] = [
     workerCount: 1,
     activeSlotCount: 0,
     viewerHasActiveSlot: false,
+    valueGrowth: null,
   },
 ];
 

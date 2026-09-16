@@ -38,6 +38,9 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
     offerDurationMinutes: 60, // §16
     leadMinutesBeforeDue: 1440, // OQ-4, reworked: auto-assign within 24h of dueAt
     relaxConstraintsWhenNoCandidates: true, // PRD §3D
+    // Intake "single-random-assignment": conscript a chore to somebody once,
+    // then let rising pay do the rest (valueGrowth below).
+    maxRandomAssignmentsPerInstance: 1,
   }),
 
   buyout: Object.freeze({
@@ -67,7 +70,15 @@ export const DEFAULT_CONFIG: HouseholdConfig = Object.freeze({
     formula: null,
     rounding: Rounding.CEIL, // §39
     minimumIncrease: 1, // §39
+    // Shared ceiling for both escalation paths (buyout AND time growth).
     maximumValue: null,
+  }),
+
+  valueGrowth: Object.freeze({
+    // Intake "time-based-value-growth": +1 point per hour on the market.
+    enabled: true,
+    pointsPerInterval: 1,
+    intervalMinutes: 60,
   }),
 
   completion: Object.freeze({
@@ -164,11 +175,17 @@ export function toPublicConfig(cfg: HouseholdConfig): PublicHouseholdConfig {
       strategy: cfg.assignment.strategy,
       offerDurationMinutes: cfg.assignment.offerDurationMinutes,
       leadMinutesBeforeDue: cfg.assignment.leadMinutesBeforeDue,
+      maxRandomAssignmentsPerInstance: cfg.assignment.maxRandomAssignmentsPerInstance,
     },
     valueIncrease: {
       strategy: cfg.valueIncrease.strategy,
       minimumIncrease: cfg.valueIncrease.minimumIncrease,
       maximumValue: cfg.valueIncrease.maximumValue,
+    },
+    valueGrowth: {
+      enabled: cfg.valueGrowth.enabled,
+      pointsPerInterval: cfg.valueGrowth.pointsPerInterval,
+      intervalMinutes: cfg.valueGrowth.intervalMinutes,
     },
     completion: {
       resetStrategy: cfg.completion.resetStrategy,

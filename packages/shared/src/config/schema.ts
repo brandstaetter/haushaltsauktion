@@ -29,6 +29,7 @@ import { DEFAULT_CONFIG } from './defaults.js';
 import type { HouseholdConfig } from './types.js';
 
 const MINUTES_PER_FORTNIGHT = 20160;
+const MINUTES_PER_WEEK = 10080;
 
 const positiveIntOrNull = z.number().int().min(1).nullable();
 
@@ -77,6 +78,10 @@ const AssignmentSchema = z
       .min(0)
       .max(MINUTES_PER_FORTNIGHT)
       .default(DEFAULT_CONFIG.assignment.leadMinutesBeforeDue),
+    // `null` = unlimited re-draws (pre-intake behaviour). 1 = conscript once.
+    maxRandomAssignmentsPerInstance: positiveIntOrNull.default(
+      DEFAULT_CONFIG.assignment.maxRandomAssignmentsPerInstance,
+    ),
     relaxConstraintsWhenNoCandidates: z
       .boolean()
       .default(DEFAULT_CONFIG.assignment.relaxConstraintsWhenNoCandidates),
@@ -125,6 +130,28 @@ const ValueIncreaseSchema = z
     maximumValue: positiveIntOrNull.default(DEFAULT_CONFIG.valueIncrease.maximumValue),
   })
   .default(DEFAULT_CONFIG.valueIncrease);
+
+const ValueGrowthSchema = z
+  .strictObject({
+    enabled: z.boolean().default(DEFAULT_CONFIG.valueGrowth.enabled),
+    // `>= 1`: a growth step that adds nothing would spin the sweep forever
+    // without ever making the chore more attractive.
+    pointsPerInterval: z
+      .number()
+      .int()
+      .min(1)
+      .max(1000)
+      .default(DEFAULT_CONFIG.valueGrowth.pointsPerInterval),
+    // Floor of 5 minutes keeps a misconfiguration from turning a chore into a
+    // fortune overnight; the ceiling is a week, past which "growth" is noise.
+    intervalMinutes: z
+      .number()
+      .int()
+      .min(5)
+      .max(MINUTES_PER_WEEK)
+      .default(DEFAULT_CONFIG.valueGrowth.intervalMinutes),
+  })
+  .default(DEFAULT_CONFIG.valueGrowth);
 
 const RewardsSchema = z
   .strictObject({
@@ -244,6 +271,7 @@ const HouseholdConfigShape = z
     buyout: BuyoutSchema,
     expiry: ExpirySchema,
     valueIncrease: ValueIncreaseSchema,
+    valueGrowth: ValueGrowthSchema,
     completion: CompletionSchema,
     rewards: RewardsSchema,
     points: PointsSchema,

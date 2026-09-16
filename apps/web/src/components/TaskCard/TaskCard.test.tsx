@@ -27,6 +27,7 @@ function taskFixture(overrides: Partial<AvailableTaskDto> = {}): AvailableTaskDt
     workerCount: 1,
     activeSlotCount: 0,
     viewerHasActiveSlot: false,
+    valueGrowth: null,
     ...overrides,
   };
 }
@@ -64,6 +65,48 @@ describe('TaskCard', () => {
     expect(screen.getByText(/freiwillig/)).toBeInTheDocument();
   });
 
+  // Intake "time-based-value-growth" — §31: the number climbs on its own, so
+  // the card has to say what makes it climb.
+  it('nennt die Wachstumsrate, wenn die Aufgabe auf dem Markt an Wert gewinnt', () => {
+    render(
+      <TaskCard
+        task={taskFixture({
+          currentValue: 9,
+          valueGrowth: {
+            pointsPerInterval: 1,
+            intervalMinutes: 60,
+            since: '2026-09-16T08:00:00.000Z',
+            nextAt: '2026-09-16T09:00:00.000Z',
+            maximumValue: null,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText('steigt um 1 pro Stunde')).toBeInTheDocument();
+  });
+
+  it('nennt zusätzlich die Obergrenze, wenn eine konfiguriert ist', () => {
+    render(
+      <TaskCard
+        task={taskFixture({
+          valueGrowth: {
+            pointsPerInterval: 2,
+            intervalMinutes: 180,
+            since: '2026-09-16T08:00:00.000Z',
+            nextAt: '2026-09-16T11:00:00.000Z',
+            maximumValue: 20,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText('steigt um 2 pro 3 Std, max. 20')).toBeInTheDocument();
+  });
+
+  it('sagt nichts über Wachstum, wenn die Aufgabe gerade nicht wächst', () => {
+    render(<TaskCard task={taskFixture({ valueGrowth: null })} />);
+    expect(screen.queryByText(/steigt um/)).not.toBeInTheDocument();
+  });
+
   it('zeigt "N/M" für eine Multi-Worker-Aufgabe', () => {
     render(<TaskCard task={taskFixture({ workerCount: 3, activeSlotCount: 2 })} />);
     expect(screen.getByText(/2\/3/)).toBeInTheDocument();
@@ -84,6 +127,7 @@ describe('TaskCard', () => {
           activeSlotCount: 1,
           canVolunteer: true,
           viewerHasActiveSlot: false,
+    valueGrowth: null,
         })}
         onAction={onAction}
       />,

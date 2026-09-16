@@ -13,7 +13,7 @@
  *    ladder.
  *  - `buyoutCost` / `evaluateBuyoutRules` (`domain/buyout/{cost,rules}.ts`)
  *    price and permit each buyout exactly as the API would.
- *  - `increasedValue` / `resetValue` / `voluntaryReward`
+ *  - `increasedValue` / `resetValue` / `voluntaryReward` / `grownValue`
  *    (`domain/task/value.ts`) escalate, reset and pay exactly as configured.
  *  - `computePosting` / `verifyLedgerIntegrity`
  *    (`domain/points/ledger-math.ts`) post every point change through the
@@ -60,6 +60,20 @@
  *   cooldown, §13) is tracked precisely: against a per-task offer counter,
  *   which is the unit `assignment.reassignmentCooldownCycles` is actually
  *   defined over in `eligibility.ts`.
+ *
+ * ── A third simplification, for time-based value growth ────────────────────
+ *
+ *   `growthIntervalsPerOffer` (default 1) is how many `valueGrowth` intervals
+ *   are treated as elapsing between two consecutive offers of the SAME task
+ *   while nobody has claimed it.
+ *
+ *   It is a declared parameter rather than something derived from the "one
+ *   cycle = one day" mapping used for the recency term, because the two units
+ *   do not line up: with 20 tasks in round-robin, a given task is re-offered
+ *   every 20 cycles, so deriving the elapsed time that way would credit ~480
+ *   hourly steps per offer and drown every other effect in the model. Naming
+ *   the assumption keeps the number honest and lets `run.ts` vary it, instead
+ *   of dressing an arbitrary choice up as a measurement.
  */
 
 import {
@@ -82,10 +96,11 @@ import {
   type LedgerEntry,
   type LedgerIntegrityFindings,
 } from '../domain/points/ledger-math.js';
-import { increasedValue, resetValue, voluntaryReward } from '../domain/task/value.js';
+import { grownValue, increasedValue, resetValue, voluntaryReward } from '../domain/task/value.js';
 
 export const DEFAULT_VOLUNTARY_UPTAKE_RATE = 0.35;
 export const DEFAULT_BUYOUT_RATE = 0.4;
+export const DEFAULT_GROWTH_INTERVALS_PER_OFFER = 1;
 
 export interface SimMemberInput {
   id: string;
@@ -108,6 +123,13 @@ export interface SimulationOptions {
   cfg?: HouseholdConfig;
   voluntaryUptakeRate?: number;
   buyoutRate?: number;
+  /**
+   * Intake "time-based-value-growth": `valueGrowth` intervals treated as
+   * elapsing between two consecutive offers of the same unclaimed task.
+   * Defaults to `DEFAULT_GROWTH_INTERVALS_PER_OFFER` — see the module header
+   * for why this is declared rather than derived.
+   */
+  growthIntervalsPerOffer?: number;
 }
 
 export interface MemberResult {
@@ -128,6 +150,14 @@ export interface TaskResult {
   timesOffered: number;
   timesCompleted: number;
   timesBoughtOut: number;
+  /**
+   * Intake "single-random-assignment": offers that reached nobody because the
+   * instance had already spent its one random assignment. These are the offers
+   * that rely purely on a rising price to get the chore done.
+   */
+  timesLeftOnMarket: number;
+  /** Total points this task gained by sitting unclaimed. */
+  growthPointsAdded: number;
 }
 
 export interface SimulationResult {
@@ -135,6 +165,8 @@ export interface SimulationResult {
   seed: number;
   voluntaryUptakeRate: number;
   buyoutRate: number;
+  /** Intake "time-based-value-growth" — see the module header. */
+  growthIntervalsPerOffer: number;
   members: MemberResult[];
   tasks: TaskResult[];
   totalVoluntaryCompletions: number;
@@ -148,6 +180,10 @@ export interface SimulationResult {
   maxMeanRatio: number;
   /** True iff every member absorbed at least one random assignment (ergodicity). */
   everyMemberReached: boolean;
+  /** Intake "single-random-assignment": offers resolved by price alone. */
+  totalOffersLeftOnMarket: number;
+  /** Intake "time-based-value-growth": points created by patience, not work. */
+  totalGrowthPointsAdded: number;
   ledger: LedgerIntegrityFindings;
 }
 
@@ -172,6 +208,15 @@ interface InternalTask {
   offerCount: number;
   timesCompleted: number;
   timesBoughtOut: number;
+  /**
+   * Random assignments spent on the CURRENT instance — reset on completion,
+   * because completion ends the instance and the next occurrence starts with
+   * its own allowance. A buyout does NOT reset it: same instance, back on the
+   * market, allowance already spent.
+   */
+  randomAssignmentsThisInstance: number;
+  timesLeftOnMarket: number;
+  growthPointsAdded: number;
 }
 
 const DECIDED_AT = '2026-08-30T00:00:00.000Z';
@@ -190,6 +235,27 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
   const cfg = options.cfg ?? DEFAULT_CONFIG;
   const voluntaryUptakeRate = options.voluntaryUptakeRate ?? DEFAULT_VOLUNTARY_UPTAKE_RATE;
   const buyoutRate = options.buyoutRate ?? DEFAULT_BUYOUT_RATE;
+  const growthIntervalsPerOffer =
+    options.growthIntervalsPerOffer ?? DEFAULT_GROWTH_INTERVALS_PER_OFFER;
+  const maxRandomPerInstance = cfg.assignment.maxRandomAssignmentsPerInstance;
+
+  // `grownValue` is the production arithmetic (cap handling included); the
+  // simulation only has to supply the elapsed time it is modelling.
+  const growthIntervalMs = cfg.valueGrowth.intervalMinutes * 60_000;
+  const growthEpoch = new Date(0);
+  const growthNow = new Date(growthIntervalMs * growthIntervalsPerOffer);
+  const applyGrowth = (task: InternalTask): void => {
+    const step = grownValue(cfg, {
+      currentValue: task.currentValue,
+      anchor: growthEpoch,
+      now: growthNow,
+    });
+    const added = step.value - task.currentValue;
+    if (added <= 0) return;
+    task.currentValue = step.value;
+    task.growthPointsAdded += added;
+    task.maxValueReached = Math.max(task.maxValueReached, task.currentValue);
+  };
 
   if (options.members.length === 0) throw new Error('runSimulation: no members configured.');
   if (options.tasks.length === 0) throw new Error('runSimulation: no tasks configured.');
@@ -225,6 +291,9 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
     offerCount: 0,
     timesCompleted: 0,
     timesBoughtOut: 0,
+    randomAssignmentsThisInstance: 0,
+    timesLeftOnMarket: 0,
+    growthPointsAdded: 0,
   }));
 
   // Per (member, task): the task's own offer-index at which this member was
@@ -320,7 +389,21 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
         currentValue: task.currentValue,
         baseValue: task.baseValue,
       });
+      // Completion ends the instance, so the next occurrence starts with its
+      // own random-assignment allowance (§11's reset, extended).
+      task.randomAssignmentsThisInstance = 0;
 
+      tickRecency(null);
+    } else if (
+      maxRandomPerInstance !== null &&
+      task.randomAssignmentsThisInstance >= maxRandomPerInstance
+    ) {
+      // ── Intake "single-random-assignment": this instance has already been
+      // conscripted to somebody once, so it is never force-assigned again. It
+      // stays on the market and only gets more rewarding until somebody wants
+      // it — which is the whole point of the mechanism.
+      task.timesLeftOnMarket += 1;
+      applyGrowth(task);
       tickRecency(null);
     } else {
       // ── Nobody volunteered: run the real weighted-fairness draw. ───────
@@ -372,6 +455,7 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
 
       lastRandomOfferIndex.set(cooldownKey(selected.id, task.id), offerIndex);
       selected.metrics.randomAssignments += 1;
+      task.randomAssignmentsThisInstance += 1;
 
       const buyoutDraw = rng.next();
       let didBuyout = false;
@@ -422,6 +506,11 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
           currentValue: task.currentValue,
           baseValue: task.baseValue,
         });
+        task.randomAssignmentsThisInstance = 0;
+      } else {
+        // Bought out: same instance, back on the market with its allowance
+        // already spent — from here only the rising price can move it.
+        applyGrowth(task);
       }
 
       tickRecency(selected.id);
@@ -449,6 +538,7 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
     seed: options.seed,
     voluntaryUptakeRate,
     buyoutRate,
+    growthIntervalsPerOffer,
     members: members.map((m) => ({
       memberId: m.id,
       displayName: m.displayName,
@@ -466,10 +556,14 @@ export function runSimulation(options: SimulationOptions): SimulationResult {
       timesOffered: t.offerCount,
       timesCompleted: t.timesCompleted,
       timesBoughtOut: t.timesBoughtOut,
+      timesLeftOnMarket: t.timesLeftOnMarket,
+      growthPointsAdded: t.growthPointsAdded,
     })),
     totalVoluntaryCompletions: members.reduce((sum, m) => sum + m.metrics.voluntaryCompletions, 0),
     totalRandomAssignments,
     totalBuyouts: members.reduce((sum, m) => sum + m.metrics.buyouts, 0),
+    totalOffersLeftOnMarket: tasks.reduce((sum, t) => sum + t.timesLeftOnMarket, 0),
+    totalGrowthPointsAdded: tasks.reduce((sum, t) => sum + t.growthPointsAdded, 0),
     maxRandomLoad,
     meanRandomLoad,
     maxMeanRatio,

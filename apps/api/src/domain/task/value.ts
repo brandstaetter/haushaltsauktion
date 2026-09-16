@@ -96,6 +96,88 @@ export function increasedValue(cfg: HouseholdConfig, ctx: FormulaContext): numbe
   return clampToSafeInteger(value, cur + 1);
 }
 
+export interface ValueGrowthInput {
+  currentValue: number;
+  /**
+   * When the current growth clock started, i.e. when this instance last
+   * entered `AVAILABLE` or when the last whole step was credited.
+   */
+  anchor: Date;
+  now: Date;
+}
+
+export interface ValueGrowthStep {
+  /** The value after crediting every whole interval that has elapsed. */
+  value: number;
+  /** Whole intervals consumed. `0` means the caller writes nothing at all. */
+  steps: number;
+  /**
+   * The anchor advanced by exactly `steps` intervals — deliberately NOT `now`.
+   * Advancing to `now` would throw away the unfinished remainder of the
+   * current interval on every sweep, so a chore would grow strictly slower
+   * than configured whenever the sweep ticks off-beat (which it always does).
+   * Carrying the remainder also makes a sweep outage cost nothing: the next
+   * run credits every interval the instance sat through while nobody looked.
+   */
+  anchor: Date;
+  /**
+   * The cap stopped this step short, so the value can never rise again during
+   * this `AVAILABLE` spell. Callers clear the stored anchor on this, which
+   * takes the instance out of the growth query for good instead of leaving it
+   * to be re-examined and re-written every interval forever.
+   */
+  capped: boolean;
+}
+
+/**
+ * Intake "time-based-value-growth" — what an instance is worth after sitting
+ * on the market.
+ *
+ * The counterpart to `assignment.maxRandomAssignmentsPerInstance`: once a
+ * chore can no longer be forced onto anybody, a rising price is the only
+ * mechanism left that gets it done. §44's "der erhöhte Wert ist gleichzeitig
+ * der potentielle Gewinn einer späteren freiwilligen Übernahme" holds exactly
+ * as it does for a buyout — this is the same `currentValue`, reached by
+ * waiting rather than by paying.
+ *
+ * Shares `valueIncrease.maximumValue` with the buyout path on purpose: a
+ * household sets one ceiling for "how valuable may this chore ever get",
+ * regardless of which escalation got it there.
+ */
+export function grownValue(cfg: HouseholdConfig, input: ValueGrowthInput): ValueGrowthStep {
+  const unchanged: ValueGrowthStep = {
+    value: input.currentValue,
+    steps: 0,
+    anchor: input.anchor,
+    capped: false,
+  };
+
+  const vg = cfg.valueGrowth;
+  if (!vg.enabled) return unchanged;
+
+  const intervalMs = vg.intervalMinutes * 60_000;
+  const elapsedMs = input.now.getTime() - input.anchor.getTime();
+  // A clock that has not reached the first full interval owes nothing yet. A
+  // negative elapsed (anchor in the future, e.g. a clock adjustment) must not
+  // run the value backwards either.
+  if (elapsedMs < intervalMs) return unchanged;
+
+  const steps = Math.floor(elapsedMs / intervalMs);
+  const anchor = new Date(input.anchor.getTime() + steps * intervalMs);
+
+  const cap = cfg.valueIncrease.maximumValue;
+  // Already at the ceiling before this step: consume the time, credit nothing,
+  // and tell the caller to retire this instance from the growth query.
+  if (cap !== null && input.currentValue >= cap) {
+    return { value: input.currentValue, steps, anchor, capped: true };
+  }
+
+  const raw = input.currentValue + steps * vg.pointsPerInterval;
+  const value = clampToSafeInteger(cap !== null ? Math.min(raw, cap) : raw, input.currentValue);
+
+  return { value, steps, anchor, capped: cap !== null && value >= cap };
+}
+
 /** §11 / §5.7 — the value a completed instance is reset to. */
 export function resetValue(
   cfg: HouseholdConfig,

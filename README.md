@@ -6,6 +6,11 @@ Familie oder kleinen Gruppe: Aufgaben können freiwillig übernommen werden
 bringen dann keine Punkte). Eine zugeloste Aufgabe kann gegen Punkte
 abgelehnt werden — dabei steigt ihr Wert, und sie wird erneut angeboten.
 
+**Zugelost wird eine Aufgabe höchstens einmal.** Danach bleibt sie auf dem
+Markt und wird mit der Zeit immer wertvoller (standardmäßig +1 Punkt pro
+Stunde), bis sie jemand freiwillig übernimmt. Niemand bekommt dieselbe
+Aufgabe zweimal aufgezwungen; ab da entscheidet der Preis, nicht das Los.
+
 Die volle Spezifikation steht in [`CLAUDE.md`](./CLAUDE.md).
 
 ## Schnellstart (Docker, ein Kommando)
@@ -162,9 +167,12 @@ rechnet etwas Verbindliches im Client. Das Konfigurationsschema lebt in
 | Zuweisung | `strategy` | `WEIGHTED_FAIRNESS` |
 | Zuweisung | `offerDurationMinutes` | `60` |
 | Zuweisung | `preventImmediateReassignment` | `true` |
+| Zuweisung | `maxRandomAssignmentsPerInstance` | `1` (`null` = unbegrenzt neu auslosen) |
 | Freikauf | `costStrategy` | `CURRENT_TASK_VALUE` |
 | Freikauf | `allowNegativeBalance` | `false` |
 | Wertsteigerung | `strategy` | `MULTIPLIER` × `1.5`, `CEIL`, min. `+1` |
+| Wertsteigerung | `maximumValue` | `null` (Obergrenze für Freikauf **und** Zeitzuwachs) |
+| Wertzuwachs | `valueGrowth` | `+1` Punkt je `60` Min, solange `AVAILABLE` |
 | Erledigung | `resetStrategy` | `BASE_VALUE` |
 | Punkteverfall | `enabled` | `false` |
 | Fairness | `weightFloor` | `0.1` (kein Mitglied wird dauerhaft unerreichbar) |
@@ -384,5 +392,9 @@ Diese Regeln gelten unabhängig von jeder Konfiguration (CLAUDE.md §44):
 - Punkte für Arbeit entstehen ausschließlich durch freiwillige Übernahmen.
 - Ein Freikauf kostet Punkte und erhöht den aktuellen Aufgabenwert; die
   Aufgabe wird danach erneut angeboten.
+- Eine Aufgabeninstanz wird höchstens `maxRandomAssignmentsPerInstance` mal
+  zugelost (Default 1). Danach steigt ihr Wert mit der Zeit weiter, bis sie
+  jemand freiwillig übernimmt — der erhöhte Wert ist dabei genau der Gewinn
+  dieser späteren freiwilligen Übernahme.
 - Nach Erledigung wird der Aufgabenwert auf den Basiswert zurückgesetzt.
 - Jede Punkteänderung ist über das Ledger nachvollziehbar.

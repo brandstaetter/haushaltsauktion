@@ -51,6 +51,17 @@ export interface AssignmentConfig {
   leadMinutesBeforeDue: number;
   /** PRD §3D — the starvation fallback. */
   relaxConstraintsWhenNoCandidates: boolean;
+  /**
+   * Intake "single-random-assignment": how many times the random draw may hand
+   * out ONE instance before it stays on the market for good.
+   *
+   * At the default of 1 a chore is conscripted to somebody exactly once; if
+   * that person buys out (or hands it back), it returns to the market and is
+   * never force-assigned again — `valueGrowth` below is what makes it
+   * attractive from then on. `null` restores the pre-intake behaviour of
+   * re-drawing indefinitely.
+   */
+  maxRandomAssignmentsPerInstance: number | null;
 }
 
 export interface BuyoutConfig {
@@ -79,6 +90,27 @@ export interface ExpiryConfig {
   enabled: boolean;
   /** Non-negative whole points added to the instance's current value. */
   penaltyIncrement: number;
+}
+
+/**
+ * Intake "time-based-value-growth" (§9-adjacent).
+ *
+ * While an instance sits `AVAILABLE`, its value climbs with the clock, so a
+ * chore nobody wants keeps getting more rewarding until somebody volunteers.
+ * This is the counterpart to `assignment.maxRandomAssignmentsPerInstance`:
+ * once a task can no longer be forced onto anyone, rising pay is the only
+ * remaining mechanism that gets it done.
+ *
+ * The ceiling is `valueIncrease.maximumValue` — deliberately shared, so a
+ * household configures one cap for "how valuable may this chore ever get",
+ * whether the value got there by buyout or by waiting.
+ */
+export interface ValueGrowthConfig {
+  enabled: boolean;
+  /** points added per elapsed interval; `>= 1` */
+  pointsPerInterval: number;
+  /** 5 .. 10080 (one week) */
+  intervalMinutes: number;
 }
 
 export interface ValueIncreaseConfig {
@@ -230,6 +262,7 @@ export interface HouseholdConfig {
   buyout: BuyoutConfig;
   expiry: ExpiryConfig;
   valueIncrease: ValueIncreaseConfig;
+  valueGrowth: ValueGrowthConfig;
   completion: CompletionConfig;
   rewards: RewardsConfig;
   points: PointsConfig;
@@ -250,8 +283,13 @@ export interface PublicHouseholdConfig {
     costStrategy: BuyoutCostStrategy;
     maximumBuyoutsPerWeek: number | null;
   };
-  assignment: Pick<AssignmentConfig, 'strategy' | 'offerDurationMinutes' | 'leadMinutesBeforeDue'>;
+  assignment: Pick<
+    AssignmentConfig,
+    'strategy' | 'offerDurationMinutes' | 'leadMinutesBeforeDue' | 'maxRandomAssignmentsPerInstance'
+  >;
   valueIncrease: Pick<ValueIncreaseConfig, 'strategy' | 'minimumIncrease' | 'maximumValue'>;
+  /** §31: the rising number on a card is meaningless without its rate. */
+  valueGrowth: ValueGrowthConfig;
   completion: Pick<CompletionConfig, 'resetStrategy'>;
   /** Just the switch — whether the shop nav entry should render at all. */
   rewards: Pick<RewardsConfig, 'enabled'>;

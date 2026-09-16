@@ -139,6 +139,16 @@ export const de = {
     /** T16-T18's one-time expiry penalty already fired for this instance — no further automatic clawback is coming, however overdue it still is. */
     alreadyClawedBack: 'Bereits einmal automatisch zurückgefordert — keine weitere automatische Strafe',
     estimatedMinutes: 'ca. {minutes} Min',
+    /**
+     * Intake "time-based-value-growth". §31 forbids hidden rules: the number
+     * on the chip climbs on its own, so the card has to say what makes it
+     * climb rather than leaving members to work it out.
+     */
+    valueGrowth: 'steigt um {points} pro {interval}',
+    valueGrowthCapped: 'steigt um {points} pro {interval}, max. {max}',
+    valueGrowthHour: 'Stunde',
+    valueGrowthMinutes: '{count} Min',
+    valueGrowthHours: '{count} Std',
     assignedTo: 'an {name}',
     assignmentKind: {
       VOLUNTARY: 'freiwillig',
@@ -453,6 +463,7 @@ export const de = {
       voluntary: 'Freiwillige Übernahme',
       buyout: 'Freikauf',
       valueIncrease: 'Wertsteigerung',
+      valueGrowth: 'Wertzuwachs auf dem Markt',
       notifications: 'Benachrichtigungen',
       tasks: 'Aufgaben',
       members: 'Mitglieder',
@@ -827,6 +838,10 @@ export const de = {
       multiplier: 'Multiplikator',
       minimumIncrease: 'Minimale Steigerung',
       maximumValue: 'Maximaler Wert',
+      maxRandomAssignmentsPerInstance: 'Zufallszuweisungen je Aufgabe (leer = unbegrenzt)',
+      valueGrowthEnabled: 'Wert steigt, solange niemand übernimmt',
+      valueGrowthPointsPerInterval: 'Punkte je Intervall',
+      valueGrowthIntervalMinutes: 'Intervall',
       maxOpenInstancesPerDefinition: 'Max. offene Instanzen pro Aufgabe',
     },
     timing: {

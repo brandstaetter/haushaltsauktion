@@ -266,30 +266,39 @@ test(
     expect(assignment.memberId).toBe(elke.memberId);
     expect(assignment.kind).toBe('RANDOM');
 
-    // Release it back to AVAILABLE and ripe again for the second check.
+    // Close the first instance out. It deliberately is NOT recycled for the
+    // second check: intake "single-random-assignment" means an instance that
+    // has already been conscripted once is never drawn again, so re-offering
+    // this one would produce no trace at all and prove nothing about immunity.
     await db.taskAssignment.updateMany({
       where: { id: assignment.id },
       data: { status: 'RELEASED', closedAt: clock.now(), activeForInstanceId: null },
     });
     await db.taskInstance.update({
       where: { id: instanceId },
-      data: { status: 'AVAILABLE', offerExpiresAt: clock.now(), version: { increment: 1 } },
+      data: { status: 'CANCELLED', version: { increment: 1 } },
     });
 
     // Past the 60-minute window: paul must no longer be excluded. Checked via
     // a dry-run trace (deterministic — the draw between two eligible people
-    // is not) rather than by observing who gets picked.
+    // is not) rather than by observing who gets picked, on a fresh instance
+    // that still has its one random assignment to spend.
     clock.advanceMinutes(61);
+    const secondInstanceId = await createRipeInstance('chore', BASE_VALUE);
     const dry = await runAssignmentSweep(sweepDeps, { householdId: ids.householdId, dryRun: true });
-    const trace = dry.traces.find((t) => t.taskInstanceId === instanceId);
+    const trace = dry.traces.find((t) => t.taskInstanceId === secondInstanceId);
     expect(trace).toBeDefined();
     const paulTrace = trace!.trace.candidates.find((c) => c.memberId === paul.memberId);
     expect(paulTrace?.exclusionReason).not.toBe('MEMBER_IMMUNE');
 
-    // Cleanup: cancel the instance so it does not linger as an extra ripe
-    // candidate for later tests' own sweep calls (dry runs never mutated it,
-    // so it is still AVAILABLE at this point).
-    await db.taskInstance.update({ where: { id: instanceId }, data: { status: 'CANCELLED' } });
+    // Cleanup: cancel the second instance so it does not linger as an extra
+    // ripe candidate for later tests' own sweep calls (dry runs never mutated
+    // it, so it is still AVAILABLE at this point). The first one was already
+    // cancelled above.
+    await db.taskInstance.update({
+      where: { id: secondInstanceId },
+      data: { status: 'CANCELLED' },
+    });
     await db.memberAbsence.deleteMany({ where: { householdId: ids.householdId, memberId: ids.memberId('maria') } });
   },
   30_000,

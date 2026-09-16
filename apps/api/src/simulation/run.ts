@@ -103,6 +103,19 @@ function printScenario(label: string, result: SimulationResult): boolean {
     `  random assignments: total=${result.totalRandomAssignments} max=${result.maxRandomLoad} mean=${result.meanRandomLoad.toFixed(2)}`,
   );
   console.log(`  max/mean random-load ratio: ${result.maxMeanRatio.toFixed(3)}x`);
+  // Intake "single-random-assignment" / "time-based-value-growth": how much of
+  // the work is now moved by price rather than by conscription.
+  console.log(
+    `  offers left on the market (allowance spent): ${result.totalOffersLeftOnMarket}` +
+      ` · points added by waiting: ${result.totalGrowthPointsAdded}` +
+      ` (growthIntervalsPerOffer=${result.growthIntervalsPerOffer})`,
+  );
+  const dearest = [...result.tasks].sort((a, b) => b.maxValueReached - a.maxValueReached)[0];
+  if (dearest) {
+    console.log(
+      `  highest value any task reached: ${dearest.maxValueReached} ("${dearest.title}", base ${dearest.baseValue})`,
+    );
+  }
   console.log(`  every member reached at least once: ${result.everyMemberReached}`);
   console.log(`  ledger integrity: ${result.ledger.ok ? 'OK' : `FAILED (${result.ledger.violations.length} violations)`}`);
   console.log(

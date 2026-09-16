@@ -68,6 +68,8 @@ export interface InstanceLockRow {
   dueAt: Date | null;
   offerExpiresAt: Date | null;
   publishedAt: Date | null;
+  /** Intake "time-based-value-growth": anchor of the rising market value. */
+  valueGrowthAt: Date | null;
   /**
    * Multi-worker-tasks Phase 2: copied down from `TaskDefinition` at
    * materialization (Phase 1), read here so the use-cases can compute
@@ -108,6 +110,7 @@ export async function lockInstance(
            due_at             AS "dueAt",
            offer_expires_at   AS "offerExpiresAt",
            published_at       AS "publishedAt",
+           value_growth_at    AS "valueGrowthAt",
            worker_count_mode::text AS "workerCountMode",
            worker_count            AS "workerCount",
            active_slot_count       AS "activeSlotCount"

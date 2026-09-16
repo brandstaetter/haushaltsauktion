@@ -59,6 +59,11 @@ import {
   withTransaction,
 } from '../tx.js';
 import { loadCandidates } from './candidates.js';
+import {
+  emptyValueGrowthReport,
+  runValueGrowthSweep,
+  type ValueGrowthReport,
+} from './runValueGrowthSweep.js';
 
 export interface SweepInput {
   householdId: string;
@@ -77,6 +82,11 @@ export interface SweepReport {
    * run.
    */
   dueSoonNotified: number;
+  /**
+   * Intake "time-based-value-growth": what the market value of still-unclaimed
+   * instances did this run.
+   */
+  valueGrowth: ValueGrowthReport;
   traces: Array<{ taskInstanceId: string; trace: SelectionTrace }>;
 }
 
@@ -120,6 +130,7 @@ export async function runAssignmentSweep(
     expired: 0,
     skipped: 0,
     dueSoonNotified: 0,
+    valueGrowth: emptyValueGrowthReport(),
     traces: [],
   };
 
@@ -202,6 +213,11 @@ export async function runAssignmentSweep(
           householdId: input.householdId,
           taskDefinitionId: definition.id,
           status: 'AVAILABLE',
+          // Intake "time-based-value-growth": the clock starts the moment the
+          // chore reaches the market. The growth sweep would seed this lazily
+          // anyway; setting it here means the first interval is measured from
+          // materialization rather than from the next sweep tick.
+          valueGrowthAt: now,
           // T1 — `carriedValue ?? baseValue` (§5.7). Under the default reset
           // strategy `carriedValue` is permanently null and this is `baseValue`.
           currentValue: definition.carriedValue ?? definition.baseValue,
@@ -320,6 +336,9 @@ export async function runAssignmentSweep(
           status: 'AVAILABLE',
           publishedAt: now,
           offerExpiresAt: expires,
+          // Intake "time-based-value-growth": a fresh spell on the market starts
+          // a fresh clock (§10, reworked).
+          valueGrowthAt: now,
           version: { increment: 1 },
         },
       });
@@ -542,6 +561,9 @@ export async function runAssignmentSweep(
             activeSlotCount: 0,
             offerExpiresAt: offerExpires,
             closedAt: null,
+            // Intake "time-based-value-growth": a fresh spell on the market
+            // starts a fresh clock (§10, reworked).
+            valueGrowthAt: now,
             version: { increment: 1 },
           },
         });
@@ -808,7 +830,30 @@ export async function runAssignmentSweep(
     }
   }
 
+  // ── Value growth ────────────────────────────────────────────────────
+  // Deliberately before the random draw: an instance conscripted in this same
+  // tick must be conscripted at the value it has grown to, not the one it had
+  // an hour ago. Both phases take the same advisory lock, so they serialize
+  // per instance rather than racing.
+  report.valueGrowth = await runValueGrowthSweep(deps, {
+    householdId: input.householdId,
+    now,
+    dryRun: input.dryRun,
+  });
+
   // ── T4 / T5: the random draw ────────────────────────────────────────
+  // Intake "single-random-assignment": an instance that has already been
+  // conscripted `maxRandomAssignmentsPerInstance` times is never drawn again —
+  // it stays on the market and grows instead (§10, reworked). `null` restores
+  // the old behaviour of re-drawing indefinitely.
+  //
+  // Read from the household's *current* config rather than each instance's
+  // pinned `configVersion`: this governs whether a draw happens at all, which
+  // is a property of the household's rules right now, exactly like `strategy`
+  // and the fairness weights the draw below already read from the live config.
+  const { config: sweepConfig } = await loadCurrentConfig(deps.db, input.householdId);
+  const maxRandomPerInstance = sweepConfig.assignment.maxRandomAssignmentsPerInstance;
+
   const ripe = await deps.db.taskInstance.findMany({
     where: {
       householdId: input.householdId,
@@ -826,6 +871,20 @@ export async function runAssignmentSweep(
       if (instance === null || instance.status !== 'AVAILABLE') return null;
       if (instance.offerExpiresAt === null || instance.offerExpiresAt.getTime() > now.getTime()) {
         return null;
+      }
+
+      // Re-counted under the instance lock, not just filtered in the query
+      // above: two sweeps racing on one instance would otherwise both see
+      // "0 random assignments so far" and both conscript somebody.
+      if (maxRandomPerInstance !== null) {
+        const priorRandom = await tx.taskAssignment.count({
+          where: {
+            householdId: input.householdId,
+            taskInstanceId: instance.id,
+            kind: 'RANDOM',
+          },
+        });
+        if (priorRandom >= maxRandomPerInstance) return null;
       }
 
       const { version, config } = await loadCurrentConfig(tx, input.householdId);
