@@ -42,34 +42,51 @@
 import type { NotificationDraft, Notifier } from '../deps.js';
 
 /**
- * These three externally actionable types are pushed. Their recipients need
- * to know about an available, assigned, or soon-due task even when they are
- * not currently using the app. Member-initiated changes such as volunteering
- * for or completing a task remain in-app only.
+ * These four externally actionable types are pushed. Their recipients need to
+ * know about an available, assigned, soon-due, or newly more rewarding task
+ * even when they are not currently using the app. Member-initiated changes
+ * such as volunteering for or completing a task remain in-app only.
  * `TASK_AVAILABLE` (Phase 3, .planning/research-push-notifications.md) closes
  * a pre-existing gap: nothing ever emitted this type before
  * `runAssignmentSweep.ts`'s T1/T2 sites started doing so, so both the in-app
- * and push channels were silently missing it equally. Further types
- * (`TASK_VALUE_INCREASED`, …) remain future work.
+ * and push channels were silently missing it equally.
  *
  * `TASK_DUE_SOON` (intake "due-soon-reminder-for-assigned-tasks"): a
  * due-*soon* reminder that only reaches someone already looking at the app
  * largely defeats its purpose, so it is pushed too.
+ *
+ * `TASK_VALUE_INCREASED` was listed here as future work until the market
+ * value started climbing on its own (intake "time-based-value-growth"). A
+ * rising price is only an incentive if it reaches somebody who is not looking
+ * at the app — that is the entire mechanism by which an unloved chore
+ * eventually gets done, so it is exactly the type that has to leave the app.
+ *
+ * Volume is bounded at the source, not here: growth emits this type only when
+ * the value crosses a `valueGrowth.notifyAfterPoints` band (default every 5
+ * points, not every hourly step), and a buyout emits it once per buyout.
+ * Setting `notifyAfterPoints: 0` silences both channels for growth at once.
  */
 export const PUSH_ENABLED_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
   'TASK_ASSIGNED',
   'TASK_AVAILABLE',
   'TASK_DUE_SOON',
+  'TASK_VALUE_INCREASED',
 ]);
 
 /**
  * `HistoryEventType`s (§22) whose row is written in the same use-case call as
  * a push-eligible notification above, so the Verlauf can show "this was also
  * pushed": `OFFERED` next to `TASK_AVAILABLE` (`runAssignmentSweep.ts`'s T1/T2
- * sites) and `RANDOMLY_ASSIGNED` next to `TASK_ASSIGNED`
- * (`runAssignmentSweep.ts`'s T4/T5 random draw). `TASK_DUE_SOON` has no
- * corresponding history row at all (informational nudge only, see the T19
- * site).
+ * sites), `RANDOMLY_ASSIGNED` next to `TASK_ASSIGNED`
+ * (`runAssignmentSweep.ts`'s T4/T5 random draw), and `VALUE_INCREASED` next to
+ * `TASK_VALUE_INCREASED` (`executeBuyout.ts`, the only writer of that history
+ * type). `TASK_DUE_SOON` has no corresponding history row at all
+ * (informational nudge only, see the T19 site).
+ *
+ * The growth sweep is the one push-eligible site with no history row by
+ * design — an hourly "+1" entry would bury §22's timeline — so a value that
+ * climbed by waiting rather than by buyout simply has no Verlauf line to hang
+ * this hint on. That is a gap in the hint, not in the delivery.
  *
  * A display hint, not a delivery receipt: whether the push actually reached a
  * device depends on the household's/member's push configuration at dispatch
@@ -81,6 +98,7 @@ export const PUSH_ENABLED_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
 export const PUSH_NOTIFIED_HISTORY_EVENT_TYPES: ReadonlySet<string> = new Set([
   'OFFERED',
   'RANDOMLY_ASSIGNED',
+  'VALUE_INCREASED',
 ]);
 
 /**

@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { cloneDefaultConfig, DEFAULT_CONFIG, type HouseholdConfig } from '@haushaltsauktion/shared';
 
-import { grownValue } from '../../src/domain/task/value.js';
+import { grownValue, growthNotificationBand } from '../../src/domain/task/value.js';
 
 const patch = (mutate: (c: HouseholdConfig) => void): HouseholdConfig => {
   const c = cloneDefaultConfig();
@@ -27,6 +27,7 @@ describe('defaults', () => {
       enabled: true,
       pointsPerInterval: 1,
       intervalMinutes: 60,
+      notifyAfterPoints: 5,
     });
   });
 
@@ -140,5 +141,57 @@ describe('the shared ceiling (valueIncrease.maximumValue)', () => {
     const step = grownValue(DEFAULT_CONFIG, { currentValue: 4, anchor: T0, now: hoursLater(500) });
     expect(step.value).toBe(504);
     expect(step.capped).toBe(false);
+  });
+});
+
+describe('§24 — when a growth step is worth telling the household about', () => {
+  const cfg = DEFAULT_CONFIG; // notifyAfterPoints: 5, base bands at +5, +10, ...
+
+  const band = (before: number, after: number, baseValue = 4, c: HouseholdConfig = cfg) =>
+    growthNotificationBand(c, { baseValue, before, after });
+
+  it('ships a threshold of 5 points by default', () => {
+    expect(DEFAULT_CONFIG.valueGrowth.notifyAfterPoints).toBe(5);
+  });
+
+  it('stays silent for the ordinary +1 steps between bands', () => {
+    expect(band(4, 5)).toBeNull();
+    expect(band(5, 6)).toBeNull();
+    expect(band(6, 7)).toBeNull();
+    expect(band(7, 8)).toBeNull();
+  });
+
+  it('speaks up exactly on the step that crosses a band', () => {
+    // base 4, threshold 5 ⇒ bands at 9, 14, 19 ...
+    expect(band(8, 9)).toBe(9);
+    expect(band(13, 14)).toBe(14);
+    expect(band(18, 19)).toBe(19);
+  });
+
+  it('reports only the highest band when a sweep outage crossed several', () => {
+    expect(band(4, 21)).toBe(19);
+  });
+
+  it('is silent when nothing moved, or moved backwards', () => {
+    expect(band(9, 9)).toBeNull();
+    expect(band(9, 4)).toBeNull();
+  });
+
+  it('is switched off entirely by a threshold of 0', () => {
+    const off = patch((c) => {
+      c.valueGrowth.notifyAfterPoints = 0;
+    });
+    expect(band(4, 40, 4, off)).toBeNull();
+  });
+
+  it('scales its bands with the task, not with a global constant', () => {
+    // A base-20 chore does not announce itself at 9 just because a base-4 one does.
+    expect(band(20, 24, 20)).toBeNull();
+    expect(band(24, 25, 20)).toBe(25);
+  });
+
+  it('invents no bands below the base value (a task reset mid-flight)', () => {
+    expect(band(1, 2, 4)).toBeNull();
+    expect(band(2, 4, 4)).toBeNull();
   });
 });

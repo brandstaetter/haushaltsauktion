@@ -61,7 +61,7 @@ interface PushWirePayload {
 
 /**
  * Minimal, static duplicate of `apps/web/src/strings/de.ts`'s
- * `notifications.types` — only the types this phase actually pushes
+ * `notifications.types` — only the types actually pushed
  * (`pushNotifier.ts`'s `PUSH_ENABLED_NOTIFICATION_TYPES`). A service worker
  * cannot import the app's `StringsContext` (there is no React tree here), and
  * this is the standard shape of that limitation: a small, self-contained
@@ -72,10 +72,31 @@ const PUSH_MESSAGE_TEMPLATES: Record<string, string> = {
   TASK_AVAILABLE: '„{task}“ ist jetzt freiwillig verfügbar — aktueller Wert {value}',
   TASK_ASSIGNED: 'Dir wurde „{task}“ zufällig zugewiesen — aktueller Wert {value}',
   TASK_DUE_SOON: '„{task}“ wird bald fällig',
+  TASK_VALUE_INCREASED: '„{task}“: Wert ist von {from} auf {to} gestiegen',
 };
 
 function interpolate(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
+}
+
+/**
+ * Every scalar in the wire payload becomes an interpolation variable, rather
+ * than the single hand-picked `value` this used to extract. `{from}`/`{to}`
+ * (TASK_VALUE_INCREASED) would otherwise have needed another special case
+ * here, and the next template another one after that — while the in-app
+ * strings in `de.ts` have always been able to use any payload key.
+ *
+ * Objects and arrays are skipped on purpose: `[object Object]` in a push body
+ * is worse than leaving the placeholder visible, which at least points at the
+ * template that needs fixing.
+ */
+function payloadVariables(payload: Record<string, unknown>): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(payload)) {
+    if (typeof raw === 'number' || typeof raw === 'string') values[key] = String(raw);
+    else if (typeof raw === 'boolean') values[key] = raw ? 'ja' : 'nein';
+  }
+  return values;
 }
 
 function renderPushMessage(data: PushWirePayload): { title: string; body: string } {
@@ -84,8 +105,10 @@ function renderPushMessage(data: PushWirePayload): { title: string; body: string
   if (template === undefined) {
     return { title: 'Haushaltsauktion', body: task };
   }
-  const value = typeof data.payload['value'] === 'number' ? String(data.payload['value']) : '';
-  return { title: 'Haushaltsauktion', body: interpolate(template, { task, value }) };
+  return {
+    title: 'Haushaltsauktion',
+    body: interpolate(template, { ...payloadVariables(data.payload), task }),
+  };
 }
 
 self.addEventListener('push', (event: PushEvent) => {

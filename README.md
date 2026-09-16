@@ -173,6 +173,7 @@ rechnet etwas Verbindliches im Client. Das Konfigurationsschema lebt in
 | Wertsteigerung | `strategy` | `MULTIPLIER` × `1.5`, `CEIL`, min. `+1` |
 | Wertsteigerung | `maximumValue` | `null` (Obergrenze für Freikauf **und** Zeitzuwachs) |
 | Wertzuwachs | `valueGrowth` | `+1` Punkt je `60` Min, solange `AVAILABLE` |
+| Wertzuwachs | `notifyAfterPoints` | `5` (Benachrichtigung — In-App **und** Push — erst je 5 Punkte Zuwachs, `0` = nie) |
 | Erledigung | `resetStrategy` | `BASE_VALUE` |
 | Punkteverfall | `enabled` | `false` |
 | Fairness | `weightFloor` | `0.1` (kein Mitglied wird dauerhaft unerreichbar) |

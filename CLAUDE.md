@@ -379,7 +379,23 @@ valueGrowth:
   enabled: true
   pointsPerInterval: 1
   intervalMinutes: 60
+  notifyAfterPoints: 5
 ```
+
+`notifyAfterPoints` steuert §24s Ereignis „Wert einer Aufgabe ist gestiegen":
+Benachrichtigt wird **nicht** bei jedem Schritt — sechs offene Aufgaben mit
++1/h ergäben in einem Vierpersonenhaushalt über 500 Meldungen pro Tag —,
+sondern erst, wenn der Wert seit der letzten Meldung zu dieser Instanz um
+diesen Betrag gestiegen ist. Die Schwellen liegen fest bei
+`baseValue + n * notifyAfterPoints`, sind also zustandslos und können sich
+weder verdoppeln noch verlieren. `0` schaltet die Meldungen ab, ohne den
+Zuwachs selbst zu stoppen.
+
+Der Versand geht über **beide** Kanäle aus §24: In-App-Glocke und Web Push.
+Ein steigender Preis wirkt nur als Anreiz, wenn er jemanden erreicht, der
+gerade *nicht* in die App schaut — genau darüber wird eine ungeliebte Aufgabe
+am Ende erledigt. Die Menge begrenzt die Schwelle oben, nicht der Kanal;
+`notifyAfterPoints: 0` schweigt entsprechend auf beiden.
 
 Der Zuwachs ist additiv zum Freikauf: ein Freikauf hebt den Wert sofort an
 (§44 bleibt unverletzt) und danach steigt er weiter.
@@ -634,6 +650,7 @@ valueGrowth:
   enabled: true
   pointsPerInterval: 1
   intervalMinutes: 60
+  notifyAfterPoints: 5
 
 points:
   decay:
@@ -1341,6 +1358,7 @@ valueGrowth:
   enabled: true
   pointsPerInterval: 1
   intervalMinutes: 60
+  notifyAfterPoints: 5
 
 completion:
   resetValueToBase: true

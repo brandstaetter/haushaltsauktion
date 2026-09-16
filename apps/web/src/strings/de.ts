@@ -842,6 +842,7 @@ export const de = {
       valueGrowthEnabled: 'Wert steigt, solange niemand übernimmt',
       valueGrowthPointsPerInterval: 'Punkte je Intervall',
       valueGrowthIntervalMinutes: 'Intervall',
+      valueGrowthNotifyAfterPoints: 'Benachrichtigen, sobald der Wert um so viele Punkte gestiegen ist (0 = nie)',
       maxOpenInstancesPerDefinition: 'Max. offene Instanzen pro Aufgabe',
     },
     timing: {

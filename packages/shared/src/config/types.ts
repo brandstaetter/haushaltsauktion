@@ -111,6 +111,22 @@ export interface ValueGrowthConfig {
   pointsPerInterval: number;
   /** 5 .. 10080 (one week) */
   intervalMinutes: number;
+  /**
+   * §24 lists "Wert einer Aufgabe ist gestiegen" as a notification event, but
+   * one message per growth step would be unusable: six open chores at +1/h
+   * would mean well over five hundred notifications a day in a household of
+   * four. So members are told only once the value has climbed this far since
+   * they were last told about THIS instance.
+   *
+   * The comparison is against fixed bands above `baseValue`
+   * (`baseValue + n * notifyAfterPoints`), not against a stored "last
+   * notified" value: that keeps it stateless, deterministic, and impossible
+   * to double-send after a restart or a replayed sweep.
+   *
+   * `0` switches growth notifications off entirely while leaving the growth
+   * itself running.
+   */
+  notifyAfterPoints: number;
 }
 
 export interface ValueIncreaseConfig {
