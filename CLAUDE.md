@@ -391,6 +391,12 @@ diesen Betrag gestiegen ist. Die Schwellen liegen fest bei
 weder verdoppeln noch verlieren. `0` schaltet die Meldungen ab, ohne den
 Zuwachs selbst zu stoppen.
 
+Der Versand geht über **beide** Kanäle aus §24: In-App-Glocke und Web Push.
+Ein steigender Preis wirkt nur als Anreiz, wenn er jemanden erreicht, der
+gerade *nicht* in die App schaut — genau darüber wird eine ungeliebte Aufgabe
+am Ende erledigt. Die Menge begrenzt die Schwelle oben, nicht der Kanal;
+`notifyAfterPoints: 0` schweigt entsprechend auf beiden.
+
 Der Zuwachs ist additiv zum Freikauf: ein Freikauf hebt den Wert sofort an
 (§44 bleibt unverletzt) und danach steigt er weiter.
 
