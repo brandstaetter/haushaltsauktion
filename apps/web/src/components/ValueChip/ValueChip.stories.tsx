@@ -48,3 +48,37 @@ export const Small: Story = {
 export const Large: Story = {
   args: { size: 'lg', value: 9, baseValue: 4, buyoutCount: 2 },
 };
+
+/**
+ * Intake "time-based-value-growth": a chore nobody has taken keeps getting
+ * more rewarding. §31 means the card has to say so, not leave members to
+ * notice the number moving.
+ */
+export const Growing: Story = {
+  args: {
+    value: 9,
+    baseValue: 4,
+    growth: {
+      pointsPerInterval: 1,
+      intervalMinutes: 60,
+      since: '2026-09-16T08:00:00.000Z',
+      nextAt: '2026-09-16T09:00:00.000Z',
+      maximumValue: null,
+    },
+  },
+};
+
+export const GrowingTowardsACap: Story = {
+  args: {
+    value: 17,
+    baseValue: 4,
+    buyoutCount: 2,
+    growth: {
+      pointsPerInterval: 2,
+      intervalMinutes: 180,
+      since: '2026-09-16T08:00:00.000Z',
+      nextAt: '2026-09-16T11:00:00.000Z',
+      maximumValue: 20,
+    },
+  },
+};

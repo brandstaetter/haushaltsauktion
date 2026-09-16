@@ -51,6 +51,7 @@ function taskFixture(overrides: Partial<TaskInstanceDetailDto> = {}): TaskInstan
     workerCount: 1,
     activeSlotCount: 1,
     viewerHasActiveSlot: false,
+    valueGrowth: null,
     taskDefinitionId: 'def-1',
     scheduledFor: '2026-09-04T00:00:00.000Z',
     publishedAt: '2026-09-04T00:00:00.000Z',

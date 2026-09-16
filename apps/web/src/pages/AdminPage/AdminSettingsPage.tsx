@@ -73,6 +73,18 @@ export function AdminSettingsPage() {
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{de.admin.sections.assignment}</h2>
         <label className={styles.field}>
+          <span>{de.admin.fields.maxRandomAssignmentsPerInstance}</span>
+          <input
+            type="number"
+            min={1}
+            value={draft.assignment.maxRandomAssignmentsPerInstance ?? ''}
+            onChange={(e) => {
+              const value = e.target.value === '' ? null : parseInt(e.target.value, 10) || null;
+              update('assignment', { maxRandomAssignmentsPerInstance: value });
+            }}
+          />
+        </label>
+        <label className={styles.field}>
           <span>{de.admin.fields.offerDurationMinutes}</span>
           <DurationInput
             valueMinutes={draft.assignment.offerDurationMinutes}
@@ -334,6 +346,41 @@ export function AdminSettingsPage() {
             }}
           />
         </label>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>{de.admin.sections.valueGrowth}</h2>
+        <label className={styles.field}>
+          <span>{de.admin.fields.valueGrowthEnabled}</span>
+          <input
+            type="checkbox"
+            checked={draft.valueGrowth.enabled}
+            onChange={(e) => update('valueGrowth', { enabled: e.target.checked })}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>{de.admin.fields.valueGrowthPointsPerInterval}</span>
+          <input
+            type="number"
+            min={1}
+            value={draft.valueGrowth.pointsPerInterval}
+            onChange={(e) =>
+              update('valueGrowth', { pointsPerInterval: parseInt(e.target.value, 10) || 1 })
+            }
+          />
+        </label>
+        <label className={styles.field}>
+          <span>{de.admin.fields.valueGrowthIntervalMinutes}</span>
+          <DurationInput
+            valueMinutes={draft.valueGrowth.intervalMinutes}
+            onChange={(minutes) => update('valueGrowth', { intervalMinutes: minutes ?? 60 })}
+          />
+        </label>
+        {/*
+          The ceiling lives in the valueIncrease section above: it is shared by
+          both escalation paths on purpose, so duplicating the control here
+          would suggest two separate caps exist.
+        */}
       </section>
 
       <section className={styles.section}>

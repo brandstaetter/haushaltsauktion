@@ -369,6 +369,26 @@ minimumIncrease = 1
 maximumTaskValue = unlimited
 ```
 
+## 9a. Wertzuwachs mit der Zeit
+
+Zusätzlich zum Freikauf-Sprung oben steigt der Wert einer Aufgabe, **solange
+sie AVAILABLE ist**, mit der Zeit:
+
+```yaml
+valueGrowth:
+  enabled: true
+  pointsPerInterval: 1
+  intervalMinutes: 60
+```
+
+Der Zuwachs ist additiv zum Freikauf: ein Freikauf hebt den Wert sofort an
+(§44 bleibt unverletzt) und danach steigt er weiter.
+
+Beide Eskalationswege teilen sich dieselbe Obergrenze
+`valueIncrease.maximumValue` — ein Haushalt konfiguriert einmal „wie wertvoll
+darf diese Aufgabe höchstens werden", unabhängig davon, wodurch der Wert dort
+hingekommen ist.
+
 ---
 
 # 10. Neuer Angebotszyklus
@@ -380,7 +400,22 @@ Nach einem Freikauf:
 3. bisherige Zuweisung wird beendet.
 4. Aufgabe erhält wieder Status AVAILABLE.
 5. alle berechtigten Personen können sie freiwillig übernehmen.
-6. wenn niemand übernimmt, erfolgt nach Ablauf einer konfigurierbaren Frist erneut eine Zufallszuweisung.
+6. wenn niemand übernimmt, steigt der Aufgabenwert weiter mit der Zeit.
+
+**Überarbeitet (Intake „single-random-assignment" / „time-based-value-growth"):**
+
+Punkt 6 lautete ursprünglich „erneut eine Zufallszuweisung". Eine Instanz wird
+jetzt höchstens `assignment.maxRandomAssignmentsPerInstance` mal zugelost
+(Default 1). Ist dieses Kontingent verbraucht, bleibt die Aufgabe auf dem Markt
+und wird stattdessen laufend wertvoller (`valueGrowth`, Default +1 Punkt pro
+Stunde), bis jemand freiwillig übernimmt.
+
+Begründung: Niemandem wird dieselbe Aufgabe zweimal aufgezwungen. Ab dem
+zweiten Angebot entscheidet der Preis, nicht das Los — was §31 („keine
+manipulativen Dark Patterns", Kooperation statt Zwang) besser entspricht als
+wiederholte Zwangszuteilung.
+
+`null` stellt das ursprüngliche Verhalten wieder her (unbegrenzt neu auslosen).
 
 ---
 
@@ -463,6 +498,11 @@ Default:
 ```text
 preventImmediateReassignment = true
 ```
+
+Seit §10 (überarbeitet) greift diese Regel praktisch nur noch, wenn
+`maxRandomAssignmentsPerInstance` auf `null` gesetzt ist: beim Default von 1
+gibt es gar keine zweite Auslosung derselben Instanz, die eine Wiederholung
+erzeugen könnte.
 
 Optionale Regel:
 
@@ -573,6 +613,7 @@ voluntary:
 assignment:
   strategy: WEIGHTED_FAIRNESS
   preventImmediateReassignment: true
+  maxRandomAssignmentsPerInstance: 1   # null = unbegrenzt neu auslosen (§10)
   offerDurationMinutes: 60
 
 buyout:
@@ -587,7 +628,12 @@ valueIncrease:
   strategy: MULTIPLIER
   multiplier: 1.5
   minimumIncrease: 1
-  maximumValue: null
+  maximumValue: null   # Obergrenze für Freikauf UND Zeitzuwachs
+
+valueGrowth:
+  enabled: true
+  pointsPerInterval: 1
+  intervalMinutes: 60
 
 points:
   decay:
@@ -1278,6 +1324,7 @@ voluntary:
 randomAssignment:
   strategy: WEIGHTED_FAIRNESS
   preventImmediateReassignment: true
+  maxRandomAssignmentsPerInstance: 1
 
 buyout:
   enabled: true
@@ -1289,6 +1336,11 @@ valueIncrease:
   multiplier: 1.5
   rounding: CEIL
   minimumIncrease: 1
+
+valueGrowth:
+  enabled: true
+  pointsPerInterval: 1
+  intervalMinutes: 60
 
 completion:
   resetValueToBase: true
@@ -1471,7 +1523,9 @@ Ein Freikauf erhöht den aktuellen Aufgabenwert.
 
 Nach einem Freikauf wird die Aufgabe erneut angeboten.
 
-Der erhöhte Wert ist gleichzeitig der potentielle Gewinn einer späteren freiwilligen Übernahme.
+Eine Aufgabeninstanz wird höchstens `maxRandomAssignmentsPerInstance` mal zugelost; danach entscheidet allein der steigende Wert, nicht erneuter Zwang.
+
+Der erhöhte Wert ist gleichzeitig der potentielle Gewinn einer späteren freiwilligen Übernahme — unabhängig davon, ob er durch einen Freikauf oder durch Wartezeit entstanden ist.
 
 Nach Erledigung wird der Aufgabenwert standardmäßig wieder auf den Basiswert gesetzt.
 

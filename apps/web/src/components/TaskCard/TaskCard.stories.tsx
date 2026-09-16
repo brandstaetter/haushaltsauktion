@@ -26,6 +26,7 @@ function makeTask(overrides: Partial<AvailableTaskDto> = {}): AvailableTaskDto {
     workerCount: 1,
     activeSlotCount: 0,
     viewerHasActiveSlot: false,
+    valueGrowth: null,
     ...overrides,
   };
 }
@@ -71,6 +72,7 @@ export const AssignedWithOpenSlot: Story = {
       activeSlotCount: 1,
       canVolunteer: true,
       viewerHasActiveSlot: false,
+    valueGrowth: null,
     }),
     assignee: { id: 'member-anna', displayName: 'Anna', avatarUrl: null, kind: 'VOLUNTARY' },
   },

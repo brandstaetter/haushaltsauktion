@@ -305,6 +305,11 @@ async function main(): Promise<void> {
         // Demo-Instanzen sind sofort reif für die Zufallszuweisung, damit der
         // Sweep direkt ausprobiert werden kann.
         offerExpiresAt: now,
+        // Intake "time-based-value-growth": Uhr läuft ab Veröffentlichung,
+        // wie im echten Publish-Pfad. Ohne diesen Wert würde der Sweep den
+        // Anker zwar nachträglich säen, die Demo-Aufgaben begännen ihren
+        // Wertzuwachs aber erst einen Tick später.
+        valueGrowthAt: now,
         configVersion: 1,
       },
     });

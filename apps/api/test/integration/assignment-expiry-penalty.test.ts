@@ -370,6 +370,12 @@ test('the history marker survives repeated sweeps and lets the re-offer reach a 
     config.assignment.strategy = 'PURE_RANDOM';
     config.assignment.preventImmediateReassignment = true;
     config.assignment.reassignmentCooldownCycles = 1;
+    // The cooldown this test is about only has anything to act on when an
+    // instance may be drawn more than once. Under the default
+    // (`maxRandomAssignmentsPerInstance: 1`, intake "single-random-assignment")
+    // the re-offer below never reaches a second draw at all — see the
+    // companion test for that default.
+    config.assignment.maxRandomAssignmentsPerInstance = null;
     config.buyout.allowNegativeBalance = true;
     config.buyout.maximumDebt = 30;
   });

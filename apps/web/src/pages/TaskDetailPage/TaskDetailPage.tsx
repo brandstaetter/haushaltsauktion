@@ -167,6 +167,7 @@ export function TaskDetailPage() {
           baseValue={task.baseValue}
           buyoutCount={task.buyoutCount}
           size="lg"
+          growth={task.valueGrowth}
         />
         <div className={styles.meta}>
           {task.dueAt && (

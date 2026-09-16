@@ -16,6 +16,7 @@ import type {
   HouseholdTaskDto,
   MemberRefDto,
   TaskInstanceDetailDto,
+  TaskValueGrowthDto,
 } from '@haushaltsauktion/shared';
 import { AssignmentKind, type HouseholdConfig } from '@haushaltsauktion/shared';
 
@@ -26,6 +27,36 @@ import type { PrismaTx } from '../deps.js';
 import { loadCandidates } from '../assignment/candidates.js';
 import { buildQuote, loadQuoteCounters } from '../buyout/quote.js';
 import { loadConfigVersion, loadCurrentConfig } from '../config/load.js';
+
+/**
+ * Intake "time-based-value-growth" — the §31 disclosure that travels with a
+ * card: what makes this number climb, and when it climbs next.
+ *
+ * `null` whenever the instance is not actually growing right now, so the UI
+ * never promises a rise that will not come: growth switched off, the shared
+ * ceiling already reached, or simply not on the market.
+ */
+function valueGrowthDto(
+  cfg: HouseholdConfig,
+  instance: { status: string; currentValue: number; valueGrowthAt: Date | null },
+): TaskValueGrowthDto | null {
+  if (!cfg.valueGrowth.enabled) return null;
+  if (instance.status !== 'AVAILABLE') return null;
+  if (instance.valueGrowthAt === null) return null;
+
+  const cap = cfg.valueIncrease.maximumValue;
+  if (cap !== null && instance.currentValue >= cap) return null;
+
+  return {
+    pointsPerInterval: cfg.valueGrowth.pointsPerInterval,
+    intervalMinutes: cfg.valueGrowth.intervalMinutes,
+    since: instance.valueGrowthAt.toISOString(),
+    nextAt: new Date(
+      instance.valueGrowthAt.getTime() + cfg.valueGrowth.intervalMinutes * 60_000,
+    ).toISOString(),
+    maximumValue: cap,
+  };
+}
 
 export interface ViewerContext {
   householdId: string;
@@ -244,6 +275,7 @@ async function toAvailableDto(
     workerCount: instance.workerCount,
     activeSlotCount: instance.activeSlotCount,
     viewerHasActiveSlot,
+    valueGrowth: valueGrowthDto(cfg, instance),
   };
 }
 

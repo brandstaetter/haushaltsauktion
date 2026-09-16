@@ -219,6 +219,9 @@ export async function releaseOrRevokeAssignment(
           ) as never,
           activeSlotCount: remainingAfterRelease,
           offerExpiresAt: offerExpires,
+          // Intake "time-based-value-growth": a fresh spell on the market starts
+          // a fresh clock (§10, reworked).
+          valueGrowthAt: now,
           version: { increment: 1 },
         },
       });

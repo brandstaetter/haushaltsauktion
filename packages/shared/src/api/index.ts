@@ -16,6 +16,7 @@ export type {
   MemberRefDto,
   PointTransactionRefDto,
   TaskInstanceDetailDto,
+  TaskValueGrowthDto,
   VolunteerRequest,
 } from './tasks.js';
 export type {

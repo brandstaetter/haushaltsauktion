@@ -609,6 +609,26 @@ model TaskInstance {
   scheduledFor        DateTime  @map("scheduled_for") // die Ausprägung, die diese Instanz repräsentiert
   dueAt               DateTime? @map("due_at") // §3.2 optionale Fälligkeit
   offerExpiresAt      DateTime? @map("offer_expires_at") // §6 — ab wann der Zufallslauf zugreifen darf
+
+  /// Intake "time-based-value-growth": Ankerzeitpunkt der Wertsteigerung.
+  ///
+  /// Gesetzt bei JEDEM Eintritt in AVAILABLE (Materialisierung, Publish,
+  /// Freikauf, Release/Revoke, Ablauf-Neuangebot, abgelehnte Erledigung),
+  /// danach vom Growth-Sweep um exakt die verbuchten Intervalle vorgerückt —
+  /// nie auf `now`, sonst ginge der angefangene Rest jedes Mal verloren.
+  ///
+  /// Nur WÄHREND AVAILABLE aussagekräftig: beim Verlassen von AVAILABLE wird
+  /// er bewusst nicht genullt (das wären sechs weitere Schreibstellen, die
+  /// man vergessen kann), sondern beim nächsten Eintritt neu gesetzt. Der
+  /// Growth-Sweep filtert ohnehin auf status = AVAILABLE, ein veralteter
+  /// Anker auf einer ASSIGNED-Zeile ist also wirkungslos.
+  ///
+  /// NULL heisst "wächst gerade nicht": entweder noch nie auf dem Markt
+  /// gewesen (der Sweep sät den Anker dann faul beim ersten Sehen — deshalb
+  /// braucht die Migration kein Backfill), oder die Obergrenze aus
+  /// valueIncrease.maximumValue ist erreicht und die Instanz ist damit
+  /// dauerhaft aus der Growth-Abfrage heraus.
+  valueGrowthAt DateTime? @map("value_growth_at")
   publishedAt         DateTime? @map("published_at")
   completedAt         DateTime? @map("completed_at")
   completedByMemberId String?   @map("completed_by_member_id")
@@ -640,6 +660,7 @@ model TaskInstance {
   pushOutboxItems      PushOutboxItem[]
 
   @@index([householdId, status, offerExpiresAt])
+  @@index([householdId, status, valueGrowthAt])
   @@index([householdId, status, dueAt])
   @@index([taskDefinitionId, status])
   @@map("task_instances")
